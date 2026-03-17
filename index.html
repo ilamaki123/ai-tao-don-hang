@@ -1,0 +1,1189 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Chat - Tạo đơn hàng</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-image: linear-gradient(-225deg, #E3FDF5 0%, #FFE6FA 100%);
+      height: 100vh;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* ===== SIDEBAR ===== */
+    .sidebar {
+      width: 220px;
+      min-width: 220px;
+      background: #fff;
+      border-right: 1px solid #ede8f5;
+      display: flex;
+      flex-direction: column;
+      padding: 20px 14px;
+    }
+
+    .sidebar-logo {
+      font-size: 20px;
+      font-weight: 700;
+      color: #00354E;
+      margin-bottom: 4px;
+    }
+
+    .sidebar-welcome {
+      font-size: 13px;
+      color: #888;
+      margin-bottom: 18px;
+    }
+
+    .btn-new-chat {
+      background: #00354E;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 20px;
+      transition: background 0.2s;
+    }
+
+    .btn-new-chat:hover { background: #004d72; }
+
+    .chat-history { flex: 1; overflow-y: auto; }
+
+    .chat-history-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-bottom: 4px;
+      transition: background 0.15s;
+      position: relative;
+    }
+
+    .chat-history-item:hover,
+    .chat-history-item.active { background: #f3eeff; }
+
+    .chat-history-item .icon { font-size: 15px; color: #aaa; margin-top: 2px; }
+
+    .chat-history-item .info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .chat-history-item .info .title {
+      font-size: 13px;
+      color: #444;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .chat-history-item .info .date {
+      font-size: 11px;
+      color: #bbb;
+    }
+
+    .btn-delete-chat {
+      display: none;
+      background: none;
+      border: none;
+      color: #bbb;
+      font-size: 14px;
+      cursor: pointer;
+      padding: 2px 4px;
+      border-radius: 4px;
+      line-height: 1;
+      flex-shrink: 0;
+      margin-top: 1px;
+      transition: color 0.15s, background 0.15s;
+    }
+
+    .chat-history-item:hover .btn-delete-chat { display: block; }
+    .btn-delete-chat:hover { color: #e55; background: #fde8e8; }
+
+    /* ===== MAIN ===== */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Header */
+    .topbar {
+      display: flex;
+      justify-content: flex-end;
+      padding: 14px 20px;
+    }
+
+    .btn-logout {
+      background: none;
+      border: none;
+      color: #888;
+      font-size: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-logout:hover { color: #444; }
+
+    /* Empty state */
+    .empty-state {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #aaa;
+      gap: 12px;
+    }
+
+    .empty-state .icon-bubble { font-size: 48px; }
+    .empty-state h2 { font-size: 18px; color: #555; }
+    .empty-state p { font-size: 14px; }
+
+    /* Messages area */
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px 120px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .message { display: flex; flex-direction: column; max-width: 70%; }
+    .message.user { align-self: flex-end; align-items: flex-end; }
+    .message.ai { align-self: flex-start; align-items: flex-start; }
+
+    .message-bubble {
+      padding: 12px 16px;
+      border-radius: 16px;
+      font-size: 14px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .message.user .message-bubble {
+      background: #7c5cbf;
+      color: #fff;
+      border-bottom-right-radius: 4px;
+    }
+
+    .message.ai .message-bubble {
+      background: #f3eeff;
+      color: #333;
+      border-bottom-left-radius: 4px;
+    }
+
+    /* Image preview in message */
+    .message-image {
+      max-width: 280px;
+      border-radius: 12px;
+      margin-bottom: 6px;
+      border: 2px solid #e8d8ff;
+    }
+
+    /* Order result card */
+    .order-card {
+      background: #fff;
+      border: 1px solid #d8c8f0;
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-top: 8px;
+      font-size: 13px;
+    }
+
+    .order-card .order-title {
+      font-weight: 600;
+      color: #7c5cbf;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+
+    .order-card .order-link {
+      display: inline-block;
+      margin-top: 10px;
+      background: #7c5cbf;
+      color: #fff;
+      padding: 6px 14px;
+      border-radius: 6px;
+      text-decoration: none;
+      font-size: 13px;
+    }
+
+    .order-card .order-link:hover { background: #6a4aad; }
+
+    .order-card pre {
+      background: #f8f4ff;
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 12px;
+      overflow-x: auto;
+      color: #444;
+    }
+
+    /* Typing indicator */
+    .typing-indicator {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 12px 16px;
+      background: #f3eeff;
+      border-radius: 16px;
+      border-bottom-left-radius: 4px;
+      width: fit-content;
+    }
+
+    .typing-indicator span {
+      width: 8px;
+      height: 8px;
+      background: #7c5cbf;
+      border-radius: 50%;
+      animation: bounce 1.2s infinite;
+    }
+
+    .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes bounce {
+      0%, 60%, 100% { transform: translateY(0); }
+      30% { transform: translateY(-6px); }
+    }
+
+    /* ===== INPUT BAR ===== */
+    .input-bar-wrap {
+      padding: 14px 60px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Image preview before send */
+    .preview-wrap {
+      width: 100%;
+      max-width: 700px;
+      display: none;
+    }
+
+    .preview-wrap.show { display: flex; align-items: center; gap: 10px; }
+
+    .preview-img {
+      width: 72px;
+      height: 72px;
+      object-fit: cover;
+      border-radius: 10px;
+      border: 2px solid #d8c8f0;
+    }
+
+    .preview-name { font-size: 13px; color: #666; flex: 1; }
+
+    .btn-remove-preview {
+      background: none;
+      border: none;
+      font-size: 18px;
+      color: #aaa;
+      cursor: pointer;
+    }
+
+    .btn-remove-preview:hover { color: #e55; }
+
+    .input-bar {
+      display: flex;
+      align-items: center;
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 14px;
+      padding: 10px 14px;
+      width: 100%;
+      max-width: 700px;
+      gap: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+    }
+
+    .btn-upload {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #062538;
+      transition: color 0.2s, transform 0.15s;
+      flex-shrink: 0;
+    }
+
+    .btn-upload:hover { color: #0a3a56; transform: scale(1.1); }
+
+    #fileInput { display: none; }
+
+    .input-text {
+      flex: 1;
+      border: none;
+      outline: none;
+      font-size: 14px;
+      background: transparent;
+      color: #333;
+      resize: none;
+      line-height: 1.5;
+      max-height: 120px;
+    }
+
+    .input-text::placeholder { color: #bbb; }
+
+    .btn-send {
+      background: #062538;
+      border: none;
+      border-radius: 10px;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 0.2s;
+      flex-shrink: 0;
+    }
+
+    .btn-send:hover { background: #0a3a56; }
+    .btn-send:disabled { background: #ccc; cursor: not-allowed; }
+
+    .btn-send svg { width: 16px; height: 16px; fill: #fff; }
+
+    .input-hint {
+      font-size: 12px;
+      color: #bbb;
+    }
+  </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <div class="sidebar-logo">AI Chat</div>
+  <div class="sidebar-welcome">Welcome, Vinh Pham</div>
+  <button class="btn-new-chat" onclick="newChat()">
+    <span>+</span> New Chat
+  </button>
+  <div class="chat-history" id="chatHistory"></div>
+</div>
+
+<!-- MAIN -->
+<div class="main" id="mainArea">
+
+  <!-- Topbar -->
+  <div class="topbar">
+    <button class="btn-logout" onclick="logout()">&#8594; Logout</button>
+  </div>
+
+  <!-- Empty state (hiện khi chưa có chat) -->
+  <div class="empty-state" id="emptyState">
+    <div class="icon-bubble">&#128172;</div>
+    <h2>No Conversation Selected</h2>
+    <p>Create a new chat or select an existing one to get started</p>
+  </div>
+
+  <!-- Messages (ẩn khi chưa có chat) -->
+  <div class="messages" id="messageList" style="display:none;"></div>
+
+  <!-- Input bar -->
+  <div class="input-bar-wrap" id="inputArea" style="display:none;">
+    <!-- Preview ảnh trước khi gửi -->
+    <div class="preview-wrap" id="previewWrap">
+      <img class="preview-img" id="previewImg" src="" alt="" />
+      <span class="preview-name" id="previewName"></span>
+      <button class="btn-remove-preview" onclick="removeImage()">&#x2715;</button>
+    </div>
+
+    <div class="input-bar">
+      <!-- Nút upload ảnh -->
+      <button class="btn-upload" onclick="document.getElementById('fileInput').click()" title="Upload ảnh giỏ hàng">
+        <svg width="26" height="26" viewBox="0 0 36 36" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="18" cy="18" r="18" fill="#062538"/>
+          <path d="M10 13.5C10 12.12 11.12 11 12.5 11h11C24.88 11 26 12.12 26 13.5v9C26 23.88 24.88 25 23.5 25h-11C11.12 25 10 23.88 10 22.5v-9z" fill="white"/>
+          <circle cx="18" cy="18" r="3.2" fill="#062538"/>
+          <circle cx="22.5" cy="14.5" r="1.1" fill="#062538"/>
+        </svg>
+      </button>
+      <input type="file" id="fileInput" accept="image/*" onchange="onImageSelect(event)" />
+
+      <!-- Text input -->
+      <textarea
+        class="input-text"
+        id="messageInput"
+        placeholder="Type your message..."
+        rows="1"
+        onkeydown="handleKey(event)"
+        oninput="autoResize(this)"
+      ></textarea>
+
+      <!-- Nút gửi -->
+      <button class="btn-send" id="btnSend" onclick="sendMessage()">
+        <svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
+      </button>
+    </div>
+    <div class="input-hint" id="inputHint">Nhập số điện thoại khách hàng để bắt đầu</div>
+  </div>
+
+</div>
+
+<script>
+  // ===== AUTH CHECK =====
+  const sessionUser = JSON.parse(localStorage.getItem('ai_chat_user') || sessionStorage.getItem('ai_chat_user') || 'null');
+  if (!sessionUser) {
+    window.location.href = 'login.html';
+  } else {
+    document.querySelector('.sidebar-welcome').textContent = 'Welcome, ' + sessionUser.name;
+  }
+
+  const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? 'http://localhost:3000'
+    : '';
+
+  // ===== STATE =====
+  let sessions = [];
+  let activeSessionId = null;
+  let selectedFile = null;
+  let isLoading = false;
+
+  // ===== INIT =====
+  renderHistory();
+
+  function renderHistory() {
+    const el = document.getElementById('chatHistory');
+    el.innerHTML = sessions.map(s => `
+      <div class="chat-history-item ${s.id === activeSessionId ? 'active' : ''}" onclick="selectSession(${s.id})">
+        <span class="icon">&#128172;</span>
+        <div class="info">
+          <div class="title">${s.title}</div>
+          <div class="date">${s.date}</div>
+        </div>
+        <button class="btn-delete-chat" onclick="deleteSession(event, ${s.id})" title="Xóa đoạn chat">&#x2715;</button>
+      </div>
+    `).join('');
+  }
+
+  function deleteSession(event, id) {
+    event.stopPropagation();
+    sessions = sessions.filter(s => s.id !== id);
+    if (activeSessionId === id) {
+      activeSessionId = null;
+      document.getElementById('emptyState').style.display = 'flex';
+      document.getElementById('messageList').style.display = 'none';
+      document.getElementById('inputArea').style.display = 'none';
+    }
+    renderHistory();
+  }
+
+  function selectSession(id) {
+    activeSessionId = id;
+    renderHistory();
+    document.getElementById('emptyState').style.display = 'none';
+    document.getElementById('messageList').style.display = 'flex';
+    document.getElementById('inputArea').style.display = 'flex';
+    renderMessages();
+    updateHint();
+  }
+
+  function newChat() {
+    const now = new Date();
+    const dateStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()}`;
+    const newSession = {
+      id: Date.now(),
+      title: `Chat ${dateStr}`,
+      date: dateStr,
+      messages: [],
+      state: 'INIT',   // INIT → WAITING_IMAGE → ADDING_IMAGES → CONFIRM_ORDER → DONE
+      customer: null,
+      items: [],       // tích lũy sản phẩm từ nhiều ảnh
+      imageIndex: 0,   // con trỏ khi đang thêm ảnh sản phẩm
+    };
+    sessions.unshift(newSession);
+    selectSession(newSession.id);
+    setTimeout(() => {
+      addMessage('ai', 'Xin chào! Vui lòng nhập số điện thoại khách hàng để bắt đầu tạo đơn hàng.');
+    }, 200);
+  }
+
+  function updateHint() {
+    const session = getActiveSession();
+    const hint = document.getElementById('inputHint');
+    if (!session) return;
+    if (session.state === 'INIT') {
+      hint.textContent = 'Nhập số điện thoại khách hàng để bắt đầu';
+    } else if (session.state === 'WAITING_IMAGE') {
+      hint.textContent = 'Upload ảnh giỏ hàng + links | "xem giỏ hàng" | "thêm ảnh sản phẩm" | "tạo đơn"';
+    } else if (session.state === 'ADDING_IMAGES') {
+      hint.textContent = 'Gửi ảnh sản phẩm hoặc gõ "bỏ qua" để skip';
+    } else if (session.state === 'CONFIRM_ORDER') {
+      hint.textContent = 'Gõ "xác nhận" để tạo đơn hoặc "hủy" để quay lại';
+    } else {
+      hint.textContent = 'Nhấn New Chat để tạo đơn hàng mới';
+    }
+  }
+
+  // ===== MESSAGES =====
+  function getActiveSession() {
+    return sessions.find(s => s.id === activeSessionId);
+  }
+
+  function renderMessages() {
+    const session = getActiveSession();
+    if (!session) return;
+    const el = document.getElementById('messageList');
+    el.innerHTML = session.messages.map(m => renderMessage(m)).join('');
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function renderMessage(m) {
+    if (m.role === 'user') {
+      return `
+        <div class="message user">
+          ${m.image ? `<img class="message-image" src="${m.image}" />` : ''}
+          ${m.text ? `<div class="message-bubble">${escapeHtml(m.text)}</div>` : ''}
+        </div>
+      `;
+    } else {
+      return `
+        <div class="message ai">
+          <div class="message-bubble" style="white-space:pre-wrap">${escapeHtml(m.text)}</div>
+          ${m.orderData ? renderOrderCard(m.orderData) : ''}
+        </div>
+      `;
+    }
+  }
+
+  function renderOrderCard(data) {
+    const items = (data.items || []).map(i =>
+      `  • ${i.name} x${i.quantity || 1}${i.price ? ' — ' + formatPrice(i) : ''}`
+    ).join('\n');
+    return `
+      <div class="order-card">
+        <div class="order-title">Đơn hàng đã tạo — ${data.orderCode || ''}</div>
+        <pre>${items}</pre>
+        <a class="order-link" href="${data.order_url || '#'}" target="_blank">
+          Xem đơn hàng &rarr;
+        </a>
+      </div>
+    `;
+  }
+
+  function addMessage(role, text, extra = {}) {
+    const session = getActiveSession();
+    if (!session) return;
+    session.messages.push({ role, text, ...extra });
+    renderMessages();
+  }
+
+  function showTyping() {
+    const el = document.getElementById('messageList');
+    const div = document.createElement('div');
+    div.className = 'message ai';
+    div.id = 'typingIndicator';
+    div.innerHTML = `
+      <div class="typing-indicator">
+        <span></span><span></span><span></span>
+      </div>
+    `;
+    el.appendChild(div);
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function removeTyping() {
+    const el = document.getElementById('typingIndicator');
+    if (el) el.remove();
+  }
+
+  // ===== IMAGE =====
+  function setSelectedFile(file) {
+    if (!file || !file.type.startsWith('image/')) return;
+    selectedFile = file;
+    const url = URL.createObjectURL(file);
+    document.getElementById('previewImg').src = url;
+    document.getElementById('previewName').textContent = file.name || 'image.png';
+    document.getElementById('previewWrap').classList.add('show');
+  }
+
+  function onImageSelect(event) {
+    setSelectedFile(event.target.files[0]);
+  }
+
+  function removeImage() {
+    selectedFile = null;
+    document.getElementById('fileInput').value = '';
+    document.getElementById('previewWrap').classList.remove('show');
+    document.getElementById('previewImg').src = '';
+  }
+
+  // Ctrl+V paste ảnh
+  document.addEventListener('paste', (e) => {
+    if (!activeSessionId) return;
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        const file = item.getAsFile();
+        setSelectedFile(file);
+        document.getElementById('messageInput').focus();
+        break;
+      }
+    }
+  });
+
+  // ===== SEND =====
+  function handleKey(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  }
+
+  function autoResize(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+  }
+
+  async function sendMessage() {
+    if (isLoading) return;
+    const input = document.getElementById('messageInput');
+    const text = input.value.trim();
+    if (!text && !selectedFile) return;
+
+    // Hiển thị tin nhắn user
+    let imageDataUrl = null;
+    if (selectedFile) {
+      imageDataUrl = await fileToDataUrl(selectedFile);
+    }
+
+    addMessage('user', text, { image: imageDataUrl });
+    input.value = '';
+    input.style.height = 'auto';
+    const fileToSend = selectedFile;
+    removeImage();
+
+    // Lock UI
+    isLoading = true;
+    document.getElementById('btnSend').disabled = true;
+    showTyping();
+
+    try {
+      await processOrder(text, fileToSend, imageDataUrl);
+    } catch (err) {
+      removeTyping();
+      addMessage('ai', 'Co loi xay ra: ' + err.message);
+    } finally {
+      isLoading = false;
+      document.getElementById('btnSend').disabled = false;
+    }
+  }
+
+  async function processOrder(text, file, imageDataUrl) {
+    const session = getActiveSession();
+
+    // ===== BƯỚC 1: Tìm khách hàng =====
+    if (session.state === 'INIT') {
+      const phone = extractPhone(text);
+      if (!phone) {
+        const chatRes = await fetch(`${API_BASE}/api/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: text, context: 'Đang chờ user nhập số điện thoại khách hàng để tìm kiếm.' }),
+        });
+        const chatData = await chatRes.json();
+        removeTyping();
+        addMessage('ai', chatData.success ? chatData.text : 'Vui lòng nhập số điện thoại khách hàng (9-12 chữ số).');
+        return;
+      }
+
+      const res = await fetch(`${API_BASE}/api/find-customer?phone=${phone}`);
+      const data = await res.json();
+      removeTyping();
+
+      if (!data.success || !data.data.found) {
+        addMessage('ai', `Không tìm thấy khách hàng với SĐT ${phone}.\nVui lòng kiểm tra lại số điện thoại.`);
+        return;
+      }
+
+      const c = data.data.customer;
+      session.customer = c;
+      session.state = 'WAITING_IMAGE';
+      session.title = c.name;
+      renderHistory();
+      updateHint();
+
+      addMessage('ai',
+        `Tìm thấy khách hàng:\n👤 ${c.name}\n📞 ${c.phone}\n📍 ${c.address}, ${c.district}, ${c.city}\n\nVui lòng upload ảnh giỏ hàng kèm link sản phẩm (mỗi link 1 dòng, theo thứ tự từ trên xuống).`
+      );
+      return;
+    }
+
+    // ===== BƯỚC 2: Thêm sản phẩm từ ảnh =====
+    if (session.state === 'WAITING_IMAGE') {
+
+      // User gõ "tạo đơn" → hiện summary + yêu cầu confirm
+      if (!file && isTaoDon(text)) {
+        if (session.items.length === 0) {
+          removeTyping();
+          addMessage('ai', 'Chưa có sản phẩm nào. Vui lòng upload ảnh giỏ hàng trước.');
+          return;
+        }
+        const missingLinks = session.items.filter(i => !i.link).length;
+        const linkWarning = missingLinks > 0 ? `\n⚠️ ${missingLinks} sản phẩm chưa có link!` : '';
+        session.state = 'CONFIRM_ORDER';
+        updateHint();
+        removeTyping();
+        addMessage('ai',
+          `📋 Xác nhận tạo đơn hàng:\n\n` +
+          `👤 ${session.customer.name} — ${session.customer.phone}\n` +
+          `📍 ${session.customer.address}, ${session.customer.district}, ${session.customer.city}\n\n` +
+          renderCartSummary(session) +
+          `${linkWarning}\n\nGõ "xác nhận" để tạo đơn hoặc "hủy" để quay lại chỉnh sửa.`
+        );
+        return;
+      }
+
+      // User muốn thêm ảnh sản phẩm
+      if (!file && isThemAnh(text)) {
+        if (session.items.length === 0) {
+          removeTyping();
+          addMessage('ai', 'Chưa có sản phẩm nào. Vui lòng upload ảnh giỏ hàng trước.');
+          return;
+        }
+        console.log('[ADD_IMG START] items với link:', JSON.stringify(session.items.map(i => ({name: i.name, link: i.link}))));
+        session.state = 'ADDING_IMAGES';
+        session.imageIndex = 0;
+        updateHint();
+        removeTyping();
+        addMessage('ai', buildImagePrompt(session));
+        return;
+      }
+
+      // User xem giỏ hàng
+      if (!file && isXemGio(text)) {
+        removeTyping();
+        addMessage('ai', renderCartSummary(session));
+        return;
+      }
+
+      // User sửa / xóa sản phẩm
+      const editCmd = !file ? parseEditCommand(text) : null;
+      if (editCmd) {
+        const n = session.items.length;
+        if (editCmd.index < 0 || editCmd.index >= n) {
+          removeTyping();
+          addMessage('ai', `Không tìm thấy sản phẩm #${editCmd.index + 1}. Giỏ hàng hiện có ${n} sản phẩm.`);
+          return;
+        }
+
+        if (editCmd.action === 'delete') {
+          const deleted = session.items.splice(editCmd.index, 1)[0];
+          removeTyping();
+          addMessage('ai', `Đã xóa #${editCmd.index + 1}: ${deleted.name}.\n\n` + renderCartSummary(session));
+          return;
+        }
+
+        if (editCmd.action === 'edit') {
+          const item = session.items[editCmd.index];
+          const oldVal = item[editCmd.field];
+
+          if (editCmd.field === 'quantity') {
+            const qty = parseInt(editCmd.value);
+            if (isNaN(qty) || qty < 1) {
+              removeTyping();
+              addMessage('ai', 'Số lượng không hợp lệ. Nhập số nguyên dương (ví dụ: sửa #2 qty: 3).');
+              return;
+            }
+            item.quantity = qty;
+          } else if (editCmd.field === 'price') {
+            const parsed = parsePriceInput(editCmd.value);
+            if (parsed.price === null) {
+              removeTyping();
+              addMessage('ai', 'Giá không hợp lệ. Ví dụ: sửa #2 giá: 150000 hoặc sửa #2 giá: $99.');
+              return;
+            }
+            item.price = parsed.price;
+            if (parsed.currency) item.currency = parsed.currency;
+          } else {
+            item[editCmd.field] = editCmd.value;
+          }
+
+          const newVal = editCmd.field === 'price' ? formatPrice(item) : item[editCmd.field];
+          removeTyping();
+          addMessage('ai', `✏️ Đã cập nhật #${editCmd.index + 1} ${editCmd.field}: "${oldVal}" → "${newVal}".\n\n` + renderCartSummary(session));
+          return;
+        }
+      }
+
+      // User gửi link bổ sung — kích hoạt khi có ít nhất 1 URL và còn item thiếu link
+      const pendingLinks = extractLinks(text);
+      if (!file && pendingLinks.length > 0 && session.items.some(i => !i.link)) {
+        console.log('[LINK UPDATE] links nhận được:', pendingLinks);
+        console.log('[LINK UPDATE] items trước khi update:', JSON.stringify(session.items.map(i => ({name: i.name, link: i.link}))));
+        let updated = 0;
+        let linkIdx = 0;
+        for (const item of session.items) {
+          if (!item.link && linkIdx < pendingLinks.length) {
+            item.link = pendingLinks[linkIdx++];
+            updated++;
+          }
+        }
+        console.log('[LINK UPDATE] items sau khi update:', JSON.stringify(session.items.map(i => ({name: i.name, link: i.link}))));
+        removeTyping();
+        addMessage('ai', `Đã cập nhật ${updated} link.\n\n` + renderCartSummary(session));
+        return;
+      }
+
+      // User gửi ảnh + links
+      if (file) {
+        const links = extractLinks(text);
+
+        // 2a: Claude Vision phân tích ảnh + map links
+        const analyzeForm = new FormData();
+        analyzeForm.append('image', file);
+        analyzeForm.append('links', links.join('\n'));
+        const analyzeRes = await fetch(`${API_BASE}/api/analyze-image`, { method: 'POST', body: analyzeForm });
+        const analyzeData = await analyzeRes.json();
+
+        if (!analyzeData.success) {
+          removeTyping();
+          addMessage('ai', 'Không thể phân tích ảnh. Vui lòng thử lại với ảnh rõ hơn.');
+          return;
+        }
+
+        // Ảnh giỏ hàng chỉ để đọc thông tin, không upload lên Basso
+        // (ảnh sản phẩm riêng sẽ được upload ở bước "thêm ảnh sản phẩm")
+        const newItems = (analyzeData.data.items || []).map(item => ({ ...item }));
+        session.items.push(...newItems);
+
+        removeTyping();
+
+        // Hiển thị items vừa thêm
+        const newItemsText = newItems.map((item, i) => {
+          const vars = (item.variations || []).map(v => `${v.name}: ${v.value}`).join(', ');
+          const linkStatus = item.link ? item.link : '⚠️ chưa có link';
+          return `${i + 1}. ${item.name}\n   Qty: ${item.quantity} | ${formatPrice(item)}${vars ? '\n   ' + vars : ''}\n   ${linkStatus}`;
+        }).join('\n\n');
+
+        const totalCount = session.items.length;
+        addMessage('ai',
+          `Đã thêm ${newItems.length} sản phẩm:\n\n${newItemsText}\n\n─────────────────\nTổng cộng: ${totalCount} sản phẩm\n\nGửi thêm ảnh hoặc gõ "tạo đơn" để hoàn tất.`
+        );
+        return;
+      }
+
+      // Không có ảnh, không phải "tạo đơn" → Claude trả lời tự nhiên
+      const c = session.customer;
+      const itemCount = session.items.length;
+      const context = `Đã xác định khách hàng: ${c.name} (${c.phone}). Đã có ${itemCount} sản phẩm trong giỏ. Đang chờ user upload ảnh giỏ hàng kèm link sản phẩm để tiếp tục.`;
+      const chatRes = await fetch(`${API_BASE}/api/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: text, context }),
+      });
+      const chatData = await chatRes.json();
+      removeTyping();
+      addMessage('ai', chatData.success ? chatData.text : 'Vui lòng upload ảnh giỏ hàng kèm link sản phẩm.');
+      return;
+    }
+
+    // ===== BƯỚC 3: Thêm ảnh sản phẩm từng cái =====
+    if (session.state === 'ADDING_IMAGES') {
+      const idx = session.imageIndex;
+
+      // Bỏ qua sản phẩm hiện tại
+      if (!file && isBoqua(text)) {
+        session.imageIndex++;
+        removeTyping();
+        if (session.imageIndex >= session.items.length) {
+          session.state = 'WAITING_IMAGE';
+          updateHint();
+          addMessage('ai', '⏭️ Bỏ qua. Đã hoàn tất cập nhật ảnh.\nGõ "xem giỏ hàng" để kiểm tra hoặc "tạo đơn" để tạo đơn.');
+        } else {
+          addMessage('ai', `⏭️ Bỏ qua #${idx + 1}.\n\n` + buildImagePrompt(session));
+        }
+        return;
+      }
+
+      // Nhận ảnh → upload lên Basso → gắn image_id
+      if (file) {
+        const uploadForm = new FormData();
+        uploadForm.append('file', file);
+        const uploadRes = await fetch(`${API_BASE}/api/upload-image`, { method: 'POST', body: uploadForm });
+        const uploadData = await uploadRes.json();
+        if (uploadData.success && uploadData.data.id) {
+          session.items[idx].image_id = uploadData.data.id;
+        }
+        session.imageIndex++;
+        console.log('[ADD_IMG DONE] idx', idx, '| items với link:', JSON.stringify(session.items.map(i => ({name: i.name, link: i.link}))));
+        removeTyping();
+        if (session.imageIndex >= session.items.length) {
+          session.state = 'WAITING_IMAGE';
+          updateHint();
+          const doneCount = session.items.filter(i => i.image_id).length;
+          addMessage('ai', `✅ #${idx + 1} xong. Đã cập nhật ảnh cho ${doneCount}/${session.items.length} sản phẩm.\nGõ "tạo đơn" để tạo đơn.`);
+        } else {
+          addMessage('ai', `✅ #${idx + 1} xong.\n\n` + buildImagePrompt(session));
+        }
+        return;
+      }
+
+      // Text thông thường → nhắc lại
+      removeTyping();
+      addMessage('ai', buildImagePrompt(session));
+      return;
+    }
+
+    // ===== XÁC NHẬN ĐƠN HÀNG =====
+    if (session.state === 'CONFIRM_ORDER') {
+      if (isXacNhan(text)) {
+        await submitOrder(session);
+        return;
+      }
+      if (isHuy(text)) {
+        session.state = 'WAITING_IMAGE';
+        updateHint();
+        removeTyping();
+        addMessage('ai', 'Đã hủy. Bạn có thể tiếp tục chỉnh sửa giỏ hàng.');
+        return;
+      }
+      // Bất kỳ input nào khác → nhắc lại
+      removeTyping();
+      addMessage('ai', 'Gõ "xác nhận" để tạo đơn hoặc "hủy" để quay lại chỉnh sửa.');
+      return;
+    }
+
+    // ===== ĐÃ XONG =====
+    if (session.state === 'DONE') {
+      removeTyping();
+      addMessage('ai', 'Đơn hàng đã được tạo xong. Nhấn "New Chat" để tạo đơn mới.');
+    }
+  }
+
+  async function submitOrder(session) {
+    const c = session.customer;
+    const orderBody = {
+      customer_id: c.id,
+      name: c.name,
+      phone: c.phone,
+      email: c.email || '',
+      shipping_address: c.address,
+      city_id: c.city_id,
+      district_id: c.district_id,
+      payment_method: 'cod',
+      country_id: 1,
+      payment_limit_id: 1,
+      website: 'direct',
+      items: JSON.stringify(session.items.map(item => ({
+        name: item.name,
+        link: item.link || '',
+        quantity: item.quantity || 1,
+        price: item.price || 0,
+        ...(item.image_id ? { image_id: item.image_id } : {}),
+        // variations: chờ API Basso xác nhận format
+      }))),
+    };
+
+    const orderRes = await fetch(`${API_BASE}/api/create-order`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(orderBody),
+    });
+    const orderData = await orderRes.json();
+    removeTyping();
+
+    if (orderData.success) {
+      session.state = 'DONE';
+      updateHint();
+      addMessage('ai', 'Đã tạo đơn hàng thành công!', {
+        orderData: {
+          orderCode: orderData.data.orderCode,
+          items: session.items,
+          order_url: `https://basso.vn/basso/customer_order/detail/${orderData.data.orderId}`,
+        }
+      });
+    } else {
+      const errMsg = orderData.message || (orderData.errors || []).join(', ');
+      addMessage('ai', `Tạo đơn thất bại: ${errMsg}`);
+    }
+  }
+
+  function extractPhone(text) {
+    const match = (text || '').replace(/\s/g, '').match(/\d{9,12}/);
+    return match ? match[0] : null;
+  }
+
+  function extractLinks(text) {
+    if (!text) return [];
+    return text.split('\n').map(l => l.trim()).filter(l => l.startsWith('http'));
+  }
+
+  function isTaoDon(text) {
+    if (!text) return false;
+    const n = text.toLowerCase().replace(/\s/g, '');
+    return n.includes('tạođơn') || n.includes('taodon') || n.includes('tạo đơn');
+  }
+
+  function isThemAnh(text) {
+    if (!text) return false;
+    const n = text.toLowerCase().replace(/\s/g, '');
+    return n.includes('thêmảnh') || n.includes('themanh') || n.includes('uploadảnh') || n.includes('uploadanh') || n.includes('cậpnhậtảnh') || n.includes('capnhatanh');
+  }
+
+  function isBoqua(text) {
+    if (!text) return false;
+    const n = text.toLowerCase().replace(/\s/g, '');
+    return n.includes('bỏqua') || n.includes('boqua') || n.includes('skip') || n.includes('next');
+  }
+
+  function buildImagePrompt(session) {
+    const idx = session.imageIndex;
+    const current = session.items[idx];
+    const vars = (current.variations || []).map(v => `${v.name}: ${v.value}`).join(', ');
+    const listLines = session.items.map((item, i) => {
+      const v = (item.variations || []).map(v => `${v.name}: ${v.value}`).join(', ');
+      const status = item.image_id ? '✅' : (i === idx ? '📷' : '⏳');
+      return `${status} #${i + 1}. ${item.name}${v ? ' (' + v + ')' : ''}`;
+    }).join('\n');
+    return `📷 Gửi ảnh cho:\n#${idx + 1}. ${current.name}${vars ? '\n   ' + vars : ''}\n\n${listLines}\n\nGõ "bỏ qua" nếu không có ảnh cho sản phẩm này.`;
+  }
+
+  function isXacNhan(text) {
+    if (!text) return false;
+    const n = text.toLowerCase().replace(/\s/g, '');
+    return n.includes('xácnhận') || n.includes('xacnhan') || n.includes('confirm') || n === 'yes' || n === 'ok' || n === 'đồngý' || n === 'dongý';
+  }
+
+  function isHuy(text) {
+    if (!text) return false;
+    const n = text.toLowerCase().replace(/\s/g, '');
+    return n.includes('hủy') || n.includes('huy') || n.includes('cancel') || n === 'no' || n === 'không' || n === 'khong';
+  }
+
+  function isXemGio(text) {
+    if (!text) return false;
+    const n = text.toLowerCase().replace(/\s/g, '');
+    return n.includes('xemgiỏ') || n.includes('xemgio') || n.includes('giỏhàng') || n.includes('giohang') || n.includes('xemđơn') || n.includes('xemdon');
+  }
+
+  function isOnlyLinks(text) {
+    if (!text) return false;
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+    return lines.length > 0 && lines.every(l => l.startsWith('http'));
+  }
+
+  function renderCartSummary(session) {
+    console.log('[RENDER CART] items:', JSON.stringify(session.items.map(i => ({name: i.name, link: i.link}))));
+    if (session.items.length === 0) {
+      return 'Giỏ hàng trống. Vui lòng upload ảnh sản phẩm.';
+    }
+    const lines = session.items.map((item, i) => {
+      const vars = (item.variations || []).map(v => `${v.name}: ${v.value}`).join(', ');
+      const linkLine = item.link ? `🔗 ${item.link}` : '⚠️ Chưa có link';
+      return `${i + 1}. ${item.name}\n   Qty: ${item.quantity} | ${formatPrice(item)}${vars ? '\n   ' + vars : ''}\n   ${linkLine}`;
+    }).join('\n\n');
+    const missing = session.items.filter(i => !i.link).length;
+    const warning = missing > 0 ? `\n\n⚠️ ${missing} sản phẩm chưa có link. Gửi link bổ sung để cập nhật.` : '\n\n✅ Tất cả sản phẩm đã có link.';
+    const editHint = `\n\n─────────────────\n✏️  sửa #N tên/qty/giá/link: <giá trị>\n🗑️  xóa #N`;
+    return `📦 Giỏ hàng (${session.items.length} sản phẩm):\n\n${lines}${warning}${editHint}`;
+  }
+
+  // ===== UTILS =====
+  function fileToDataUrl(file) {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = e => resolve(e.target.result);
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function sleep(ms) {
+    return new Promise(r => setTimeout(r, ms));
+  }
+
+  function logout() {
+    localStorage.removeItem('ai_chat_user');
+    sessionStorage.removeItem('ai_chat_user');
+    window.location.href = 'login.html';
+  }
+
+  function formatPrice(item) {
+    const price = item.price;
+    const currency = (item.currency || '').trim();
+    if (price === undefined || price === null || price === '') return '';
+    const suffixCurrencies = ['đ', 'VND', '₫'];
+    if (!currency) return price.toLocaleString();
+    if (suffixCurrencies.includes(currency)) {
+      return price.toLocaleString('vi-VN') + currency;
+    }
+    return currency + price.toLocaleString();
+  }
+
+  function parseEditCommand(text) {
+    if (!text) return null;
+    const t = text.trim();
+
+    // Xóa #N
+    const del = t.match(/^(xóa|xoa|xoá)\s*#?(\d+)/i);
+    if (del) return { action: 'delete', index: parseInt(del[2]) - 1 };
+
+    // Sửa #N field: value
+    const edit = t.match(/^(sửa|sua|edit)\s+#?(\d+)\s+(tên|ten|name|qty|số lượng|so luong|giá|gia|price|link)\s*[:\s]+(.+)/i);
+    if (!edit) return null;
+
+    const fieldMap = {
+      'tên': 'name', 'ten': 'name', 'name': 'name',
+      'qty': 'quantity', 'số lượng': 'quantity', 'so luong': 'quantity',
+      'giá': 'price', 'gia': 'price', 'price': 'price',
+      'link': 'link',
+    };
+    const field = fieldMap[edit[3].toLowerCase()];
+    if (!field) return null;
+
+    return { action: 'edit', index: parseInt(edit[2]) - 1, field, value: edit[4].trim() };
+  }
+
+  function parsePriceInput(str) {
+    let s = str.trim();
+    const prefixes = ['$', '€', '£', '₩', '¥', '₫'];
+    const suffixes = ['VND', 'vnd', 'đ'];
+    let currency = '';
+
+    for (const c of prefixes) {
+      if (s.startsWith(c)) { currency = c; s = s.slice(c.length).trim(); break; }
+    }
+    if (!currency) {
+      for (const c of suffixes) {
+        if (s.toLowerCase().endsWith(c.toLowerCase())) {
+          currency = c === 'vnd' ? 'VND' : c;
+          s = s.slice(0, -c.length).trim();
+          break;
+        }
+      }
+    }
+    const price = parseFloat(s.replace(/[,\s]/g, ''));
+    return { price: isNaN(price) ? null : price, currency };
+  }
+
+  function escapeHtml(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+</script>
+</body>
+</html>

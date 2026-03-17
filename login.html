@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Chat - Đăng nhập</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+      height: 100vh;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* ===== LEFT PANEL ===== */
+    .left {
+      width: 46%;
+      background: #062538;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 60px 56px;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 48px;
+    }
+
+    .logo-text {
+      font-size: 36px;
+      font-weight: 800;
+      color: #fff;
+      letter-spacing: 1px;
+    }
+
+    .logo-icon {
+      width: 40px;
+      height: 32px;
+    }
+
+    .form-input-wrap {
+      position: relative;
+      margin-bottom: 16px;
+    }
+
+    .form-input {
+      width: 67%;
+      padding: 10px 16px;
+      border: 1.5px solid #ddd;
+      border-radius: 6px;
+      font-size: 15px;
+      color: #333;
+      background: #fff;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .form-input::placeholder { color: #aaa; }
+
+    .form-input:focus {
+      border-color: #f5a623;
+      box-shadow: 0 0 0 2px rgba(245,166,35,0.15);
+    }
+
+    .toggle-pw {
+      position: absolute;
+      right: calc(33% + 14px);
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #aaa;
+      font-size: 18px;
+      line-height: 1;
+      padding: 2px;
+    }
+
+    .toggle-pw:hover { color: #555; }
+
+    .remember-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 28px;
+      margin-top: 4px;
+      width: 67%;
+    }
+
+    .remember-row input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+      accent-color: #f5a623;
+    }
+
+    .remember-row label {
+      font-size: 14px;
+      color: rgba(255,255,255,0.75);
+      cursor: pointer;
+    }
+
+    .btn-login {
+      width: 67%;
+      padding: 11px;
+      background: #f5a623;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      cursor: pointer;
+      transition: background 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      text-transform: uppercase;
+    }
+
+    .btn-login:hover { background: #e09510; }
+    .btn-login:disabled { background: #c8a060; cursor: not-allowed; }
+
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(255,255,255,0.4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: none;
+    }
+
+    .btn-login.loading .spinner { display: block; }
+    .btn-login.loading .btn-text { display: none; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .error-msg {
+      display: none;
+      background: rgba(220, 53, 69, 0.18);
+      border: 1px solid rgba(220, 53, 69, 0.5);
+      color: #ffb3b3;
+      border-radius: 6px;
+      padding: 10px 14px;
+      font-size: 13px;
+      margin-bottom: 16px;
+      line-height: 1.4;
+      width: 67%;
+    }
+
+    .error-msg.show { display: block; }
+
+    /* ===== RIGHT PANEL ===== */
+    .right {
+      flex: 1;
+      background: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px;
+      text-align: center;
+    }
+
+    .right-title {
+      font-size: 30px;
+      font-weight: 700;
+      color: #1a4a5c;
+      margin-bottom: 10px;
+    }
+
+    .right-subtitle {
+      font-size: 15px;
+      color: #999;
+      margin-bottom: 48px;
+    }
+
+    /* SVG Illustration */
+    .illustration {
+      width: 100%;
+      max-width: 420px;
+    }
+
+    @media (max-width: 768px) {
+      .left { width: 100%; padding: 40px 28px; }
+      .right { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- LEFT -->
+<div class="left">
+
+  <!-- Logo -->
+  <div class="logo">
+    <span class="logo-text">AI CHAT</span>
+    <!-- Arrow icon giống Basso -->
+    <svg class="logo-icon" viewBox="0 0 50 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <polygon points="0,0 28,20 0,40" fill="#f5a623"/>
+      <polygon points="18,0 46,20 18,40" fill="#4ab8c1" opacity="0.85"/>
+    </svg>
+  </div>
+
+  <div class="error-msg" id="errorMsg"></div>
+
+  <form onsubmit="handleLogin(event)">
+    <!-- Email -->
+    <div class="form-input-wrap">
+      <input
+        type="text"
+        class="form-input"
+        id="username"
+        placeholder="Nhập email đăng nhập"
+        autocomplete="username"
+        required
+      />
+    </div>
+
+    <!-- Password -->
+    <div class="form-input-wrap">
+      <input
+        type="password"
+        class="form-input"
+        id="password"
+        placeholder="Nhập mật khẩu"
+        autocomplete="current-password"
+        required
+        style="padding-right: 44px;"
+      />
+      <button type="button" class="toggle-pw" onclick="togglePassword()" title="Hiện/ẩn mật khẩu">
+        <span id="eyeIcon">&#x1F441;</span>
+      </button>
+    </div>
+
+    <!-- Ghi nhớ -->
+    <div class="remember-row">
+      <input type="checkbox" id="rememberMe" />
+      <label for="rememberMe">Ghi nhớ</label>
+    </div>
+
+    <!-- Nút đăng nhập -->
+    <button type="submit" class="btn-login" id="btnLogin">
+      <div class="spinner"></div>
+      <span class="btn-text">Đăng nhập</span>
+    </button>
+  </form>
+
+</div>
+
+<!-- RIGHT -->
+<div class="right">
+  <div class="right-title">Chào mừng bạn quay lại</div>
+  <div class="right-subtitle">Vui lòng đăng nhập để sử dụng hệ thống</div>
+
+  <!-- Illustration -->
+  <svg class="illustration" viewBox="0 0 500 340" xmlns="http://www.w3.org/2000/svg">
+    <!-- Background blob -->
+    <ellipse cx="250" cy="290" rx="200" ry="40" fill="#e8f4f8" opacity="0.6"/>
+
+    <!-- Big monitor -->
+    <rect x="80" y="60" width="260" height="180" rx="10" fill="#1a2e3b"/>
+    <rect x="90" y="70" width="240" height="155" rx="6" fill="#0f1f2a"/>
+    <rect x="185" y="240" width="50" height="20" rx="3" fill="#2a4a5c"/>
+    <rect x="160" y="258" width="100" height="8" rx="4" fill="#2a4a5c"/>
+
+    <!-- Chart on monitor -->
+    <!-- Bar chart -->
+    <rect x="110" y="150" width="18" height="60" rx="3" fill="#f5a623" opacity="0.9"/>
+    <rect x="135" y="120" width="18" height="90" rx="3" fill="#f5a623" opacity="0.9"/>
+    <rect x="160" y="135" width="18" height="75" rx="3" fill="#f5a623" opacity="0.7"/>
+    <rect x="185" y="100" width="18" height="110" rx="3" fill="#4ab8c1" opacity="0.9"/>
+    <rect x="210" y="130" width="18" height="80" rx="3" fill="#4ab8c1" opacity="0.7"/>
+    <rect x="235" y="110" width="18" height="100" rx="3" fill="#f5a623" opacity="0.8"/>
+    <rect x="260" y="140" width="18" height="70" rx="3" fill="#4ab8c1" opacity="0.8"/>
+    <!-- Chart line -->
+    <polyline points="119,148 144,118 169,133 194,98 219,128 244,108 269,138" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <!-- Donut chart top left -->
+    <circle cx="115" cy="100" r="22" fill="none" stroke="#f5a623" stroke-width="10" stroke-dasharray="80 60"/>
+    <circle cx="115" cy="100" r="22" fill="none" stroke="#4ab8c1" stroke-width="10" stroke-dasharray="40 100" stroke-dashoffset="-80"/>
+
+    <!-- Small chart cards floating -->
+    <rect x="320" y="80" width="110" height="75" rx="8" fill="#fff" stroke="#e0e0e0" stroke-width="1"/>
+    <rect x="332" y="110" width="10" height="30" rx="2" fill="#f5a623"/>
+    <rect x="348" y="100" width="10" height="40" rx="2" fill="#f5a623"/>
+    <rect x="364" y="115" width="10" height="25" rx="2" fill="#4ab8c1"/>
+    <rect x="380" y="95" width="10" height="45" rx="2" fill="#f5a623"/>
+    <rect x="396" y="108" width="10" height="32" rx="2" fill="#4ab8c1"/>
+    <text x="334" y="100" font-size="9" fill="#888">Doanh thu</text>
+
+    <rect x="330" y="170" width="90" height="60" rx="8" fill="#1a2e3b"/>
+    <circle cx="360" cy="198" r="16" fill="none" stroke="#f5a623" stroke-width="6" stroke-dasharray="55 45"/>
+    <circle cx="360" cy="198" r="16" fill="none" stroke="#4ab8c1" stroke-width="6" stroke-dasharray="25 75" stroke-dashoffset="-55"/>
+    <text x="382" y="194" font-size="8" fill="#fff">48%</text>
+    <text x="382" y="205" font-size="7" fill="#aaa">Hoàn thành</text>
+
+    <!-- Person 1 (pointing) - yellow bag -->
+    <circle cx="148" cy="252" r="14" fill="#f5c5a0"/>
+    <rect x="134" y="266" width="28" height="40" rx="6" fill="#f5a623"/>
+    <line x1="162" y1="278" x2="180" y2="260" stroke="#f5c5a0" stroke-width="5" stroke-linecap="round"/>
+    <line x1="134" y1="285" x2="116" y2="300" stroke="#f5c5a0" stroke-width="5" stroke-linecap="round"/>
+    <line x1="140" y1="306" x2="135" y2="326" stroke="#2a3a4a" stroke-width="5" stroke-linecap="round"/>
+    <line x1="156" y1="306" x2="161" y2="326" stroke="#2a3a4a" stroke-width="5" stroke-linecap="round"/>
+
+    <!-- Person 2 (center, suit) -->
+    <circle cx="230" cy="248" r="15" fill="#d4a574"/>
+    <rect x="215" y="263" width="30" height="42" rx="6" fill="#2a3a5c"/>
+    <line x1="215" y1="278" x2="196" y2="270" stroke="#d4a574" stroke-width="5" stroke-linecap="round"/>
+    <line x1="245" y1="278" x2="264" y2="270" stroke="#d4a574" stroke-width="5" stroke-linecap="round"/>
+    <line x1="222" y1="305" x2="217" y2="328" stroke="#1a1a2e" stroke-width="5" stroke-linecap="round"/>
+    <line x1="238" y1="305" x2="243" y2="328" stroke="#1a1a2e" stroke-width="5" stroke-linecap="round"/>
+
+    <!-- Person 3 (sitting) -->
+    <circle cx="330" cy="268" r="13" fill="#f5c5a0"/>
+    <rect x="317" y="281" width="26" height="30" rx="5" fill="#4ab8c1"/>
+    <line x1="317" y1="292" x2="300" y2="290" stroke="#f5c5a0" stroke-width="5" stroke-linecap="round"/>
+    <rect x="310" y="308" width="36" height="10" rx="5" fill="#888"/>
+    <line x1="323" y1="311" x2="316" y2="328" stroke="#2a3a4a" stroke-width="5" stroke-linecap="round"/>
+    <line x1="333" y1="311" x2="340" y2="328" stroke="#2a3a4a" stroke-width="5" stroke-linecap="round"/>
+
+    <!-- Ground line -->
+    <line x1="80" y1="328" x2="430" y2="328" stroke="#ddd" stroke-width="1.5"/>
+  </svg>
+</div>
+
+<script>
+  // ===== CHECK SESSION =====
+  const saved = localStorage.getItem('ai_chat_user') || sessionStorage.getItem('ai_chat_user');
+  if (saved) window.location.href = 'index.html';
+
+  // ===== TOGGLE PASSWORD =====
+  function togglePassword() {
+    const input = document.getElementById('password');
+    const icon = document.getElementById('eyeIcon');
+    if (input.type === 'password') {
+      input.type = 'text';
+      icon.textContent = '🙈';
+    } else {
+      input.type = 'password';
+      icon.textContent = '👁';
+    }
+  }
+
+  // ===== LOGIN HANDLER =====
+  async function handleLogin(e) {
+    e.preventDefault();
+
+    const username = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value;
+    const remember = document.getElementById('rememberMe').checked;
+    const btn = document.getElementById('btnLogin');
+    const errorMsg = document.getElementById('errorMsg');
+
+    errorMsg.classList.remove('show');
+    btn.disabled = true;
+    btn.classList.add('loading');
+
+    try {
+      const user = await callLoginAPI(username, password);
+
+      const sessionData = { username: user.username, name: user.name, token: user.token };
+      if (remember) {
+        localStorage.setItem('ai_chat_user', JSON.stringify(sessionData));
+      } else {
+        sessionStorage.setItem('ai_chat_user', JSON.stringify(sessionData));
+      }
+
+      window.location.href = 'index.html';
+
+    } catch (err) {
+      errorMsg.textContent = err.message;
+      errorMsg.classList.add('show');
+    } finally {
+      btn.disabled = false;
+      btn.classList.remove('loading');
+    }
+  }
+
+  // ===== API CALL =====
+  async function callLoginAPI(username, password) {
+    // -------------------------------------------------------
+    // TODO: Thay bằng API thật của hệ thống Basso khi có
+    // const res = await fetch('https://basso.vn/api/auth/login', {
+    //   method: 'POST',
+    //   headers: { 'Content-Type': 'application/json' },
+    //   body: JSON.stringify({ username, password })
+    // });
+    // const data = await res.json();
+    // if (!data.success) throw new Error(data.message);
+    // return data.user;
+    // -------------------------------------------------------
+
+    // MOCK: Giả lập đăng nhập tạm thời
+    await sleep(1400);
+
+    const mockAccounts = [
+      { username: 'admin', password: '123456', name: 'Vinh Pham' },
+      { username: 'vinh',  password: '123456', name: 'Vinh Pham' },
+    ];
+
+    const found = mockAccounts.find(a => a.username === username && a.password === password);
+    if (!found) {
+      throw new Error('Tên đăng nhập hoặc mật khẩu không đúng. Vui lòng thử lại.');
+    }
+
+    return { username: found.username, name: found.name, token: 'mock_token_' + Date.now() };
+  }
+
+  function sleep(ms) {
+    return new Promise(r => setTimeout(r, ms));
+  }
+</script>
+</body>
+</html>
