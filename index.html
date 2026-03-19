@@ -344,17 +344,48 @@
       display: none;
     }
 
-    .preview-wrap.show { display: flex; align-items: center; gap: 10px; }
+    .preview-wrap.show { display: flex; align-items: center; gap: 8px; padding: 8px 0; }
 
-    .preview-img {
-      width: 72px;
-      height: 72px;
-      object-fit: cover;
-      border-radius: 10px;
-      border: 2px solid #d8c8f0;
+    .preview-images {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      flex: 1;
+      overflow-x: auto;
     }
 
-    .preview-name { font-size: 13px; color: #666; flex: 1; }
+    .preview-thumb {
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .preview-thumb img {
+      width: 64px;
+      height: 64px;
+      object-fit: cover;
+      border-radius: 8px;
+      border: 2px solid #d8c8f0;
+      display: block;
+    }
+
+    .preview-thumb .btn-remove-one {
+      position: absolute;
+      top: -6px;
+      right: -6px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #e55;
+      color: #fff;
+      border: none;
+      font-size: 11px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+      padding: 0;
+    }
 
     .btn-remove-preview {
       background: none;
@@ -477,9 +508,8 @@
   <div class="input-bar-wrap" id="inputArea" style="display:none;">
     <!-- Preview ảnh trước khi gửi -->
     <div class="preview-wrap" id="previewWrap">
-      <img class="preview-img" id="previewImg" src="" alt="" />
-      <span class="preview-name" id="previewName"></span>
-      <button class="btn-remove-preview" onclick="removeImage()">&#x2715;</button>
+      <div class="preview-images" id="previewImages"></div>
+      <button class="btn-remove-preview" onclick="removeImage()" title="Xóa tất cả">&#x2715;</button>
     </div>
 
     <div class="input-bar">
@@ -627,9 +657,13 @@
 
   function renderMessage(m) {
     if (m.role === 'user') {
+      const imgs = m.images && m.images.length > 0 ? m.images : (m.image ? [m.image] : []);
+      const imgsHtml = imgs.length > 0
+        ? `<div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;margin-bottom:6px">${imgs.map(src => `<img class="message-image" src="${src}" style="max-width:${imgs.length > 1 ? '140px' : '280px'};height:${imgs.length > 1 ? '140px' : 'auto'};object-fit:cover;border-radius:10px"/>`).join('')}</div>`
+        : '';
       return `
         <div class="message user">
-          ${m.image ? `<img class="message-image" src="${m.image}" />` : ''}
+          ${imgsHtml}
           ${m.text ? `<div class="message-bubble">${escapeHtml(m.text)}</div>` : ''}
         </div>
       `;
@@ -686,35 +720,46 @@
   }
 
   // ===== IMAGE =====
+  function renderPreview() {
+    const wrap = document.getElementById('previewWrap');
+    const container = document.getElementById('previewImages');
+    if (!selectedFiles.length) {
+      wrap.classList.remove('show');
+      container.innerHTML = '';
+      return;
+    }
+    wrap.classList.add('show');
+    container.innerHTML = selectedFiles.map((f, i) => {
+      const url = URL.createObjectURL(f);
+      return `<div class="preview-thumb">
+        <img src="${url}" />
+        <button class="btn-remove-one" onclick="removeOneImage(${i})">&#x2715;</button>
+      </div>`;
+    }).join('');
+  }
+
+  function removeOneImage(index) {
+    selectedFiles.splice(index, 1);
+    renderPreview();
+  }
+
   function setSelectedFile(file) {
     if (!file || !file.type.startsWith('image/')) return;
     selectedFiles = [file];
-    const url = URL.createObjectURL(file);
-    document.getElementById('previewImg').src = url;
-    document.getElementById('previewName').textContent = file.name || 'image.png';
-    document.getElementById('previewWrap').classList.add('show');
+    renderPreview();
   }
 
   function onImageSelect(event) {
     const files = Array.from(event.target.files).filter(f => f.type.startsWith('image/'));
     if (!files.length) return;
     selectedFiles = files;
-    if (files.length === 1) {
-      const url = URL.createObjectURL(files[0]);
-      document.getElementById('previewImg').src = url;
-      document.getElementById('previewName').textContent = files[0].name || 'image.png';
-    } else {
-      document.getElementById('previewImg').src = '';
-      document.getElementById('previewName').textContent = `${files.length} ảnh đã chọn`;
-    }
-    document.getElementById('previewWrap').classList.add('show');
+    renderPreview();
   }
 
   function removeImage() {
     selectedFiles = [];
     document.getElementById('fileInput').value = '';
-    document.getElementById('previewWrap').classList.remove('show');
-    document.getElementById('previewImg').src = '';
+    renderPreview();
   }
 
   // Ctrl+V paste ảnh (1 hoặc nhiều ảnh)
@@ -732,15 +777,7 @@
     if (!pastedImages.length) return;
     // Gộp thêm vào selectedFiles (không xóa ảnh cũ đã chọn)
     selectedFiles = [...selectedFiles, ...pastedImages];
-    if (selectedFiles.length === 1) {
-      const url = URL.createObjectURL(selectedFiles[0]);
-      document.getElementById('previewImg').src = url;
-      document.getElementById('previewName').textContent = selectedFiles[0].name || 'image.png';
-    } else {
-      document.getElementById('previewImg').src = '';
-      document.getElementById('previewName').textContent = `${selectedFiles.length} ảnh đã chọn`;
-    }
-    document.getElementById('previewWrap').classList.add('show');
+    renderPreview();
     document.getElementById('messageInput').focus();
   });
 
@@ -763,15 +800,10 @@
     const text = input.value.trim();
     if (!text && !selectedFiles.length) return;
 
-    // Hiển thị tin nhắn user (preview ảnh đầu tiên nếu có)
-    let imageDataUrl = null;
-    if (selectedFiles.length === 1) {
-      imageDataUrl = await fileToDataUrl(selectedFiles[0]);
-    } else if (selectedFiles.length > 1) {
-      imageDataUrl = await fileToDataUrl(selectedFiles[0]); // preview ảnh đầu
-    }
-
-    addMessage('user', text || `${selectedFiles.length} ảnh giỏ hàng`, { image: imageDataUrl });
+    // Chuyển tất cả ảnh sang dataURL để hiển thị trong message
+    const imageDataUrls = await Promise.all(selectedFiles.map(f => fileToDataUrl(f)));
+    const msgText = text || '';
+    addMessage('user', msgText, { images: imageDataUrls });
     input.value = '';
     input.style.height = 'auto';
     const filesToSend = [...selectedFiles];
@@ -801,7 +833,7 @@
           linkOffset += (newCount - prevCount);
         }
       } else {
-        await processOrder(text, filesToSend[0] || null, imageDataUrl);
+        await processOrder(text, filesToSend[0] || null, imageDataUrls[0] || null);
       }
     } catch (err) {
       removeTyping();
