@@ -492,7 +492,7 @@
           <circle cx="22.5" cy="14.5" r="1.1" fill="#062538"/>
         </svg>
       </button>
-      <input type="file" id="fileInput" accept="image/*" onchange="onImageSelect(event)" />
+      <input type="file" id="fileInput" accept="image/*" multiple onchange="onImageSelect(event)" />
 
       <!-- Text input -->
       <textarea
@@ -530,7 +530,7 @@
   // ===== STATE =====
   let sessions = [];
   let activeSessionId = null;
-  let selectedFile = null;
+  let selectedFiles = [];
   let isLoading = false;
 
   // ===== INIT =====
@@ -688,7 +688,7 @@
   // ===== IMAGE =====
   function setSelectedFile(file) {
     if (!file || !file.type.startsWith('image/')) return;
-    selectedFile = file;
+    selectedFiles = [file];
     const url = URL.createObjectURL(file);
     document.getElementById('previewImg').src = url;
     document.getElementById('previewName').textContent = file.name || 'image.png';
@@ -696,11 +696,22 @@
   }
 
   function onImageSelect(event) {
-    setSelectedFile(event.target.files[0]);
+    const files = Array.from(event.target.files).filter(f => f.type.startsWith('image/'));
+    if (!files.length) return;
+    selectedFiles = files;
+    if (files.length === 1) {
+      const url = URL.createObjectURL(files[0]);
+      document.getElementById('previewImg').src = url;
+      document.getElementById('previewName').textContent = files[0].name || 'image.png';
+    } else {
+      document.getElementById('previewImg').src = '';
+      document.getElementById('previewName').textContent = `${files.length} ảnh đã chọn`;
+    }
+    document.getElementById('previewWrap').classList.add('show');
   }
 
   function removeImage() {
-    selectedFile = null;
+    selectedFiles = [];
     document.getElementById('fileInput').value = '';
     document.getElementById('previewWrap').classList.remove('show');
     document.getElementById('previewImg').src = '';
@@ -738,18 +749,20 @@
     if (isLoading) return;
     const input = document.getElementById('messageInput');
     const text = input.value.trim();
-    if (!text && !selectedFile) return;
+    if (!text && !selectedFiles.length) return;
 
-    // Hiển thị tin nhắn user
+    // Hiển thị tin nhắn user (preview ảnh đầu tiên nếu có)
     let imageDataUrl = null;
-    if (selectedFile) {
-      imageDataUrl = await fileToDataUrl(selectedFile);
+    if (selectedFiles.length === 1) {
+      imageDataUrl = await fileToDataUrl(selectedFiles[0]);
+    } else if (selectedFiles.length > 1) {
+      imageDataUrl = await fileToDataUrl(selectedFiles[0]); // preview ảnh đầu
     }
 
-    addMessage('user', text, { image: imageDataUrl });
+    addMessage('user', text || `${selectedFiles.length} ảnh giỏ hàng`, { image: imageDataUrl });
     input.value = '';
     input.style.height = 'auto';
-    const fileToSend = selectedFile;
+    const filesToSend = [...selectedFiles];
     removeImage();
 
     // Lock UI
@@ -758,7 +771,16 @@
     showTyping();
 
     try {
-      await processOrder(text, fileToSend, imageDataUrl);
+      if (filesToSend.length > 1) {
+        // Nhiều ảnh: xử lý tuần tự từng ảnh
+        for (let i = 0; i < filesToSend.length; i++) {
+          removeTyping();
+          showTyping();
+          await processOrder(i === 0 ? text : '', filesToSend[i], null, `(${i + 1}/${filesToSend.length})`);
+        }
+      } else {
+        await processOrder(text, filesToSend[0] || null, imageDataUrl);
+      }
     } catch (err) {
       removeTyping();
       addMessage('ai', 'Co loi xay ra: ' + err.message);
@@ -768,7 +790,7 @@
     }
   }
 
-  async function processOrder(text, file, imageDataUrl) {
+  async function processOrder(text, file, imageDataUrl, progressLabel = '') {
     const session = getActiveSession();
 
     // ===== BƯỚC 1: Tìm khách hàng =====
@@ -987,7 +1009,7 @@
         const totals = calcCartTotal(session.items, session.salePct || 0);
         const totalLine = Object.keys(totals).length > 0 ? `\n💰 Tổng đơn: ${formatTotal(totals)}` : '';
         addMessage('ai',
-          `Đã thêm ${newItems.length} sản phẩm:\n\n${newItemsText}\n\n─────────────────\nTổng cộng: ${totalCount} sản phẩm${totalLine}\n\nGửi thêm ảnh hoặc gõ "tạo đơn" để hoàn tất.`
+          `${progressLabel ? progressLabel + ' ' : ''}Đã thêm ${newItems.length} sản phẩm:\n\n${newItemsText}\n\n─────────────────\nTổng cộng: ${totalCount} sản phẩm${totalLine}\n\nGửi thêm ảnh hoặc gõ "tạo đơn" để hoàn tất.`
         );
         return;
       }
