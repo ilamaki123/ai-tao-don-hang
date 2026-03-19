@@ -387,7 +387,7 @@
   // ===== API CALL =====
   async function callLoginAPI(username, password) {
     const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-      ? 'http://localhost:3000' : '';
+      ? 'http://localhost:3000' : 'https://ai-tao-don-hang.onrender.com';
 
     const res = await fetch(`${API_BASE}/api/basso-login`, {
       method: 'POST',
