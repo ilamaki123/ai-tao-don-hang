@@ -272,7 +272,8 @@ app.post('/api/create-order', async (req, res) => {
 
   try {
     const body = new URLSearchParams(req.body).toString();
-    console.log('[create-order] Sending to Basso:', body.substring(0, 500));
+    console.log('[create-order] items JSON:', req.body.items);
+    console.log('[create-order] website:', req.body.website);
     const response = await fetch(`${BASSO_URL}/partner/createOrder`, {
       method: 'POST',
       headers: { ...bassoHeaders(req), 'Content-Type': 'application/x-www-form-urlencoded' },
