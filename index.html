@@ -987,8 +987,10 @@
       city_id: c.city_id,
       district_id: c.district_id,
       payment_method: 'cod',
+      isStock: false,
       country_id: 1,
       payment_limit_id: 1,
+      brand: 'shipus',
       website: 'direct',
       items: JSON.stringify(session.items.map(item => ({
         name: item.name,
