@@ -717,19 +717,31 @@
     document.getElementById('previewImg').src = '';
   }
 
-  // Ctrl+V paste ảnh
+  // Ctrl+V paste ảnh (1 hoặc nhiều ảnh)
   document.addEventListener('paste', (e) => {
     if (!activeSessionId) return;
     const items = e.clipboardData?.items;
     if (!items) return;
+    const pastedImages = [];
     for (const item of items) {
       if (item.type.startsWith('image/')) {
         const file = item.getAsFile();
-        setSelectedFile(file);
-        document.getElementById('messageInput').focus();
-        break;
+        if (file) pastedImages.push(file);
       }
     }
+    if (!pastedImages.length) return;
+    // Gộp thêm vào selectedFiles (không xóa ảnh cũ đã chọn)
+    selectedFiles = [...selectedFiles, ...pastedImages];
+    if (selectedFiles.length === 1) {
+      const url = URL.createObjectURL(selectedFiles[0]);
+      document.getElementById('previewImg').src = url;
+      document.getElementById('previewName').textContent = selectedFiles[0].name || 'image.png';
+    } else {
+      document.getElementById('previewImg').src = '';
+      document.getElementById('previewName').textContent = `${selectedFiles.length} ảnh đã chọn`;
+    }
+    document.getElementById('previewWrap').classList.add('show');
+    document.getElementById('messageInput').focus();
   });
 
   // ===== SEND =====
