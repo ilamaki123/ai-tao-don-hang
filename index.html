@@ -992,14 +992,17 @@
       payment_limit_id: 1,
       brand: 'shipus',
       website: 'direct',
-      items: JSON.stringify(session.items.map(item => ({
-        name: item.name,
-        link: item.link || '',
-        quantity: item.quantity || 1,
-        price: item.price || 0,
-        ...(item.image_id ? { image_id: item.image_id } : {}),
-        // variations: chờ API Basso xác nhận format
-      }))),
+      items: JSON.stringify(session.items.map(item => {
+        const vars = (item.variations || []).map(v => `${v.name}: ${v.value}`).join(', ');
+        return {
+          name: vars ? `${item.name} (${vars})` : item.name,
+          link: item.link || '',
+          quantity: item.quantity || 1,
+          price: item.price || 0,
+          ...(vars ? { note: vars } : {}),
+          ...(item.image_id ? { image_id: item.image_id } : {}),
+        };
+      })),
     };
 
     const orderRes = await fetch(`${API_BASE}/api/create-order`, {
