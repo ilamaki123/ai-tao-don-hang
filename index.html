@@ -1192,6 +1192,19 @@
     }
   }
 
+  function extractWebsiteFromItems(items) {
+    const link = items.find(i => i.link)?.link || '';
+    if (!link) return 'direct';
+    try {
+      const hostname = new URL(link).hostname.toLowerCase().replace(/^www\./, '');
+      // usa.tommy.com → tommy | macys.com → macys | amazon.com → amazon
+      const parts = hostname.split('.');
+      return parts.length >= 2 ? parts[parts.length - 2] : hostname;
+    } catch {
+      return 'direct';
+    }
+  }
+
   async function submitOrder(session) {
     const c = session.customer;
     const orderBody = {
@@ -1207,7 +1220,7 @@
       country_id: 1,
       payment_limit_id: 1,
       brand: document.getElementById('brandSelect').value,
-      website: 'direct',
+      website: extractWebsiteFromItems(session.items),
       items: JSON.stringify(session.items.map(item => {
         const vars = (item.variations || []).map(v => `${v.name}: ${v.value}`).join(', ');
         const salePct = session.salePct || 0;
@@ -1221,7 +1234,7 @@
           original_price: item.price || 0,
           sale_percent: salePct,
           price: priceAfterSale,
-          variant: vars || '',
+          variant: vars,
           ...(item.image_id ? { image_id: item.image_id } : {}),
         };
       })),
