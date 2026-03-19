@@ -148,6 +148,39 @@ Trả về JSON (chỉ JSON, không giải thích):
   }
 });
 
+// ===== EXTRACT PRODUCT IMAGE COORDS =====
+app.post('/api/extract-product-images', upload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ success: false, message: 'Thiếu file ảnh' });
+    const imageBase64 = req.file.buffer.toString('base64');
+    const mimeType = req.file.mimetype;
+    const response = await anthropic.messages.create({
+      model: 'claude-opus-4-6',
+      max_tokens: 1024,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'image', source: { type: 'base64', media_type: mimeType, data: imageBase64 } },
+          { type: 'text', text: `This is a shopping cart screenshot. For each product row, find the bounding box of ONLY the product photo (clothing/item thumbnail image, NOT text, price, buttons).
+Return JSON only:
+{
+  "products": [
+    {"index": 0, "xPct": 5.0, "yPct": 2.0, "widthPct": 15.0, "heightPct": 20.0}
+  ]
+}
+Coordinates are percentages (0-100) of image dimensions. Order top to bottom.` }
+        ]
+      }]
+    });
+    const text = response.content[0].text.trim();
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return res.status(500).json({ success: false, message: 'Cannot parse' });
+    res.json({ success: true, data: JSON.parse(jsonMatch[0]) });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // ===== PROXY: TÌM KHÁCH HÀNG =====
 app.get('/api/find-customer', async (req, res) => {
   const { phone } = req.query;
