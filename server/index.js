@@ -235,6 +235,7 @@ app.post('/api/upload-image', upload.single('file'), async (req, res) => {
       body: formData,
     });
     const data = await response.json();
+    console.log('[upload-image] Basso response:', JSON.stringify(data));
     res.json(data);
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -271,12 +272,14 @@ app.post('/api/create-order', async (req, res) => {
 
   try {
     const body = new URLSearchParams(req.body).toString();
+    console.log('[create-order] Sending to Basso:', body.substring(0, 500));
     const response = await fetch(`${BASSO_URL}/partner/createOrder`, {
       method: 'POST',
       headers: { ...bassoHeaders(req), 'Content-Type': 'application/x-www-form-urlencoded' },
       body,
     });
     const data = await response.json();
+    console.log('[create-order] Basso response:', JSON.stringify(data));
     res.json(data);
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

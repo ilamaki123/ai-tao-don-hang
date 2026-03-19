@@ -1182,9 +1182,9 @@
     if (!link) return 'direct';
     try {
       const hostname = new URL(link).hostname.toLowerCase().replace(/^www\./, '');
-      // usa.tommy.com → tommy | macys.com → macys | amazon.com → amazon
+      // usa.tommy.com → tommy.com | macys.com → macys.com | amazon.co.uk → co.uk
       const parts = hostname.split('.');
-      return parts.length >= 2 ? parts[parts.length - 2] : hostname;
+      return parts.length >= 2 ? parts.slice(-2).join('.') : hostname;
     } catch {
       return 'direct';
     }
