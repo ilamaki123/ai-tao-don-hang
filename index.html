@@ -858,7 +858,7 @@
       // Lệnh giảm giá: "giảm 20%", "sale 20%", "off 20%", "bỏ giảm giá"
       if (!file) {
         const cancelSale = /bỏ\s*giảm\s*giá|bo\s*giam\s*gia|bỏ\s*sale|reset\s*sale/i.test(text);
-        const saleMatch = text.match(/(?:giảm|giam|sale|off|discount)\s*(\d+(?:\.\d+)?)\s*%/i);
+        const saleMatch = text.match(/(?:giảm(?:\s*giá)?|giam(?:\s*gia)?|sale|off|discount)\s*(\d+(?:\.\d+)?)\s*%/i);
         if (cancelSale) {
           session.salePct = 0;
           removeTyping();
