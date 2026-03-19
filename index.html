@@ -1204,7 +1204,7 @@
       isStock: false,
       country_id: 1,
       payment_limit_id: 1,
-      brand: 'shipus',
+      brand: c.brand || 'shipus',
       website: extractWebsiteFromItems(session.items),
       items: JSON.stringify(session.items.map(item => {
         const vars = (item.variations || []).map(v => `${v.name}: ${v.value}`).join(', ');
