@@ -784,11 +784,17 @@
 
     try {
       if (filesToSend.length > 1) {
-        // Nhiều ảnh: xử lý tuần tự từng ảnh
+        // Phân phối links theo thứ tự ảnh
+        const allLinks = extractLinks(text);
+        const nonLinkText = text.split('\n').filter(l => !l.trim().startsWith('http')).join('\n').trim();
         for (let i = 0; i < filesToSend.length; i++) {
           removeTyping();
           showTyping();
-          await processOrder(i === 0 ? text : '', filesToSend[i], null, `(${i + 1}/${filesToSend.length})`);
+          const linkForImage = allLinks[i] ? allLinks[i] : '';
+          const textForImage = i === 0
+            ? [nonLinkText, linkForImage].filter(Boolean).join('\n')
+            : linkForImage;
+          await processOrder(textForImage, filesToSend[i], null, `(${i + 1}/${filesToSend.length})`);
         }
       } else {
         await processOrder(text, filesToSend[0] || null, imageDataUrl);
