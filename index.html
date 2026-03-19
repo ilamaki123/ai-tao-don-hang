@@ -1042,8 +1042,9 @@
           return;
         }
 
-        // Lưu file ảnh giỏ hàng và extract thumbnails sản phẩm
+        // Extract + auto-upload ảnh từng sản phẩm
         session.cartImages.push(file);
+        const newItems = (analyzeData.data.items || []).map(item => ({ ...item }));
         try {
           const extractForm = new FormData();
           extractForm.append('image', file);
@@ -1052,9 +1053,23 @@
           if (extractData.success && extractData.data.products?.length > 0) {
             const cropped = await cropProductImages(file, extractData.data.products);
             session.extractedImages.push(...cropped);
+            // Tự động upload từng ảnh crop lên Basso và gán image_id
+            await Promise.all(cropped.map(async (dataUrl, i) => {
+              if (i >= newItems.length) return;
+              try {
+                const blob = await (await fetch(dataUrl)).blob();
+                const imgFile = new File([blob], `product_${i + 1}.jpg`, { type: 'image/jpeg' });
+                const uploadForm = new FormData();
+                uploadForm.append('file', imgFile);
+                const uploadRes = await fetch(`${API_BASE}/api/upload-image`, { method: 'POST', headers: getAuthHeaders(), body: uploadForm });
+                const uploadData = await uploadRes.json();
+                if (uploadData.success && uploadData.data.id) {
+                  newItems[i].image_id = uploadData.data.id;
+                }
+              } catch (e) { /* silent fail per item */ }
+            }));
           }
         } catch (e) { /* silent fail */ }
-        const newItems = (analyzeData.data.items || []).map(item => ({ ...item }));
         session.items.push(...newItems);
 
         removeTyping();
@@ -1063,7 +1078,8 @@
         const newItemsText = newItems.map((item, i) => {
           const vars = (item.variations || []).map(v => `${v.name}: ${v.value}`).join(', ');
           const linkStatus = item.link ? item.link : '⚠️ chưa có link';
-          return `${i + 1}. ${item.name}\n   Qty: ${item.quantity} | ${formatPrice(item)}${vars ? '\n   ' + vars : ''}\n   ${linkStatus}`;
+          const imgStatus = item.image_id ? '🖼️ ảnh OK' : '📷 chưa có ảnh';
+          return `${i + 1}. ${item.name}\n   Qty: ${item.quantity} | ${formatPrice(item)}${vars ? '\n   ' + vars : ''}\n   ${imgStatus}\n   ${linkStatus}`;
         }).join('\n\n');
 
         const totalCount = session.items.length;
