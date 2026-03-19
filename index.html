@@ -586,6 +586,7 @@
       cartImages: [],      // lưu file ảnh giỏ hàng đã upload
       extractedImages: [], // ảnh sản phẩm đã crop từ giỏ hàng (data URLs)
       imageIndex: 0,   // con trỏ khi đang thêm ảnh sản phẩm
+      salePct: 0,      // % giảm giá áp dụng cho toàn đơn
     };
     sessions.unshift(newSession);
     selectSession(newSession.id);
@@ -810,6 +811,24 @@
     // ===== BƯỚC 2: Thêm sản phẩm từ ảnh =====
     if (session.state === 'WAITING_IMAGE') {
 
+      // Lệnh giảm giá: "giảm 20%", "sale 20%", "off 20%", "bỏ giảm giá"
+      if (!file) {
+        const cancelSale = /bỏ\s*giảm\s*giá|bo\s*giam\s*gia|bỏ\s*sale|reset\s*sale/i.test(text);
+        const saleMatch = text.match(/(?:giảm|giam|sale|off|discount)\s*(\d+(?:\.\d+)?)\s*%/i);
+        if (cancelSale) {
+          session.salePct = 0;
+          removeTyping();
+          addMessage('ai', `✅ Đã bỏ giảm giá. Giá gốc được áp dụng.\n\n` + renderCartSummary(session));
+          return;
+        }
+        if (saleMatch) {
+          session.salePct = parseFloat(saleMatch[1]);
+          removeTyping();
+          addMessage('ai', `✅ Đã áp dụng giảm giá ${session.salePct}% cho tất cả sản phẩm.\n\n` + renderCartSummary(session));
+          return;
+        }
+      }
+
       // User gõ "tạo đơn" → hiện summary + yêu cầu confirm
       if (!file && isTaoDon(text)) {
         if (session.items.length === 0) {
@@ -965,7 +984,7 @@
         }).join('\n\n');
 
         const totalCount = session.items.length;
-        const totals = calcCartTotal(session.items);
+        const totals = calcCartTotal(session.items, session.salePct || 0);
         const totalLine = Object.keys(totals).length > 0 ? `\n💰 Tổng đơn: ${formatTotal(totals)}` : '';
         addMessage('ai',
           `Đã thêm ${newItems.length} sản phẩm:\n\n${newItemsText}\n\n─────────────────\nTổng cộng: ${totalCount} sản phẩm${totalLine}\n\nGửi thêm ảnh hoặc gõ "tạo đơn" để hoàn tất.`
@@ -1108,11 +1127,17 @@
       website: 'direct',
       items: JSON.stringify(session.items.map(item => {
         const vars = (item.variations || []).map(v => `${v.name}: ${v.value}`).join(', ');
+        const salePct = session.salePct || 0;
+        const priceAfterSale = salePct > 0
+          ? Math.round(item.price * (1 - salePct / 100) * 100) / 100
+          : item.price || 0;
         return {
           name: item.name,
           link: item.link || '',
           quantity: item.quantity || 1,
-          price: item.price || 0,
+          original_price: item.price || 0,
+          sale_percent: salePct,
+          price: priceAfterSale,
           variant: vars || '',
           ...(item.image_id ? { image_id: item.image_id } : {}),
         };
@@ -1274,12 +1299,13 @@
     return lines.length > 0 && lines.every(l => l.startsWith('http'));
   }
 
-  function calcCartTotal(items) {
+  function calcCartTotal(items, salePct = 0) {
     const totals = {};
     for (const item of items) {
       if (!item.price) continue;
       const cur = (item.currency || '').trim() || '?';
-      totals[cur] = (totals[cur] || 0) + (item.price * (item.quantity || 1));
+      const price = salePct > 0 ? item.price * (1 - salePct / 100) : item.price;
+      totals[cur] = (totals[cur] || 0) + (price * (item.quantity || 1));
     }
     return totals;
   }
@@ -1293,22 +1319,32 @@
     }).join(' + ');
   }
 
+  function effectivePrice(item, salePct) {
+    if (!item.price) return item.price;
+    return salePct > 0 ? Math.round(item.price * (1 - salePct / 100) * 100) / 100 : item.price;
+  }
+
   function renderCartSummary(session) {
     console.log('[RENDER CART] items:', JSON.stringify(session.items.map(i => ({name: i.name, link: i.link}))));
     if (session.items.length === 0) {
       return 'Giỏ hàng trống. Vui lòng upload ảnh sản phẩm.';
     }
+    const salePct = session.salePct || 0;
     const lines = session.items.map((item, i) => {
       const vars = (item.variations || []).map(v => `${v.name}: ${v.value}`).join(', ');
       const linkLine = item.link ? `🔗 ${item.link}` : '⚠️ Chưa có link';
-      return `${i + 1}. ${item.name}\n   Qty: ${item.quantity} | ${formatPrice(item)}${vars ? '\n   ' + vars : ''}\n   ${linkLine}`;
+      const priceDisplay = salePct > 0
+        ? `${formatPrice(item)} → ${formatPrice({...item, price: effectivePrice(item, salePct)})} (-${salePct}%)`
+        : formatPrice(item);
+      return `${i + 1}. ${item.name}\n   Qty: ${item.quantity} | ${priceDisplay}${vars ? '\n   ' + vars : ''}\n   ${linkLine}`;
     }).join('\n\n');
     const missing = session.items.filter(i => !i.link).length;
     const warning = missing > 0 ? `\n\n⚠️ ${missing} sản phẩm chưa có link. Gửi link bổ sung để cập nhật.` : '\n\n✅ Tất cả sản phẩm đã có link.';
-    const totals = calcCartTotal(session.items);
-    const totalLine = Object.keys(totals).length > 0 ? `\n💰 Tổng: ${formatTotal(totals)}` : '';
-    const editHint = `\n\n─────────────────\n✏️  sửa #N tên/qty/giá/link: <giá trị>\n🗑️  xóa #N`;
-    return `📦 Giỏ hàng (${session.items.length} sản phẩm):\n\n${lines}${warning}${totalLine}${editHint}`;
+    const totals = calcCartTotal(session.items, salePct);
+    const totalLine = Object.keys(totals).length > 0 ? `\n💰 Tổng${salePct > 0 ? ` (sau -${salePct}%)` : ''}: ${formatTotal(totals)}` : '';
+    const saleHint = salePct > 0 ? `\n🏷️ Đang áp dụng giảm giá ${salePct}% toàn đơn` : '';
+    const editHint = `\n\n─────────────────\n✏️  sửa #N tên/qty/giá/link: <giá trị>\n🗑️  xóa #N\n💸  giảm N% | bỏ giảm giá`;
+    return `📦 Giỏ hàng (${session.items.length} sản phẩm):${saleHint}\n\n${lines}${warning}${totalLine}${editHint}`;
   }
 
   // ===== UTILS =====
