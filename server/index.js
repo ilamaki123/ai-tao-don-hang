@@ -16,9 +16,57 @@ console.log('Mock mode:', IS_MOCK);
 app.use(cors());
 app.use(express.json());
 
+// Helper: build Basso headers với auth token từ client
+function bassoHeaders(req) {
+  const auth = req.headers['authorization'] || '';
+  return {
+    'X-Partner-Api-Key': BASSO_KEY,
+    ...(auth ? { 'Authorization': auth } : {}),
+  };
+}
+
 // ===== HEALTH CHECK =====
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', mock: IS_MOCK });
+});
+
+// ===== BASSO LOGIN =====
+app.post('/api/basso-login', async (req, res) => {
+  const { email, pass } = req.body;
+
+  if (IS_MOCK) {
+    const mockAccounts = [
+      { email: 'admin', pass: '123456', name: 'Admin' },
+      { email: 'vinh',  pass: '123456', name: 'Vinh Pham' },
+    ];
+    const found = mockAccounts.find(a => a.email === email && a.pass === pass);
+    if (!found) {
+      return res.json({ success: false, message: 'Sai email hoặc mật khẩu', data: [], errors: [] });
+    }
+    return res.json({
+      success: true, message: 'Đăng nhập thành công',
+      data: {
+        user: { id: 1, email: found.email, name: found.name, roles: ['manager'] },
+        access_token: 'mock_token_' + Date.now(),
+        token_type: 'Bearer',
+        expires_at: Math.floor(Date.now() / 1000) + 86400,
+      },
+      _mock: true,
+    });
+  }
+
+  try {
+    const body = new URLSearchParams({ email, pass }).toString();
+    const response = await fetch(`${BASSO_URL}/partner/login`, {
+      method: 'POST',
+      headers: { 'X-Partner-Api-Key': BASSO_KEY, 'Content-Type': 'application/x-www-form-urlencoded' },
+      body,
+    });
+    const data = await response.json();
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
 });
 
 // ===== ANALYZE IMAGE =====
@@ -128,7 +176,7 @@ app.get('/api/find-customer', async (req, res) => {
   try {
     const response = await fetch(
       `${BASSO_URL}/partner/findCustomerByPhone?phone=${phone}`,
-      { headers: { 'X-Partner-Api-Key': BASSO_KEY } }
+      { headers: bassoHeaders(req) }
     );
     const data = await response.json();
     res.json(data);
@@ -150,7 +198,7 @@ app.post('/api/upload-image', upload.single('file'), async (req, res) => {
 
     const response = await fetch(`${BASSO_URL}/partner/uploadImage`, {
       method: 'POST',
-      headers: { 'X-Partner-Api-Key': BASSO_KEY },
+      headers: bassoHeaders(req),
       body: formData,
     });
     const data = await response.json();
@@ -192,10 +240,7 @@ app.post('/api/create-order', async (req, res) => {
     const body = new URLSearchParams(req.body).toString();
     const response = await fetch(`${BASSO_URL}/partner/createOrder`, {
       method: 'POST',
-      headers: {
-        'X-Partner-Api-Key': BASSO_KEY,
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
+      headers: { ...bassoHeaders(req), 'Content-Type': 'application/x-www-form-urlencoded' },
       body,
     });
     const data = await response.json();

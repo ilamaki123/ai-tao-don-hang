@@ -712,7 +712,7 @@
         return;
       }
 
-      const res = await fetch(`${API_BASE}/api/find-customer?phone=${phone}`);
+      const res = await fetch(`${API_BASE}/api/find-customer?phone=${phone}`, { headers: getAuthHeaders() });
       const data = await res.json();
       removeTyping();
 
@@ -858,7 +858,7 @@
         const analyzeForm = new FormData();
         analyzeForm.append('image', file);
         analyzeForm.append('links', links.join('\n'));
-        const analyzeRes = await fetch(`${API_BASE}/api/analyze-image`, { method: 'POST', body: analyzeForm });
+        const analyzeRes = await fetch(`${API_BASE}/api/analyze-image`, { method: 'POST', headers: getAuthHeaders(), body: analyzeForm });
         const analyzeData = await analyzeRes.json();
 
         if (!analyzeData.success) {
@@ -925,7 +925,7 @@
       if (file) {
         const uploadForm = new FormData();
         uploadForm.append('file', file);
-        const uploadRes = await fetch(`${API_BASE}/api/upload-image`, { method: 'POST', body: uploadForm });
+        const uploadRes = await fetch(`${API_BASE}/api/upload-image`, { method: 'POST', headers: getAuthHeaders(), body: uploadForm });
         const uploadData = await uploadRes.json();
         if (uploadData.success && uploadData.data.id) {
           session.items[idx].image_id = uploadData.data.id;
@@ -1002,7 +1002,7 @@
 
     const orderRes = await fetch(`${API_BASE}/api/create-order`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify(orderBody),
     });
     const orderData = await orderRes.json();
@@ -1179,6 +1179,11 @@
     }
     const price = parseFloat(s.replace(/[,\s]/g, ''));
     return { price: isNaN(price) ? null : price, currency };
+  }
+
+  function getAuthHeaders() {
+    const user = JSON.parse(localStorage.getItem('ai_chat_user') || sessionStorage.getItem('ai_chat_user') || 'null');
+    return user && user.token ? { 'Authorization': `Bearer ${user.token}` } : {};
   }
 
   function escapeHtml(str) {

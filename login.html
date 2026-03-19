@@ -386,36 +386,24 @@
 
   // ===== API CALL =====
   async function callLoginAPI(username, password) {
-    // -------------------------------------------------------
-    // TODO: Thay bằng API thật của hệ thống Basso khi có
-    // const res = await fetch('https://basso.vn/api/auth/login', {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify({ username, password })
-    // });
-    // const data = await res.json();
-    // if (!data.success) throw new Error(data.message);
-    // return data.user;
-    // -------------------------------------------------------
+    const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+      ? 'http://localhost:3000' : '';
 
-    // MOCK: Giả lập đăng nhập tạm thời
-    await sleep(1400);
+    const res = await fetch(`${API_BASE}/api/basso-login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: username, pass: password }),
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.message || 'Đăng nhập thất bại. Vui lòng thử lại.');
 
-    const mockAccounts = [
-      { username: 'admin', password: '123456', name: 'Vinh Pham' },
-      { username: 'vinh',  password: '123456', name: 'Vinh Pham' },
-    ];
-
-    const found = mockAccounts.find(a => a.username === username && a.password === password);
-    if (!found) {
-      throw new Error('Tên đăng nhập hoặc mật khẩu không đúng. Vui lòng thử lại.');
-    }
-
-    return { username: found.username, name: found.name, token: 'mock_token_' + Date.now() };
-  }
-
-  function sleep(ms) {
-    return new Promise(r => setTimeout(r, ms));
+    const user = data.data.user;
+    return {
+      username: user.email,
+      name: user.name || user.email,
+      token: data.data.access_token,
+      expires_at: data.data.expires_at,
+    };
   }
 </script>
 </body>
