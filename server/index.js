@@ -101,7 +101,7 @@ app.post('/api/analyze-image', upload.single('image'), async (req, res) => {
 Với mỗi sản phẩm trích xuất:
 - name: tên thương hiệu + tên sản phẩm
 - quantity: số lượng (số nguyên)
-- price: giá hiện tại (số thực, không có ký hiệu tiền tệ)
+- price: LUÔN LUÔN là ĐƠN GIÁ (giá cho 1 sản phẩm). Nếu ảnh hiển thị tổng giá (ví dụ qty=5, hiển thị $165) thì chia ngược: price = 165/5 = 33. Nếu ảnh hiển thị đơn giá (ví dụ $33/item hoặc $33 each) thì giữ nguyên. Kiểm tra: quantity × price phải bằng tổng giá hiển thị trong ảnh.
 - currency: ký hiệu tiền tệ nhìn thấy trong ảnh (ví dụ: "$", "€", "£", "₩", "¥", "đ", "VND") — nếu không thấy để trống ""
 - variations: mảng thuộc tính size/color/etc
 
