@@ -965,8 +965,10 @@
         }).join('\n\n');
 
         const totalCount = session.items.length;
+        const totals = calcCartTotal(session.items);
+        const totalLine = Object.keys(totals).length > 0 ? `\n💰 Tổng đơn: ${formatTotal(totals)}` : '';
         addMessage('ai',
-          `Đã thêm ${newItems.length} sản phẩm:\n\n${newItemsText}\n\n─────────────────\nTổng cộng: ${totalCount} sản phẩm\n\nGửi thêm ảnh hoặc gõ "tạo đơn" để hoàn tất.`
+          `Đã thêm ${newItems.length} sản phẩm:\n\n${newItemsText}\n\n─────────────────\nTổng cộng: ${totalCount} sản phẩm${totalLine}\n\nGửi thêm ảnh hoặc gõ "tạo đơn" để hoàn tất.`
         );
         return;
       }
@@ -1272,6 +1274,25 @@
     return lines.length > 0 && lines.every(l => l.startsWith('http'));
   }
 
+  function calcCartTotal(items) {
+    const totals = {};
+    for (const item of items) {
+      if (!item.price) continue;
+      const cur = (item.currency || '').trim() || '?';
+      totals[cur] = (totals[cur] || 0) + (item.price * (item.quantity || 1));
+    }
+    return totals;
+  }
+
+  function formatTotal(totals) {
+    const suffixCurrencies = ['đ', 'VND', '₫'];
+    return Object.entries(totals).map(([cur, total]) => {
+      if (cur === '?') return total.toLocaleString();
+      if (suffixCurrencies.includes(cur)) return total.toLocaleString('vi-VN') + cur;
+      return cur + total.toLocaleString();
+    }).join(' + ');
+  }
+
   function renderCartSummary(session) {
     console.log('[RENDER CART] items:', JSON.stringify(session.items.map(i => ({name: i.name, link: i.link}))));
     if (session.items.length === 0) {
@@ -1284,8 +1305,10 @@
     }).join('\n\n');
     const missing = session.items.filter(i => !i.link).length;
     const warning = missing > 0 ? `\n\n⚠️ ${missing} sản phẩm chưa có link. Gửi link bổ sung để cập nhật.` : '\n\n✅ Tất cả sản phẩm đã có link.';
+    const totals = calcCartTotal(session.items);
+    const totalLine = Object.keys(totals).length > 0 ? `\n💰 Tổng: ${formatTotal(totals)}` : '';
     const editHint = `\n\n─────────────────\n✏️  sửa #N tên/qty/giá/link: <giá trị>\n🗑️  xóa #N`;
-    return `📦 Giỏ hàng (${session.items.length} sản phẩm):\n\n${lines}${warning}${editHint}`;
+    return `📦 Giỏ hàng (${session.items.length} sản phẩm):\n\n${lines}${warning}${totalLine}${editHint}`;
   }
 
   // ===== UTILS =====
