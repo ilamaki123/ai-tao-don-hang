@@ -995,11 +995,11 @@
       items: JSON.stringify(session.items.map(item => {
         const vars = (item.variations || []).map(v => `${v.name}: ${v.value}`).join(', ');
         return {
-          name: vars ? `${item.name} (${vars})` : item.name,
+          name: item.name,
           link: item.link || '',
           quantity: item.quantity || 1,
           price: item.price || 0,
-          ...(vars ? { note: vars } : {}),
+          variant: vars || '',
           ...(item.image_id ? { image_id: item.image_id } : {}),
         };
       })),
