@@ -56,29 +56,6 @@
 
     .btn-new-chat:hover { background: #004d72; }
 
-    .brand-select-wrap {
-      margin-bottom: 16px;
-    }
-    .brand-select-wrap label {
-      font-size: 11px;
-      color: #aaa;
-      display: block;
-      margin-bottom: 4px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    .brand-select {
-      width: 100%;
-      padding: 7px 10px;
-      border-radius: 7px;
-      border: 1.5px solid #e0e0e0;
-      font-size: 13px;
-      color: #333;
-      background: #fff;
-      cursor: pointer;
-      outline: none;
-    }
-    .brand-select:focus { border-color: #00354E; }
 
     .chat-history { flex: 1; overflow-y: auto; }
 
@@ -475,14 +452,6 @@
   <button class="btn-new-chat" onclick="newChat()">
     <span>+</span> New Chat
   </button>
-  <div class="brand-select-wrap">
-    <label>Brand</label>
-    <select class="brand-select" id="brandSelect">
-      <option value="shipus">Shipus</option>
-      <option value="basso">Basso</option>
-      <option value="asale">Asale</option>
-    </select>
-  </div>
   <div class="chat-history" id="chatHistory"></div>
 </div>
 
@@ -1235,7 +1204,7 @@
       isStock: false,
       country_id: 1,
       payment_limit_id: 1,
-      brand: document.getElementById('brandSelect').value,
+      brand: 'shipus',
       website: extractWebsiteFromItems(session.items),
       items: JSON.stringify(session.items.map(item => {
         const vars = (item.variations || []).map(v => `${v.name}: ${v.value}`).join(', ');
