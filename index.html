@@ -1034,6 +1034,7 @@
                 const uploadData = await uploadRes.json();
                 if (uploadData.success && uploadData.data.id) {
                   newItems[i].image_id = uploadData.data.id;
+                  newItems[i].image_path = uploadData.data.path;
                 }
               } catch (e) { /* silent fail per item */ }
             }));
@@ -1207,7 +1208,6 @@
       brand: c.brand || 'shipus',
       website: extractWebsiteFromItems(session.items),
       items: JSON.stringify(session.items.map(item => {
-        const vars = (item.variations || []).map(v => `${v.name}: ${v.value}`).join(', ');
         const salePct = session.salePct || 0;
         const priceAfterSale = salePct > 0
           ? Math.round(item.price * (1 - salePct / 100) * 100) / 100
@@ -1219,8 +1219,9 @@
           original_price: item.price || 0,
           sale_percent: salePct,
           price: priceAfterSale,
-          variant: vars,
+          variations: item.variations || [],
           ...(item.image_id ? { image_id: item.image_id } : {}),
+          ...(item.image_path ? { image_path: item.image_path } : {}),
         };
       })),
     };
