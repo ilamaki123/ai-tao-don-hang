@@ -784,17 +784,21 @@
 
     try {
       if (filesToSend.length > 1) {
-        // Phân phối links theo thứ tự ảnh
+        // Phân phối links thông minh: ảnh N sp → nhận N link tiếp theo
         const allLinks = extractLinks(text);
         const nonLinkText = text.split('\n').filter(l => !l.trim().startsWith('http')).join('\n').trim();
+        let linkOffset = 0;
         for (let i = 0; i < filesToSend.length; i++) {
           removeTyping();
           showTyping();
-          const linkForImage = allLinks[i] ? allLinks[i] : '';
+          const prevCount = getActiveSession()?.items.length || 0;
+          const remainingLinks = allLinks.slice(linkOffset);
           const textForImage = i === 0
-            ? [nonLinkText, linkForImage].filter(Boolean).join('\n')
-            : linkForImage;
+            ? [nonLinkText, ...remainingLinks].filter(Boolean).join('\n')
+            : remainingLinks.join('\n');
           await processOrder(textForImage, filesToSend[i], null, `(${i + 1}/${filesToSend.length})`);
+          const newCount = getActiveSession()?.items.length || 0;
+          linkOffset += (newCount - prevCount);
         }
       } else {
         await processOrder(text, filesToSend[0] || null, imageDataUrl);
