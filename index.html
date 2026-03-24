@@ -820,6 +820,46 @@
   async function processOrder(text, file, imageDataUrl, progressLabel = '') {
     const session = getActiveSession();
 
+    // ===== ADMIN: QUẢN LÝ PRICE RULES =====
+    const isAdmin = sessionUser && sessionUser.roles && sessionUser.roles.includes('admin');
+    if (isAdmin && !file) {
+      const addRuleMatch = text.match(/(?:thêm|them|add)\s+rule\s+([a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/i);
+      const removeRuleMatch = text.match(/(?:xóa|xoa|bỏ|bo|remove|xem\s+xóa)\s+rule\s+([a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/i);
+      const listRuleMatch = /(?:xem|list|danh\s*sách|show)\s+rule/i.test(text);
+
+      if (addRuleMatch || removeRuleMatch || listRuleMatch) {
+        if (listRuleMatch) {
+          const r = await fetch(`${API_BASE}/api/price-rules`);
+          const d = await r.json();
+          removeTyping();
+          const domains = (d.data && d.data.totalPriceDomains) || [];
+          addMessage('ai', `📋 Danh sách domain tổng giá (${domains.length}):\n` +
+            (domains.length ? domains.map((x, i) => `${i + 1}. ${x}`).join('\n') : '(trống)') +
+            '\n\n💡 Lệnh: thêm rule [domain] · xóa rule [domain]');
+          return;
+        }
+        const domain = (addRuleMatch || removeRuleMatch)[1].toLowerCase();
+        const action = addRuleMatch ? 'add' : 'remove';
+        const r = await fetch(`${API_BASE}/api/price-rules`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+          body: JSON.stringify({ action, domain }),
+        });
+        const d = await r.json();
+        removeTyping();
+        if (!d.success) { addMessage('ai', '❌ Lỗi: ' + d.message); return; }
+        const domains = (d.data && d.data.totalPriceDomains) || [];
+        const envVar = `TOTAL_PRICE_DOMAINS=${domains.join(',')}`;
+        addMessage('ai', (action === 'add'
+          ? `✅ Đã thêm **${domain}** vào danh sách tổng giá.`
+          : `✅ Đã xóa **${domain}** khỏi danh sách tổng giá.`) +
+          `\n\nDanh sách hiện tại (${domains.length}):\n` +
+          domains.map((x, i) => `${i + 1}. ${x}`).join('\n') +
+          `\n\n⚠️ Để lưu vĩnh viễn khi deploy lại, cập nhật biến môi trường trên server:\n${envVar}`);
+        return;
+      }
+    }
+
     // ===== BƯỚC 1: Tìm khách hàng =====
     if (session.state === 'INIT') {
       const phone = extractPhone(text);

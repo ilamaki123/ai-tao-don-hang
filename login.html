@@ -332,9 +332,15 @@
 </div>
 
 <script>
+  const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? 'http://localhost:3000' : 'https://ai-tao-don-hang.onrender.com';
+
   // ===== CHECK SESSION =====
   const saved = localStorage.getItem('ai_chat_user') || sessionStorage.getItem('ai_chat_user');
   if (saved) window.location.href = 'index.html';
+
+  // ===== WARM UP SERVER on page load =====
+  fetch(`${API_BASE}/health`).catch(() => {});
 
   // ===== TOGGLE PASSWORD =====
   function togglePassword() {
@@ -357,16 +363,28 @@
     const password = document.getElementById('password').value;
     const remember = document.getElementById('rememberMe').checked;
     const btn = document.getElementById('btnLogin');
+    const btnText = btn.querySelector('.btn-text');
     const errorMsg = document.getElementById('errorMsg');
 
     errorMsg.classList.remove('show');
     btn.disabled = true;
     btn.classList.add('loading');
 
+    // Show "đang khởi động" message after 4s if still loading
+    const slowTimer = setTimeout(() => {
+      if (btn.classList.contains('loading')) {
+        btn.classList.remove('loading');
+        btnText.textContent = 'Đang khởi động server...';
+        btnText.style.display = '';
+        btn.style.background = '#888';
+      }
+    }, 4000);
+
     try {
       const user = await callLoginAPI(username, password);
+      clearTimeout(slowTimer);
 
-      const sessionData = { username: user.username, name: user.name, token: user.token };
+      const sessionData = { username: user.username, name: user.name, token: user.token, roles: user.roles };
       if (remember) {
         localStorage.setItem('ai_chat_user', JSON.stringify(sessionData));
       } else {
@@ -376,34 +394,47 @@
       window.location.href = 'index.html';
 
     } catch (err) {
+      clearTimeout(slowTimer);
       errorMsg.textContent = err.message;
       errorMsg.classList.add('show');
     } finally {
       btn.disabled = false;
       btn.classList.remove('loading');
+      btnText.textContent = 'Đăng nhập';
+      btnText.style.display = '';
+      btn.style.background = '';
     }
   }
 
   // ===== API CALL =====
   async function callLoginAPI(username, password) {
-    const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-      ? 'http://localhost:3000' : 'https://ai-tao-don-hang.onrender.com';
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 70000); // 70s timeout
 
-    const res = await fetch(`${API_BASE}/api/basso-login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: username, pass: password }),
-    });
-    const data = await res.json();
-    if (!data.success) throw new Error(data.message || 'Đăng nhập thất bại. Vui lòng thử lại.');
+    try {
+      const res = await fetch(`${API_BASE}/api/basso-login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: username, pass: password }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      const data = await res.json();
+      if (!data.success) throw new Error(data.message || 'Đăng nhập thất bại. Vui lòng thử lại.');
 
-    const user = data.data.user;
-    return {
-      username: user.email,
-      name: user.name || user.email,
-      token: data.data.access_token,
-      expires_at: data.data.expires_at,
-    };
+      const user = data.data.user;
+      return {
+        username: user.email,
+        name: user.name || (user.first_name ? (user.first_name + (user.last_name ? ' ' + user.last_name : '')) : user.email),
+        token: data.data.access_token,
+        expires_at: data.data.expires_at,
+        roles: user.roles || [],
+      };
+    } catch (err) {
+      clearTimeout(timeout);
+      if (err.name === 'AbortError') throw new Error('Server phản hồi quá lâu. Vui lòng thử lại sau.');
+      throw err;
+    }
   }
 </script>
 </body>

@@ -3,10 +3,103 @@ const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
 const Anthropic = require('@anthropic-ai/sdk');
+const fs = require('fs');
+const path = require('path');
 
 const app = express();
 const upload = multer({ storage: multer.memoryStorage() });
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+// ===== PRICE RULES =====
+const RULES_FILE = path.join(__dirname, 'data', 'price-rules.json');
+const HARDCODED_DEFAULTS = ['tommy.com', 'tommyhilfiger.com', 'usa.tommy.com'];
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN || '';
+const GIST_ID = process.env.GIST_ID || '';
+const GIST_FILENAME = 'price-rules.json';
+
+let rulesCache = null; // in-memory cache — loaded once on startup, 0ms on every request
+
+async function loadRulesFromGist() {
+  if (!GITHUB_TOKEN || !GIST_ID) return null;
+  try {
+    const res = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+      headers: { 'Authorization': `Bearer ${GITHUB_TOKEN}`, 'Accept': 'application/vnd.github.v3+json' },
+    });
+    const data = await res.json();
+    const content = data.files?.[GIST_FILENAME]?.content;
+    if (content) return JSON.parse(content);
+  } catch (e) {
+    console.error('[price-rules] Gist load error:', e.message);
+  }
+  return null;
+}
+
+async function saveRulesToGist(rules) {
+  if (!GITHUB_TOKEN || !GIST_ID) return;
+  try {
+    await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${GITHUB_TOKEN}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ files: { [GIST_FILENAME]: { content: JSON.stringify(rules, null, 2) } } }),
+    });
+  } catch (e) {
+    console.error('[price-rules] Gist save error:', e.message);
+  }
+}
+
+function loadRules() {
+  // Always return from in-memory cache (0ms) — populated by initRules() on startup
+  if (rulesCache) return rulesCache;
+  // Fallback if cache not ready yet
+  try {
+    const f = JSON.parse(fs.readFileSync(RULES_FILE, 'utf8'));
+    if (Array.isArray(f.totalPriceDomains)) return f;
+  } catch {}
+  const fromEnv = process.env.TOTAL_PRICE_DOMAINS;
+  if (fromEnv) return { totalPriceDomains: fromEnv.split(',').map(d => d.trim()).filter(Boolean) };
+  return { totalPriceDomains: [...HARDCODED_DEFAULTS] };
+}
+
+async function saveRules(rules) {
+  rulesCache = rules;
+  // Save to local file (backup)
+  try {
+    const dir = path.dirname(RULES_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(RULES_FILE, JSON.stringify(rules, null, 2));
+  } catch (e) {
+    console.error('[price-rules] File save error:', e.message);
+  }
+  // Save to Gist async (don't block response)
+  saveRulesToGist(rules);
+  console.log(`[price-rules] Saved: [${rules.totalPriceDomains.join(', ')}]`);
+}
+
+async function initRules() {
+  // 1. Try GitHub Gist (cloud, persistent)
+  const fromGist = await loadRulesFromGist();
+  if (fromGist) {
+    rulesCache = fromGist;
+    console.log(`[price-rules] Loaded from Gist: [${fromGist.totalPriceDomains.join(', ')}]`);
+    return;
+  }
+  // 2. Try local file
+  try {
+    const f = JSON.parse(fs.readFileSync(RULES_FILE, 'utf8'));
+    if (Array.isArray(f.totalPriceDomains)) {
+      rulesCache = f;
+      console.log(`[price-rules] Loaded from file: [${rulesCache.totalPriceDomains.join(', ')}]`);
+      return;
+    }
+  } catch {}
+  // 3. Env var or hardcoded defaults
+  rulesCache = loadRules();
+  console.log(`[price-rules] Loaded defaults: [${rulesCache.totalPriceDomains.join(', ')}]`);
+}
 
 const BASSO_KEY = process.env.BASSO_API_KEY || '';
 const BASSO_URL = process.env.BASSO_BASE_URL || '';
@@ -28,6 +121,32 @@ function bassoHeaders(req) {
 // ===== HEALTH CHECK =====
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', mock: IS_MOCK });
+});
+
+// ===== PRICE RULES =====
+app.get('/api/price-rules', (req, res) => {
+  res.json({ success: true, data: loadRules() });
+});
+
+app.post('/api/price-rules', async (req, res) => {
+  const auth = req.headers['authorization'] || '';
+  if (!auth) return res.status(401).json({ success: false, message: 'Unauthorized' });
+
+  const { action, domain } = req.body;
+  const d = (domain || '').toLowerCase().trim();
+  if (!d) return res.status(400).json({ success: false, message: 'Thiếu domain' });
+  if (action !== 'add' && action !== 'remove') {
+    return res.status(400).json({ success: false, message: 'action phải là add hoặc remove' });
+  }
+
+  const rules = loadRules();
+  if (action === 'add') {
+    if (!rules.totalPriceDomains.includes(d)) rules.totalPriceDomains.push(d);
+  } else {
+    rules.totalPriceDomains = rules.totalPriceDomains.filter(x => x !== d);
+  }
+  await saveRules(rules);
+  res.json({ success: true, data: rules });
 });
 
 // ===== BASSO LOGIN =====
@@ -85,9 +204,9 @@ app.post('/api/analyze-image', upload.single('image'), async (req, res) => {
     const links = linksRaw.split('\n').map(l => l.trim()).filter(l => l.startsWith('http'));
 
     // Domain-specific pricing rules
-    const TOTAL_PRICE_DOMAINS = ['tommy.com', 'tommyhilfiger.com', 'usa.tommy.com'];
+    const rules = loadRules();
     const domain = links.length > 0 ? (() => { try { return new URL(links[0]).hostname.toLowerCase(); } catch { return ''; } })() : '';
-    const isTotalPriceSite = TOTAL_PRICE_DOMAINS.some(d => domain.includes(d));
+    const isTotalPriceSite = rules.totalPriceDomains.some(d => domain.includes(d));
     const priceRule = isTotalPriceSite
       ? `- price: Website này (${domain}) hiển thị TỔNG GIÁ cho tất cả qty. BẮT BUỘC chia: price = total_shown / quantity. Ví dụ qty=3, hiển thị $245.70 → price = 245.70/3 = 81.90.`
       : `- price: LUÔN LUÔN là ĐƠN GIÁ (giá cho 1 sản phẩm). Nếu ảnh hiển thị tổng giá (ví dụ qty=5, hiển thị $165) thì chia ngược: price = 165/5 = 33. Nếu ảnh hiển thị đơn giá (ví dụ $33/item hoặc $33 each) thì giữ nguyên. Kiểm tra: quantity × price phải bằng tổng giá hiển thị trong ảnh.`;
@@ -301,6 +420,7 @@ if (require.main === module) {
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
+    initRules(); // Load price rules into memory (async, non-blocking)
   });
 }
 
