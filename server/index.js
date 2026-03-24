@@ -63,6 +63,7 @@ app.post('/api/basso-login', async (req, res) => {
       body,
     });
     const data = await response.json();
+    console.log('[basso-login] user object:', JSON.stringify(data?.data?.user));
     res.json(data);
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
