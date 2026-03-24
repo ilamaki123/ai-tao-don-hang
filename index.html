@@ -586,7 +586,7 @@
       title: `Chat ${dateStr}`,
       date: dateStr,
       messages: [],
-      state: 'INIT',   // INIT → WAITING_IMAGE → ADDING_IMAGES → CONFIRM_ORDER → DONE
+      state: 'INIT',   // INIT → WAITING_IMAGE → ADDING_IMAGES → DONE
       customer: null,
       items: [],       // tích lũy sản phẩm từ nhiều ảnh
       cartImages: [],      // lưu file ảnh giỏ hàng đã upload
@@ -611,8 +611,6 @@
       hint.textContent = 'Upload ảnh giỏ hàng + links | "xem giỏ hàng" | "thêm ảnh sản phẩm" | "tạo đơn"';
     } else if (session.state === 'ADDING_IMAGES') {
       hint.textContent = 'Gửi ảnh sản phẩm hoặc gõ "bỏ qua" để skip';
-    } else if (session.state === 'CONFIRM_ORDER') {
-      hint.textContent = 'Gõ "xác nhận" để tạo đơn hoặc "hủy" để quay lại';
     } else {
       hint.textContent = 'Nhấn New Chat để tạo đơn hàng mới';
     }
@@ -881,25 +879,14 @@
         }
       }
 
-      // User gõ "tạo đơn" → hiện summary + yêu cầu confirm
+      // User gõ "tạo đơn" → tạo đơn luôn
       if (!file && isTaoDon(text)) {
         if (session.items.length === 0) {
           removeTyping();
           addMessage('ai', 'Chưa có sản phẩm nào. Vui lòng upload ảnh giỏ hàng trước.');
           return;
         }
-        const missingLinks = session.items.filter(i => !i.link).length;
-        const linkWarning = missingLinks > 0 ? `\n⚠️ ${missingLinks} sản phẩm chưa có link!` : '';
-        session.state = 'CONFIRM_ORDER';
-        updateHint();
-        removeTyping();
-        addMessage('ai',
-          `📋 Xác nhận tạo đơn hàng:\n\n` +
-          `👤 ${session.customer.name} — ${session.customer.phone}\n` +
-          `📍 ${session.customer.address}, ${session.customer.district}, ${session.customer.city}\n\n` +
-          renderCartSummary(session) +
-          `${linkWarning}\n\nGõ "xác nhận" để tạo đơn hoặc "hủy" để quay lại chỉnh sửa.`
-        );
+        await submitOrder(session);
         return;
       }
 
@@ -1152,24 +1139,6 @@
       return;
     }
 
-    // ===== XÁC NHẬN ĐƠN HÀNG =====
-    if (session.state === 'CONFIRM_ORDER') {
-      if (isXacNhan(text)) {
-        await submitOrder(session);
-        return;
-      }
-      if (isHuy(text)) {
-        session.state = 'WAITING_IMAGE';
-        updateHint();
-        removeTyping();
-        addMessage('ai', 'Đã hủy. Bạn có thể tiếp tục chỉnh sửa giỏ hàng.');
-        return;
-      }
-      // Bất kỳ input nào khác → nhắc lại
-      removeTyping();
-      addMessage('ai', 'Gõ "xác nhận" để tạo đơn hoặc "hủy" để quay lại chỉnh sửa.');
-      return;
-    }
 
     // ===== ĐÃ XONG =====
     if (session.state === 'DONE') {
