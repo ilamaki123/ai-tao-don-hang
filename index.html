@@ -770,10 +770,13 @@
     const text = input.value.trim();
     if (!text && !selectedFiles.length) return;
 
-    // Chuyển tất cả ảnh sang dataURL để hiển thị trong message
+    // Mỗi ảnh hiển thị thành 1 tin nhắn riêng
     const imageDataUrls = await Promise.all(selectedFiles.map(f => fileToDataUrl(f)));
-    const msgText = text || '';
-    addMessage('user', msgText, { images: imageDataUrls });
+    imageDataUrls.forEach((dataUrl, i) => {
+      const isLast = i === imageDataUrls.length - 1;
+      addMessage('user', isLast ? (text || '') : '', { images: [dataUrl] });
+    });
+    if (!imageDataUrls.length) addMessage('user', text || '');
     input.value = '';
     input.style.height = 'auto';
     const filesToSend = [...selectedFiles];
