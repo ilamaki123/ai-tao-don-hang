@@ -876,6 +876,34 @@
           addMessage('ai', `✅ Đã áp dụng giảm giá ${session.salePct}% cho tất cả sản phẩm.\n\n` + renderCartSummary(session));
           return;
         }
+        // Bỏ sale item riêng lẻ: "bỏ sale #2", "miễn sale #2"
+        const noSaleMatch = text.match(/(?:bỏ\s*sale|bo\s*sale|miễn\s*sale|mien\s*sale)\s*#?(\d+)/i);
+        if (noSaleMatch) {
+          const idx = parseInt(noSaleMatch[1]) - 1;
+          if (idx < 0 || idx >= session.items.length) {
+            removeTyping();
+            addMessage('ai', `Không tìm thấy sản phẩm #${idx + 1}.`);
+            return;
+          }
+          session.items[idx].noSale = true;
+          removeTyping();
+          addMessage('ai', `✅ Đã bỏ sale cho #${idx + 1}: ${session.items[idx].name}.\n\n` + renderCartSummary(session));
+          return;
+        }
+        // Áp sale lại cho item: "áp sale #2", "ap sale #2"
+        const applySaleMatch = text.match(/(?:áp\s*sale|ap\s*sale|áp\s*dụng\s*sale|thêm\s*sale)\s*#?(\d+)/i);
+        if (applySaleMatch) {
+          const idx = parseInt(applySaleMatch[1]) - 1;
+          if (idx < 0 || idx >= session.items.length) {
+            removeTyping();
+            addMessage('ai', `Không tìm thấy sản phẩm #${idx + 1}.`);
+            return;
+          }
+          session.items[idx].noSale = false;
+          removeTyping();
+          addMessage('ai', `✅ Đã áp dụng sale lại cho #${idx + 1}: ${session.items[idx].name}.\n\n` + renderCartSummary(session));
+          return;
+        }
       }
 
       // User gõ "tạo đơn" → tạo đơn luôn
@@ -1085,7 +1113,7 @@
       brand: c.brand || 'shipus',
       website: extractWebsiteFromItems(session.items),
       items: JSON.stringify(session.items.map(item => {
-        const salePct = session.salePct || 0;
+        const salePct = item.noSale ? 0 : (session.salePct || 0);
         const priceAfterSale = salePct > 0
           ? Math.round(item.price * (1 - salePct / 100) * 100) / 100
           : item.price || 0;
@@ -1186,7 +1214,8 @@
     for (const item of items) {
       if (!item.price) continue;
       const cur = (item.currency || '').trim() || '?';
-      const price = salePct > 0 ? item.price * (1 - salePct / 100) : item.price;
+      const pct = item.noSale ? 0 : salePct;
+      const price = pct > 0 ? item.price * (1 - pct / 100) : item.price;
       totals[cur] = (totals[cur] || 0) + (price * (item.quantity || 1));
     }
     return totals;
@@ -1203,7 +1232,8 @@
 
   function effectivePrice(item, salePct) {
     if (!item.price) return item.price;
-    return salePct > 0 ? Math.round(item.price * (1 - salePct / 100) * 100) / 100 : item.price;
+    const pct = item.noSale ? 0 : salePct;
+    return pct > 0 ? Math.round(item.price * (1 - pct / 100) * 100) / 100 : item.price;
   }
 
   function renderCartSummary(session) {
@@ -1215,9 +1245,9 @@
     const lines = session.items.map((item, i) => {
       const vars = (item.variations || []).map(v => `${v.name}: ${v.value}`).join(', ');
       const linkLine = item.link ? `🔗 ${item.link}` : '⚠️ Chưa có link';
-      const priceDisplay = salePct > 0
+      const priceDisplay = salePct > 0 && !item.noSale
         ? `${formatPrice(item)} → ${formatPrice({...item, price: effectivePrice(item, salePct)})} (-${salePct}%)`
-        : formatPrice(item);
+        : formatPrice(item) + (item.noSale && salePct > 0 ? ' (miễn sale)' : '');
       return `${i + 1}. ${item.name}\n   Qty: ${item.quantity} | ${priceDisplay}${vars ? '\n   ' + vars : ''}\n   ${linkLine}`;
     }).join('\n\n');
     const missing = session.items.filter(i => !i.link).length;
@@ -1225,7 +1255,7 @@
     const totals = calcCartTotal(session.items, salePct);
     const totalLine = Object.keys(totals).length > 0 ? `\n💰 Tổng${salePct > 0 ? ` (sau -${salePct}%)` : ''}: ${formatTotal(totals)}` : '';
     const saleHint = salePct > 0 ? `\n🏷️ Đang áp dụng giảm giá ${salePct}% toàn đơn` : '';
-    const editHint = `\n\n─────────────────\n✏️  sửa #N tên/qty/giá/link: <giá trị>\n🗑️  xóa #N\n💸  giảm N% | bỏ giảm giá`;
+    const editHint = `\n\n─────────────────\n✏️  sửa #N tên/qty/giá/link: <giá trị>\n🗑️  xóa #N\n💸  giảm N% | bỏ giảm giá | bỏ sale #N | áp sale #N`;
     return `📦 Giỏ hàng (${session.items.length} sản phẩm):${saleHint}\n\n${lines}${warning}${totalLine}${editHint}`;
   }
 
