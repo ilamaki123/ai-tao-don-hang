@@ -106,6 +106,9 @@ const BASSO_URL = process.env.BASSO_BASE_URL || '';
 const IS_MOCK = !BASSO_KEY || BASSO_KEY === 'your-basso-key-here';
 console.log('Mock mode:', IS_MOCK);
 
+// token → roles map (in-memory, reset on server restart but refreshed on next login)
+const tokenRolesMap = new Map();
+
 app.use(cors());
 app.use(express.json());
 
@@ -121,6 +124,14 @@ function bassoHeaders(req) {
 // ===== HEALTH CHECK =====
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', mock: IS_MOCK });
+});
+
+// ===== GET ROLES BY TOKEN =====
+app.get('/api/get-roles', (req, res) => {
+  const auth = (req.headers['authorization'] || '').replace('Bearer ', '').trim();
+  if (!auth) return res.json({ success: false, roles: [] });
+  const roles = tokenRolesMap.get(auth) || [];
+  res.json({ success: true, roles });
 });
 
 // ===== PRICE RULES =====
@@ -183,6 +194,10 @@ app.post('/api/basso-login', async (req, res) => {
     });
     const data = await response.json();
     console.log('[basso-login] user object:', JSON.stringify(data?.data?.user));
+    // Lưu token → roles để client có thể fetch sau
+    if (data?.data?.access_token && data?.data?.user?.roles) {
+      tokenRolesMap.set(data.data.access_token, data.data.user.roles);
+    }
     res.json(data);
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

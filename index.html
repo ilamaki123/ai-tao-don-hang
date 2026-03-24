@@ -526,6 +526,18 @@
     ? 'http://localhost:3000'
     : 'https://ai-tao-don-hang.onrender.com';
 
+  // Nếu session thiếu roles, fetch từ server (fallback cho session cũ)
+  if (sessionUser && !sessionUser.roles) {
+    fetch(`${API_BASE}/api/get-roles`, { headers: { 'Authorization': `Bearer ${sessionUser.token}` } })
+      .then(r => r.json()).then(d => {
+        if (d.success && d.roles.length) {
+          sessionUser.roles = d.roles;
+          const key = localStorage.getItem('ai_chat_user') ? 'localStorage' : 'sessionStorage';
+          window[key].setItem('ai_chat_user', JSON.stringify(sessionUser));
+        }
+      }).catch(() => {});
+  }
+
   // Giữ Render server luôn thức — ping /health mỗi 4 phút
   if (API_BASE.includes('onrender.com')) {
     const keepAlive = () => fetch(`${API_BASE}/health`).catch(() => {});
