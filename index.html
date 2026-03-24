@@ -586,12 +586,10 @@
       title: `Chat ${dateStr}`,
       date: dateStr,
       messages: [],
-      state: 'INIT',   // INIT → WAITING_IMAGE → ADDING_IMAGES → DONE
+      state: 'INIT',   // INIT → WAITING_IMAGE → DONE
       customer: null,
       items: [],       // tích lũy sản phẩm từ nhiều ảnh
-      cartImages: [],      // lưu file ảnh giỏ hàng đã upload
-      extractedImages: [], // ảnh sản phẩm đã crop từ giỏ hàng (data URLs)
-      imageIndex: 0,   // con trỏ khi đang thêm ảnh sản phẩm
+      cartImages: [],  // lưu file ảnh giỏ hàng đã upload
       salePct: 0,      // % giảm giá áp dụng cho toàn đơn
     };
     sessions.unshift(newSession);
@@ -608,9 +606,7 @@
     if (session.state === 'INIT') {
       hint.textContent = 'Nhập số điện thoại khách hàng để bắt đầu';
     } else if (session.state === 'WAITING_IMAGE') {
-      hint.textContent = 'Upload ảnh giỏ hàng + links | "xem giỏ hàng" | "thêm ảnh sản phẩm" | "tạo đơn"';
-    } else if (session.state === 'ADDING_IMAGES') {
-      hint.textContent = 'Gửi ảnh sản phẩm hoặc gõ "bỏ qua" để skip';
+      hint.textContent = 'Upload ảnh giỏ hàng + links | "xem giỏ hàng" | "tạo đơn"';
     } else {
       hint.textContent = 'Nhấn New Chat để tạo đơn hàng mới';
     }
@@ -890,21 +886,6 @@
         return;
       }
 
-      // User muốn thêm ảnh sản phẩm
-      if (!file && isThemAnh(text)) {
-        if (session.items.length === 0) {
-          removeTyping();
-          addMessage('ai', 'Chưa có sản phẩm nào. Vui lòng upload ảnh giỏ hàng trước.');
-          return;
-        }
-        console.log('[ADD_IMG START] items với link:', JSON.stringify(session.items.map(i => ({name: i.name, link: i.link}))));
-        session.state = 'ADDING_IMAGES';
-        session.imageIndex = 0;
-        updateHint();
-        removeTyping();
-        addMessage('ai', buildImagePrompt(session), { htmlContent: buildThumbsHtml(session) });
-        return;
-      }
 
       // User xem giỏ hàng
       if (!file && isXemGio(text)) {
@@ -1008,7 +989,6 @@
           const extractData = await extractRes.json();
           if (extractData.success && extractData.data.products?.length > 0) {
             const cropped = await cropProductImages(file, extractData.data.products);
-            session.extractedImages.push(...cropped);
             // Tự động upload từng ảnh crop lên Basso và gán image_id
             await Promise.all(cropped.map(async (dataUrl, i) => {
               if (i >= newItems.length) return;
@@ -1063,81 +1043,6 @@
       return;
     }
 
-    // ===== BƯỚC 3: Thêm ảnh sản phẩm từng cái =====
-    if (session.state === 'ADDING_IMAGES') {
-      const idx = session.imageIndex;
-
-      // Bỏ qua sản phẩm hiện tại
-      if (!file && isBoqua(text)) {
-        session.imageIndex++;
-        removeTyping();
-        if (session.imageIndex >= session.items.length) {
-          session.state = 'WAITING_IMAGE';
-          updateHint();
-          addMessage('ai', '⏭️ Bỏ qua. Đã hoàn tất cập nhật ảnh.\nGõ "xem giỏ hàng" để kiểm tra hoặc "tạo đơn" để tạo đơn.');
-        } else {
-          addMessage('ai', `⏭️ Bỏ qua #${idx + 1}.\n\n` + buildImagePrompt(session), { htmlContent: buildThumbsHtml(session) });
-        }
-        return;
-      }
-
-      // Dùng ảnh giỏ hàng có sẵn: "ảnh giỏ 1", "ảnh giỏ 2"...
-      if (!file && /ảnh\s*giỏ\s*(\d+)/i.test(text)) {
-        const cartIdx = parseInt(text.match(/ảnh\s*giỏ\s*(\d+)/i)[1]) - 1;
-        if (cartIdx < 0 || cartIdx >= session.cartImages.length) {
-          removeTyping();
-          addMessage('ai', `Không có ảnh giỏ hàng số ${cartIdx + 1}. Bạn có ${session.cartImages.length} ảnh giỏ hàng.`);
-          return;
-        }
-        const cartFile = session.cartImages[cartIdx];
-        const uploadForm = new FormData();
-        uploadForm.append('file', cartFile);
-        const uploadRes = await fetch(`${API_BASE}/api/upload-image`, { method: 'POST', headers: getAuthHeaders(), body: uploadForm });
-        const uploadData = await uploadRes.json();
-        if (uploadData.success && uploadData.data.id) {
-          session.items[idx].image_id = uploadData.data.id;
-        }
-        session.imageIndex++;
-        removeTyping();
-        if (session.imageIndex >= session.items.length) {
-          session.state = 'WAITING_IMAGE';
-          updateHint();
-          const doneCount = session.items.filter(i => i.image_id).length;
-          addMessage('ai', `✅ #${idx + 1} xong (dùng ảnh giỏ ${cartIdx + 1}). Đã cập nhật ảnh cho ${doneCount}/${session.items.length} sản phẩm.\nGõ "tạo đơn" để tạo đơn.`);
-        } else {
-          addMessage('ai', `✅ #${idx + 1} xong (dùng ảnh giỏ ${cartIdx + 1}).\n\n` + buildImagePrompt(session), { htmlContent: buildThumbsHtml(session) });
-        }
-        return;
-      }
-
-      // Nhận ảnh → upload lên Basso → gắn image_id
-      if (file) {
-        const uploadForm = new FormData();
-        uploadForm.append('file', file);
-        const uploadRes = await fetch(`${API_BASE}/api/upload-image`, { method: 'POST', headers: getAuthHeaders(), body: uploadForm });
-        const uploadData = await uploadRes.json();
-        if (uploadData.success && uploadData.data.id) {
-          session.items[idx].image_id = uploadData.data.id;
-        }
-        session.imageIndex++;
-        console.log('[ADD_IMG DONE] idx', idx, '| items với link:', JSON.stringify(session.items.map(i => ({name: i.name, link: i.link}))));
-        removeTyping();
-        if (session.imageIndex >= session.items.length) {
-          session.state = 'WAITING_IMAGE';
-          updateHint();
-          const doneCount = session.items.filter(i => i.image_id).length;
-          addMessage('ai', `✅ #${idx + 1} xong. Đã cập nhật ảnh cho ${doneCount}/${session.items.length} sản phẩm.\nGõ "tạo đơn" để tạo đơn.`);
-        } else {
-          addMessage('ai', `✅ #${idx + 1} xong.\n\n` + buildImagePrompt(session), { htmlContent: buildThumbsHtml(session) });
-        }
-        return;
-      }
-
-      // Text thông thường → nhắc lại
-      removeTyping();
-      addMessage('ai', buildImagePrompt(session), { htmlContent: buildThumbsHtml(session) });
-      return;
-    }
 
 
     // ===== ĐÃ XONG =====
@@ -1235,17 +1140,6 @@
     return n.includes('tạođơn') || n.includes('taodon') || n.includes('tạo đơn');
   }
 
-  function isThemAnh(text) {
-    if (!text) return false;
-    const n = text.toLowerCase().replace(/\s/g, '');
-    return n.includes('thêmảnh') || n.includes('themanh') || n.includes('uploadảnh') || n.includes('uploadanh') || n.includes('cậpnhậtảnh') || n.includes('capnhatanh');
-  }
-
-  function isBoqua(text) {
-    if (!text) return false;
-    const n = text.toLowerCase().replace(/\s/g, '');
-    return n.includes('bỏqua') || n.includes('boqua') || n.includes('skip') || n.includes('next');
-  }
 
   async function cropProductImages(file, products) {
     return new Promise((resolve) => {
@@ -1271,72 +1165,6 @@
     });
   }
 
-  function buildThumbsHtml(session) {
-    if (!session.extractedImages || session.extractedImages.length === 0) return '';
-    const thumbs = session.extractedImages.map((dataUrl, i) =>
-      `<div class="extracted-thumb-wrap" onclick="useExtractedImage(${i})">
-        <img class="extracted-thumb" src="${dataUrl}"/>
-        <div class="extracted-thumb-label">SP ${i + 1}</div>
-      </div>`
-    ).join('');
-    return `<div class="extracted-thumbs-label">🖼️ Click để dùng ảnh từ giỏ hàng:</div><div class="extracted-thumbs-grid">${thumbs}</div>`;
-  }
-
-  async function useExtractedImage(imgIndex) {
-    const session = getActiveSession();
-    if (!session || session.state !== 'ADDING_IMAGES') return;
-    const dataUrl = session.extractedImages[imgIndex];
-    if (!dataUrl) return;
-    showTyping();
-    const idx = session.imageIndex;
-    const res = await fetch(dataUrl);
-    const blob = await res.blob();
-    const file = new File([blob], `cart_product_${imgIndex + 1}.jpg`, { type: 'image/jpeg' });
-    const uploadForm = new FormData();
-    uploadForm.append('file', file);
-    const uploadRes = await fetch(`${API_BASE}/api/upload-image`, { method: 'POST', headers: getAuthHeaders(), body: uploadForm });
-    const uploadData = await uploadRes.json();
-    if (uploadData.success && uploadData.data.id) {
-      session.items[idx].image_id = uploadData.data.id;
-    }
-    session.imageIndex++;
-    removeTyping();
-    if (session.imageIndex >= session.items.length) {
-      session.state = 'WAITING_IMAGE';
-      updateHint();
-      const doneCount = session.items.filter(i => i.image_id).length;
-      addMessage('ai', `✅ #${idx + 1} xong. Đã cập nhật ảnh cho ${doneCount}/${session.items.length} sản phẩm.\nGõ "tạo đơn" để tạo đơn.`);
-    } else {
-      addMessage('ai', buildImagePrompt(session), { htmlContent: buildThumbsHtml(session) });
-    }
-  }
-
-  function buildImagePrompt(session) {
-    const idx = session.imageIndex;
-    const current = session.items[idx];
-    const vars = (current.variations || []).map(v => `${v.name}: ${v.value}`).join(', ');
-    const listLines = session.items.map((item, i) => {
-      const v = (item.variations || []).map(v => `${v.name}: ${v.value}`).join(', ');
-      const status = item.image_id ? '✅' : (i === idx ? '📷' : '⏳');
-      return `${status} #${i + 1}. ${item.name}${v ? ' (' + v + ')' : ''}`;
-    }).join('\n');
-    const cartHint = session.cartImages.length > 0
-      ? '\n\n🖼️ Ảnh giỏ hàng có sẵn: ' + session.cartImages.map((_, i) => `"ảnh giỏ ${i + 1}"`).join(', ')
-      : '';
-    return `📷 Gửi ảnh cho:\n#${idx + 1}. ${current.name}${vars ? '\n   ' + vars : ''}\n\n${listLines}${cartHint}\n\nGõ "bỏ qua" nếu không có ảnh cho sản phẩm này.`;
-  }
-
-  function isXacNhan(text) {
-    if (!text) return false;
-    const n = text.toLowerCase().replace(/\s/g, '');
-    return n.includes('xácnhận') || n.includes('xacnhan') || n.includes('confirm') || n === 'yes' || n === 'ok' || n === 'đồngý' || n === 'dongý';
-  }
-
-  function isHuy(text) {
-    if (!text) return false;
-    const n = text.toLowerCase().replace(/\s/g, '');
-    return n.includes('hủy') || n.includes('huy') || n.includes('cancel') || n === 'no' || n === 'không' || n === 'khong';
-  }
 
   function isXemGio(text) {
     if (!text) return false;
