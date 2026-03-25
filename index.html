@@ -1033,6 +1033,22 @@
 
         if (editCmd.action === 'edit') {
           const item = session.items[editCmd.index];
+
+          // Sửa variation (size, color, fit, width, waist, length, ...)
+          if (editCmd.field === 'variation') {
+            item.variations = item.variations || [];
+            const existing = item.variations.find(v => v.name.toLowerCase() === editCmd.variationName.toLowerCase());
+            const oldVal = existing ? existing.value : '(chưa có)';
+            if (existing) {
+              existing.value = editCmd.value;
+            } else {
+              item.variations.push({ name: editCmd.variationName, value: editCmd.value });
+            }
+            removeTyping();
+            addMessage('ai', `✏️ Đã cập nhật #${editCmd.index + 1} ${editCmd.variationName}: "${oldVal}" → "${editCmd.value}".\n\n` + renderCartSummary(session));
+            return;
+          }
+
           const oldVal = item[editCmd.field];
 
           if (editCmd.field === 'quantity') {
@@ -1344,7 +1360,7 @@
     const totals = calcCartTotal(session.items, salePct);
     const totalLine = Object.keys(totals).length > 0 ? `\n💰 Tổng${salePct > 0 ? ` (sau -${salePct}%)` : ''}: ${formatTotal(totals)}` : '';
     const saleHint = salePct > 0 ? `\n🏷️ Đang áp dụng giảm giá ${salePct}% toàn đơn` : '';
-    const editHint = `\n\n─────────────────\n✏️  sửa #N tên/qty/giá/link: <giá trị>\n🗑️  xóa #N\n💸  giảm N% | bỏ giảm giá | bỏ sale #N | áp sale #N`;
+    const editHint = `\n\n─────────────────\n✏️  sửa #N tên/qty/giá/link: <giá trị>\n✏️  sửa #N size/color/fit/width/...: <giá trị>\n🗑️  xóa #N\n💸  giảm N% | bỏ giảm giá | bỏ sale #N | áp sale #N`;
     return `📦 Giỏ hàng (${session.items.length} sản phẩm):${saleHint}\n\n${lines}${warning}${totalLine}${editHint}`;
   }
 
@@ -1383,24 +1399,28 @@
     if (!text) return null;
     const t = text.trim();
 
-    // Xóa #N
-    const del = t.match(/^(xóa|xoa|xoá)\s*#?(\d+)/i);
+    // Xóa #N (chỉ xóa cả sản phẩm, không phải xóa variation)
+    const del = t.match(/^(xóa|xoa|xoá)\s*#?(\d+)\s*$/i);
     if (del) return { action: 'delete', index: parseInt(del[2]) - 1 };
 
-    // Sửa #N field: value
-    const edit = t.match(/^(sửa|sua|edit)\s+#?(\d+)\s+(tên|ten|name|qty|số lượng|so luong|giá|gia|price|link)\s*[:\s]+(.+)/i);
+    // Sửa #N fieldname: value (field bất kỳ, dùng : làm phân cách)
+    const edit = t.match(/^(sửa|sua|edit)\s+#?(\d+)\s+([^:]+?)\s*:\s*(.+)/i);
     if (!edit) return null;
 
+    const rawField = edit[3].trim().toLowerCase();
     const fieldMap = {
       'tên': 'name', 'ten': 'name', 'name': 'name',
       'qty': 'quantity', 'số lượng': 'quantity', 'so luong': 'quantity',
       'giá': 'price', 'gia': 'price', 'price': 'price',
       'link': 'link',
     };
-    const field = fieldMap[edit[3].toLowerCase()];
-    if (!field) return null;
 
-    return { action: 'edit', index: parseInt(edit[2]) - 1, field, value: edit[4].trim() };
+    const field = fieldMap[rawField];
+    if (field) return { action: 'edit', index: parseInt(edit[2]) - 1, field, value: edit[4].trim() };
+
+    // Không phải field cố định → treat as variation name
+    const varName = edit[3].trim().replace(/\b\w/g, c => c.toUpperCase());
+    return { action: 'edit', index: parseInt(edit[2]) - 1, field: 'variation', variationName: varName, value: edit[4].trim() };
   }
 
   function parsePriceInput(str) {
