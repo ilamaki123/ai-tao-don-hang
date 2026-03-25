@@ -222,8 +222,9 @@ app.post('/api/analyze-image', upload.single('image'), async (req, res) => {
     const rules = loadRules();
     const domain = links.length > 0 ? (() => { try { return new URL(links[0]).hostname.toLowerCase(); } catch { return ''; } })() : '';
     const isTotalPriceSite = rules.totalPriceDomains.some(d => domain.includes(d));
+    console.log(`[analyze-image] domain="${domain}" isTotalPriceSite=${isTotalPriceSite} rules=[${rules.totalPriceDomains.join(', ')}]`);
     const priceRule = isTotalPriceSite
-      ? `- price: Website này (${domain}) hiển thị TỔNG GIÁ cho tất cả qty. BẮT BUỘC chia: price = total_shown / quantity. Ví dụ qty=3, hiển thị $245.70 → price = 245.70/3 = 81.90.`
+      ? `- price: QUAN TRỌNG - Website ${domain} hiển thị TỔNG GIÁ (tổng tiền cho toàn bộ quantity). Bắt buộc phải chia: price = số_tiền_hiển_thị / quantity để ra ĐƠN GIÁ. KHÔNG được dùng số tiền hiển thị trực tiếp làm price.`
       : `- price: LUÔN LUÔN là ĐƠN GIÁ (giá cho 1 sản phẩm). Nếu ảnh hiển thị tổng giá (ví dụ qty=5, hiển thị $165) thì chia ngược: price = 165/5 = 33. Nếu ảnh hiển thị đơn giá (ví dụ $33/item hoặc $33 each) thì giữ nguyên. Kiểm tra: quantity × price phải bằng tổng giá hiển thị trong ảnh.`;
 
     const response = await anthropic.messages.create({
