@@ -551,8 +551,42 @@
   let selectedFiles = [];
   let isLoading = false;
 
+  // ===== LOCAL STORAGE =====
+  const LS_SESSIONS_KEY = 'ai_chat_sessions_v1';
+
+  function saveSessions() {
+    try {
+      // cartImages là File objects, không serialize được → bỏ qua
+      const toSave = sessions.map(s => ({ ...s, cartImages: [] }));
+      localStorage.setItem(LS_SESSIONS_KEY, JSON.stringify(toSave));
+    } catch {
+      // Quota exceeded (quá nhiều ảnh) → lưu lại không có ảnh
+      try {
+        const toSave = sessions.map(s => ({
+          ...s, cartImages: [],
+          messages: s.messages.map(m => ({ ...m, images: [] }))
+        }));
+        localStorage.setItem(LS_SESSIONS_KEY, JSON.stringify(toSave));
+      } catch {}
+    }
+  }
+
+  function loadSessions() {
+    try {
+      const raw = localStorage.getItem(LS_SESSIONS_KEY);
+      if (!raw) return;
+      const loaded = JSON.parse(raw);
+      if (Array.isArray(loaded) && loaded.length) {
+        sessions = loaded;
+        renderHistory();
+        selectSession(sessions[0].id);
+      }
+    } catch {}
+  }
+
   // ===== INIT =====
-  renderHistory();
+  loadSessions();
+  if (!activeSessionId) renderHistory();
 
   function renderHistory() {
     const el = document.getElementById('chatHistory');
@@ -578,6 +612,7 @@
       document.getElementById('inputArea').style.display = 'none';
     }
     renderHistory();
+    saveSessions();
   }
 
   function selectSession(id) {
@@ -680,6 +715,7 @@
     if (!session) return;
     session.messages.push({ role, text, ...extra });
     renderMessages();
+    saveSessions();
   }
 
   function showTyping() {
@@ -901,6 +937,7 @@
       session.state = 'WAITING_IMAGE';
       session.title = c.name;
       renderHistory();
+      saveSessions();
       updateHint();
 
       addMessage('ai',
