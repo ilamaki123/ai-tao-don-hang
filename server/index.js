@@ -247,7 +247,7 @@ Với mỗi sản phẩm trích xuất:
 - quantity: số lượng (số nguyên)
 ${priceRule}
 - currency: ký hiệu tiền tệ nhìn thấy trong ảnh (ví dụ: "$", "€", "£", "₩", "¥", "đ", "VND") — nếu không thấy để trống ""
-- variations: mảng thuộc tính size/color/etc
+- variations: mảng TẤT CẢ thuộc tính sản phẩm hiển thị (Size, Fit, Color, Waist, Length, Type, Style, v.v.). Mỗi thuộc tính là 1 object {name, value}. Ví dụ "S Tall | Black" → [{name:"Size",value:"S"},{name:"Fit",value:"Tall"},{name:"Color",value:"Black"}]. Ví dụ "29W X 30L" → [{name:"Waist",value:"29W"},{name:"Length",value:"30L"}].
 
 Trả về JSON (chỉ JSON, không giải thích):
 {
