@@ -1043,6 +1043,22 @@
         return;
       }
 
+      // Xóa toàn bộ giỏ hàng
+      if (!file && /^(?:xóa\s*giỏ\s*hàng|xoa\s*gio\s*hang|xóa\s*toàn\s*bộ|xoa\s*toan\s*bo|xóa\s*hết|xoa\s*het|xóa\s*tất\s*cả|xoa\s*tat\s*ca|clear\s*bag|clear\s*cart|clear\s*all|reset\s*cart|reset\s*giỏ|làm\s*mới\s*giỏ)$/i.test(text.trim())) {
+        if (session.items.length === 0) {
+          removeTyping();
+          addMessage('ai', 'Giỏ hàng đang trống.');
+          return;
+        }
+        const count = session.items.length;
+        session.items = [];
+        session.salePct = 0;
+        saveSessions();
+        removeTyping();
+        addMessage('ai', `✅ Đã xóa toàn bộ ${count} sản phẩm khỏi giỏ hàng.`);
+        return;
+      }
+
       // User sửa / xóa sản phẩm
       const editCmd = !file ? parseEditCommand(text) : null;
       if (editCmd) {
