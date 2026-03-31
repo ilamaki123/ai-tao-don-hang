@@ -868,8 +868,46 @@
   async function processOrder(text, file, imageDataUrl, progressLabel = '') {
     const session = getActiveSession();
 
-    // ===== ADMIN: QUẢN LÝ PRICE RULES =====
+    // ===== HELP =====
     const isAdmin = sessionUser && sessionUser.roles && sessionUser.roles.includes('admin');
+    if (!file && /^help$/i.test(text.trim())) {
+      try {
+        const r = await fetch(`${API_BASE}/api/help`);
+        const d = await r.json();
+        removeTyping();
+        addMessage('ai', d.success ? d.data : 'Không thể tải nội dung help.');
+      } catch {
+        removeTyping();
+        addMessage('ai', 'Không thể tải nội dung help.');
+      }
+      return;
+    }
+    if (isAdmin && !file && /^sửa\s+help$|^sua\s+help$|^edit\s+help$/i.test(text.trim())) {
+      try {
+        const r = await fetch(`${API_BASE}/api/help`);
+        const d = await r.json();
+        removeTyping();
+        const current = d.success ? d.data : '';
+        const newContent = prompt('Chỉnh sửa nội dung Help:', current);
+        if (newContent !== null && newContent.trim()) {
+          const saveRes = await fetch(`${API_BASE}/api/help`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+            body: JSON.stringify({ content: newContent }),
+          });
+          const saveData = await saveRes.json();
+          addMessage('ai', saveData.success ? `✅ Đã cập nhật nội dung help.\n\n${saveData.data}` : '❌ Lỗi: ' + saveData.message);
+        } else {
+          addMessage('ai', 'Đã hủy chỉnh sửa help.');
+        }
+      } catch {
+        removeTyping();
+        addMessage('ai', 'Không thể cập nhật help.');
+      }
+      return;
+    }
+
+    // ===== ADMIN: QUẢN LÝ PRICE RULES =====
     if (isAdmin && !file) {
       const addRuleMatch = text.match(/(?:thêm|them|add)\s+rule\s+([a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/i);
       const removeRuleMatch = text.match(/(?:xóa|xoa|bỏ|bo|remove|xem\s+xóa)\s+rule\s+([a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/i);
@@ -969,22 +1007,25 @@
             return;
           }
           session.items[idx].noSale = true;
+          delete session.items[idx].itemSalePct;
           removeTyping();
           addMessage('ai', `✅ Đã bỏ sale cho #${idx + 1}: ${session.items[idx].name}.\n\n` + renderCartSummary(session));
           return;
         }
-        // Áp sale lại cho item: "áp sale #2", "ap sale #2"
-        const applySaleMatch = text.match(/(?:áp\s*sale|ap\s*sale|áp\s*dụng\s*sale|thêm\s*sale)\s*#?(\d+)/i);
-        if (applySaleMatch) {
-          const idx = parseInt(applySaleMatch[1]) - 1;
+        // Áp sale riêng cho item: "sale #2 30%", "giảm #2 15%", "áp sale #2 25%"
+        const itemSaleMatch = text.match(/(?:sale|giảm(?:\s*giá)?|giam(?:\s*gia)?|áp\s*sale|ap\s*sale|off|discount)\s*#?(\d+)\s+(\d+(?:\.\d+)?)\s*%/i);
+        if (itemSaleMatch) {
+          const idx = parseInt(itemSaleMatch[1]) - 1;
+          const pct = parseFloat(itemSaleMatch[2]);
           if (idx < 0 || idx >= session.items.length) {
             removeTyping();
             addMessage('ai', `Không tìm thấy sản phẩm #${idx + 1}.`);
             return;
           }
+          session.items[idx].itemSalePct = pct;
           session.items[idx].noSale = false;
           removeTyping();
-          addMessage('ai', `✅ Đã áp dụng sale lại cho #${idx + 1}: ${session.items[idx].name}.\n\n` + renderCartSummary(session));
+          addMessage('ai', `✅ Đã áp dụng sale ${pct}% riêng cho #${idx + 1}: ${session.items[idx].name}.\n\n` + renderCartSummary(session));
           return;
         }
       }
@@ -1176,7 +1217,7 @@
       // Không match lệnh nào → hướng dẫn
       removeTyping();
       const hasItems = session.items.length > 0;
-      addMessage('ai', `Tôi không hiểu lệnh này. Bạn có thể:\n• Upload ảnh giỏ hàng ${hasItems ? '(thêm sản phẩm)' : ''}\n• Gõ "xem" để kiểm tra giỏ hàng\n• Sửa sản phẩm (vd: "sửa #1 qty 2", "sửa #1 size M")\n• Xóa sản phẩm (vd: "xóa #3")\n• Giảm giá (vd: "sale 20%")${hasItems ? '\n• Gõ "tạo đơn" để hoàn tất' : ''}`);
+      addMessage('ai', 'Tôi không hiểu lệnh này. Bạn có thể gõ "help" để xem hướng dẫn chi tiết.');
       return;
     }
 
@@ -1360,12 +1401,18 @@
     return lines.length > 0 && lines.every(l => l.startsWith('http'));
   }
 
+  function getItemSalePct(item, globalSalePct) {
+    if (item.noSale) return 0;
+    if (item.itemSalePct != null) return item.itemSalePct;
+    return globalSalePct;
+  }
+
   function calcCartTotal(items, salePct = 0) {
     const totals = {};
     for (const item of items) {
       if (!item.price) continue;
       const cur = (item.currency || '').trim() || '?';
-      const pct = item.noSale ? 0 : salePct;
+      const pct = getItemSalePct(item, salePct);
       const price = pct > 0 ? item.price * (1 - pct / 100) : item.price;
       totals[cur] = (totals[cur] || 0) + (price * (item.quantity || 1));
     }
@@ -1383,7 +1430,7 @@
 
   function effectivePrice(item, salePct) {
     if (!item.price) return item.price;
-    const pct = item.noSale ? 0 : salePct;
+    const pct = getItemSalePct(item, salePct);
     return pct > 0 ? Math.round(item.price * (1 - pct / 100) * 100) / 100 : item.price;
   }
 
@@ -1396,8 +1443,9 @@
     const lines = session.items.map((item, i) => {
       const vars = (item.variations || []).map(v => `${v.name}: ${v.value}`).join(', ');
       const linkLine = item.link ? `🔗 ${item.link}` : '⚠️ Chưa có link';
-      const priceDisplay = salePct > 0 && !item.noSale
-        ? `${formatPrice(item)} → ${formatPrice({...item, price: effectivePrice(item, salePct)})} (-${salePct}%)`
+      const itemPct = getItemSalePct(item, salePct);
+      const priceDisplay = itemPct > 0
+        ? `${formatPrice(item)} → ${formatPrice({...item, price: effectivePrice(item, salePct)})} (-${itemPct}%${item.itemSalePct != null ? ' riêng' : ''})`
         : formatPrice(item) + (item.noSale && salePct > 0 ? ' (miễn sale)' : '');
       return `${i + 1}. ${item.name}\n   Qty: ${item.quantity} | ${priceDisplay}${vars ? '\n   ' + vars : ''}\n   ${linkLine}`;
     }).join('\n\n');
@@ -1406,7 +1454,7 @@
     const totals = calcCartTotal(session.items, salePct);
     const totalLine = Object.keys(totals).length > 0 ? `\n💰 Tổng${salePct > 0 ? ` (sau -${salePct}%)` : ''}: ${formatTotal(totals)}` : '';
     const saleHint = salePct > 0 ? `\n🏷️ Đang áp dụng giảm giá ${salePct}% toàn đơn` : '';
-    const editHint = `\n\n─────────────────\n✏️  sửa #N tên/qty/giá/link: <giá trị>\n✏️  sửa #N size/color/fit/width/...: <giá trị>\n🗑️  xóa #N\n💸  giảm N% | bỏ giảm giá | bỏ sale #N | áp sale #N`;
+    const editHint = `\n\n─────────────────\n✏️  sửa #N tên/qty/giá/link: <giá trị>\n✏️  sửa #N size/color/fit/width/...: <giá trị>\n🗑️  xóa #N\n💸  giảm N% | bỏ giảm giá | sale #N M% | bỏ sale #N`;
     return `📦 Giỏ hàng (${session.items.length} sản phẩm):${saleHint}\n\n${lines}${warning}${totalLine}${editHint}`;
   }
 

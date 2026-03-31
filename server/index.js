@@ -101,6 +101,81 @@ async function initRules() {
   console.log(`[price-rules] Loaded defaults: [${rulesCache.totalPriceDomains.join(', ')}]`);
 }
 
+// ===== HELP CONTENT =====
+const HELP_GIST_FILENAME = 'help-content.md';
+let helpCache = null;
+
+const DEFAULT_HELP = `📖 **Hướng dẫn sử dụng**
+
+**Bước 1:** Nhập số điện thoại khách hàng
+**Bước 2:** Upload ảnh giỏ hàng + link sản phẩm (mỗi link 1 dòng)
+**Bước 3:** Kiểm tra và chỉnh sửa giỏ hàng
+**Bước 4:** Gõ "tạo đơn" để hoàn tất
+
+**Các lệnh:**
+• **xem** — xem giỏ hàng hiện tại
+• **tạo đơn** — tạo đơn hàng
+• **sửa #N qty/giá/tên/link: giá trị** — sửa sản phẩm
+• **sửa #N size/color/fit/...: giá trị** — sửa variation
+• **xóa #N** — xóa sản phẩm
+• **sale 20%** — giảm giá cả đơn
+• **sale #N 30%** — giảm giá riêng sản phẩm
+• **bỏ sale #N** — bỏ giảm giá sản phẩm
+• **bỏ giảm giá** — bỏ giảm giá cả đơn`;
+
+async function loadHelpFromGist() {
+  if (!GITHUB_TOKEN || !GIST_ID) return null;
+  try {
+    const res = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+      headers: { 'Authorization': `Bearer ${GITHUB_TOKEN}`, 'Accept': 'application/vnd.github.v3+json' },
+    });
+    const data = await res.json();
+    const content = data.files?.[HELP_GIST_FILENAME]?.content;
+    if (content) return content;
+  } catch (e) {
+    console.error('[help] Gist load error:', e.message);
+  }
+  return null;
+}
+
+async function saveHelpToGist(content) {
+  if (!GITHUB_TOKEN || !GIST_ID) return;
+  try {
+    await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${GITHUB_TOKEN}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ files: { [HELP_GIST_FILENAME]: { content } } }),
+    });
+  } catch (e) {
+    console.error('[help] Gist save error:', e.message);
+  }
+}
+
+function getHelp() {
+  return helpCache || DEFAULT_HELP;
+}
+
+async function saveHelp(content) {
+  helpCache = content;
+  saveHelpToGist(content);
+  console.log('[help] Saved help content');
+}
+
+async function initHelp() {
+  const fromGist = await loadHelpFromGist();
+  if (fromGist) {
+    helpCache = fromGist;
+    console.log('[help] Loaded from Gist');
+    return;
+  }
+  helpCache = DEFAULT_HELP;
+  console.log('[help] Using defaults');
+}
+
 const BASSO_KEY = process.env.BASSO_API_KEY || '';
 const BASSO_URL = process.env.BASSO_BASE_URL || '';
 const IS_MOCK = !BASSO_KEY || BASSO_KEY === 'your-basso-key-here';
@@ -158,6 +233,20 @@ app.post('/api/price-rules', async (req, res) => {
   }
   await saveRules(rules);
   res.json({ success: true, data: rules });
+});
+
+// ===== HELP CONTENT =====
+app.get('/api/help', (req, res) => {
+  res.json({ success: true, data: getHelp() });
+});
+
+app.post('/api/help', async (req, res) => {
+  const auth = req.headers['authorization'] || '';
+  if (!auth) return res.status(401).json({ success: false, message: 'Unauthorized' });
+  const { content } = req.body;
+  if (!content || !content.trim()) return res.status(400).json({ success: false, message: 'Thiếu nội dung help' });
+  await saveHelp(content.trim());
+  res.json({ success: true, data: getHelp() });
 });
 
 // ===== BASSO LOGIN =====
@@ -419,7 +508,8 @@ if (require.main === module) {
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
-    initRules(); // Load price rules into memory (async, non-blocking)
+    initRules();
+    initHelp();
   });
 }
 
