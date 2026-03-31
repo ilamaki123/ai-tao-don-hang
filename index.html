@@ -1392,7 +1392,7 @@
     if (n.includes('xemgiỏ') || n.includes('xemgio') || n.includes('giỏhàng') || n.includes('giohang')
       || n.includes('xemđơn') || n.includes('xemdon') || n.includes('đơnhàng') || n.includes('donhang')
       || n.includes('kiểmtra') || n.includes('kiemtra') || n.includes('tổngđơn') || n.includes('tongdon')
-      || n.includes('tổngtiền') || n.includes('tongtien')) return true;
+      || n.includes('tổngtiền') || n.includes('tongtien') || n.includes('checkbag')) return true;
     // Short keyword matches — only when message is brief (≤ 5 words) to avoid false positives
     const words = t.split(/\s+/);
     if (words.length <= 5) {
