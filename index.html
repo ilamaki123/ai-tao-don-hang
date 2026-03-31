@@ -913,7 +913,7 @@
       const phone = extractPhone(text);
       if (!phone) {
         removeTyping();
-        addMessage('ai', 'Vui lòng nhập số điện thoại khách hàng để bắt đầu (9-12 chữ số).');
+        addMessage('ai', `"${text}" không phải số điện thoại hợp lệ. Vui lòng nhập SĐT khách hàng (9-12 chữ số).`);
         return;
       }
 
