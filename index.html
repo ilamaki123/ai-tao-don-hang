@@ -1311,6 +1311,7 @@
           price_origin: item.price || 0,
           price_discount_rate: salePct,
           price: priceAfterSale,
+          term_id: item.term_id || 5,
           variations: item.variations || [],
           ...(item.image_id ? { image_id: item.image_id } : {}),
           ...(item.image_path ? { image_path: item.image_path } : {}),
