@@ -882,24 +882,18 @@
       }
       return;
     }
-    if (isAdmin && !file && /^sửa\s+help$|^sua\s+help$|^edit\s+help$/i.test(text.trim())) {
+    const helpEditMatch = isAdmin && !file && text.match(/^(?:sửa\s+help|sua\s+help|edit\s+help)\s*\n([\s\S]+)/im);
+    if (helpEditMatch) {
+      const newContent = helpEditMatch[1].trim();
       try {
-        const r = await fetch(`${API_BASE}/api/help`);
-        const d = await r.json();
+        const saveRes = await fetch(`${API_BASE}/api/help`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+          body: JSON.stringify({ content: newContent }),
+        });
+        const saveData = await saveRes.json();
         removeTyping();
-        const current = d.success ? d.data : '';
-        const newContent = prompt('Chỉnh sửa nội dung Help:', current);
-        if (newContent !== null && newContent.trim()) {
-          const saveRes = await fetch(`${API_BASE}/api/help`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-            body: JSON.stringify({ content: newContent }),
-          });
-          const saveData = await saveRes.json();
-          addMessage('ai', saveData.success ? `✅ Đã cập nhật nội dung help.\n\n${saveData.data}` : '❌ Lỗi: ' + saveData.message);
-        } else {
-          addMessage('ai', 'Đã hủy chỉnh sửa help.');
-        }
+        addMessage('ai', saveData.success ? `✅ Đã cập nhật nội dung help.\n\n${saveData.data}` : '❌ Lỗi: ' + saveData.message);
       } catch {
         removeTyping();
         addMessage('ai', 'Không thể cập nhật help.');
