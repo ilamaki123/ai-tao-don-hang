@@ -1267,10 +1267,7 @@
     const link = items.find(i => i.link)?.link || '';
     if (!link) return 'direct';
     try {
-      const hostname = new URL(link).hostname.toLowerCase().replace(/^www\./, '');
-      // usa.tommy.com → tommy.com | macys.com → macys.com | amazon.co.uk → co.uk
-      const parts = hostname.split('.');
-      return parts.length >= 2 ? parts.slice(-2).join('.') : hostname;
+      return new URL(link).hostname.toLowerCase().replace(/^www\./, '');
     } catch {
       return 'direct';
     }
