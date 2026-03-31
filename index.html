@@ -524,7 +524,7 @@
 
   const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
     ? 'http://localhost:3000'
-    : 'https://ai-tao-don-hang.onrender.com';
+    : 'https://ai.basso.vn';
 
   // Nếu session thiếu roles, fetch từ server (fallback cho session cũ)
   if (sessionUser && !sessionUser.roles) {
@@ -538,12 +538,6 @@
       }).catch(() => {});
   }
 
-  // Giữ Render server luôn thức — ping /health mỗi 4 phút
-  if (API_BASE.includes('onrender.com')) {
-    const keepAlive = () => fetch(`${API_BASE}/health`).catch(() => {});
-    keepAlive();
-    setInterval(keepAlive, 4 * 60 * 1000);
-  }
 
   // ===== STATE =====
   let sessions = [];
