@@ -386,23 +386,6 @@ app.post('/api/upload-image', upload.single('file'), async (req, res) => {
   }
 });
 
-// ===== CHAT TỰ NHIÊN =====
-app.post('/api/chat', async (req, res) => {
-  try {
-    const { message, context } = req.body;
-    const response = await anthropic.messages.create({
-      model: 'claude-opus-4-6',
-      max_tokens: 512,
-      system: `Bạn là trợ lý tạo đơn hàng AI. Nhiệm vụ của bạn là giúp người dùng tạo đơn hàng từ ảnh giỏ hàng.
-Ngữ cảnh hiện tại: ${context || ''}
-Trả lời ngắn gọn, thân thiện bằng tiếng Việt. Nếu người dùng hỏi ngoài chủ đề tạo đơn, nhẹ nhàng hướng họ trở lại.`,
-      messages: [{ role: 'user', content: message }],
-    });
-    res.json({ success: true, text: response.content[0].text });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
 
 // ===== PROXY: TẠO ĐƠN HÀNG =====
 app.post('/api/create-order', async (req, res) => {

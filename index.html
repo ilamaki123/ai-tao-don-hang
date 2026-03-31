@@ -912,14 +912,8 @@
     if (session.state === 'INIT') {
       const phone = extractPhone(text);
       if (!phone) {
-        const chatRes = await fetch(`${API_BASE}/api/chat`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: text, context: 'Đang chờ user nhập số điện thoại khách hàng để tìm kiếm.' }),
-        });
-        const chatData = await chatRes.json();
         removeTyping();
-        addMessage('ai', chatData.success ? chatData.text : 'Vui lòng nhập số điện thoại khách hàng (9-12 chữ số).');
+        addMessage('ai', 'Vui lòng nhập số điện thoại khách hàng để bắt đầu (9-12 chữ số).');
         return;
       }
 
@@ -1018,9 +1012,24 @@
       const editCmd = !file ? parseEditCommand(text) : null;
       if (editCmd) {
         const n = session.items.length;
-        if (editCmd.index < 0 || editCmd.index >= n) {
+        if (editCmd.action !== 'deleteMany' && (editCmd.index < 0 || editCmd.index >= n)) {
           removeTyping();
           addMessage('ai', `Không tìm thấy sản phẩm #${editCmd.index + 1}. Giỏ hàng hiện có ${n} sản phẩm.`);
+          return;
+        }
+
+        if (editCmd.action === 'deleteMany') {
+          const valid = [...new Set(editCmd.indices)].filter(i => i >= 0 && i < session.items.length).sort((a, b) => b - a);
+          if (!valid.length) {
+            removeTyping();
+            addMessage('ai', `Không tìm thấy sản phẩm nào hợp lệ để xóa.`);
+            return;
+          }
+          const names = valid.map(i => `#${i + 1} ${session.items[i].name}`).reverse();
+          valid.forEach(i => session.items.splice(i, 1));
+          removeTyping();
+          addMessage('ai', `Đã xóa ${names.length} sản phẩm: ${names.join(', ')}.\n\n` + renderCartSummary(session));
+          saveSessions();
           return;
         }
 
@@ -1164,18 +1173,10 @@
         return;
       }
 
-      // Không có ảnh, không phải "tạo đơn" → Claude trả lời tự nhiên
-      const c = session.customer;
-      const itemCount = session.items.length;
-      const context = `Đã xác định khách hàng: ${c.name} (${c.phone}). Đã có ${itemCount} sản phẩm trong giỏ. Đang chờ user upload ảnh giỏ hàng kèm link sản phẩm để tiếp tục.`;
-      const chatRes = await fetch(`${API_BASE}/api/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text, context }),
-      });
-      const chatData = await chatRes.json();
+      // Không match lệnh nào → hướng dẫn
       removeTyping();
-      addMessage('ai', chatData.success ? chatData.text : 'Vui lòng upload ảnh giỏ hàng kèm link sản phẩm.');
+      const hasItems = session.items.length > 0;
+      addMessage('ai', `Tôi không hiểu lệnh này. Bạn có thể:\n• Upload ảnh giỏ hàng ${hasItems ? '(thêm sản phẩm)' : ''}\n• Gõ "xem" để kiểm tra giỏ hàng\n• Sửa sản phẩm (vd: "sửa #1 qty 2", "sửa #1 size M")\n• Xóa sản phẩm (vd: "xóa #3")\n• Giảm giá (vd: "sale 20%")${hasItems ? '\n• Gõ "tạo đơn" để hoàn tất' : ''}`);
       return;
     }
 
@@ -1186,6 +1187,39 @@
       removeTyping();
       addMessage('ai', 'Đơn hàng đã được tạo xong. Nhấn "New Chat" để tạo đơn mới.');
     }
+  }
+
+  function detectCountryId(items) {
+    const currency = (items.find(i => i.currency)?.currency || '').toUpperCase().trim();
+    // £ → Anh rõ ràng, không cần domain
+    if (currency === '£') return 4;
+
+    // € có thể là Tây Ban Nha hoặc Đức → dùng domain để phân biệt
+    if (currency === '€' || currency === 'EUR' || currency === 'EURO') {
+      const link = items.find(i => i.link)?.link || '';
+      if (link) {
+        try {
+          const hostname = new URL(link).hostname.toLowerCase();
+          if (hostname.endsWith('.de')) return 29; // Đức
+          if (hostname.endsWith('.es')) return 9;  // Tây Ban Nha
+        } catch {}
+      }
+      return 9; // € mặc định → Tây Ban Nha
+    }
+
+    // $ có thể là Mỹ hoặc Canada → dùng domain để phân biệt
+    if (currency === '$') {
+      const link = items.find(i => i.link)?.link || '';
+      if (link) {
+        try {
+          const hostname = new URL(link).hostname.toLowerCase();
+          if (hostname.endsWith('.ca')) return 26; // Canada
+        } catch {}
+      }
+      return 1; // $ mặc định → Mỹ
+    }
+
+    return 1; // default Mỹ
   }
 
   function extractWebsiteFromItems(items) {
@@ -1213,7 +1247,7 @@
       district_id: c.district_id,
       payment_method: 'cod',
       isStock: false,
-      country_id: 1,
+      country_id: detectCountryId(session.items),
       payment_limit_id: 1,
       brand: c.brand || 'shipus',
       website: extractWebsiteFromItems(session.items),
@@ -1304,8 +1338,20 @@
 
   function isXemGio(text) {
     if (!text) return false;
-    const n = text.toLowerCase().replace(/\s/g, '');
-    return n.includes('xemgiỏ') || n.includes('xemgio') || n.includes('giỏhàng') || n.includes('giohang') || n.includes('xemđơn') || n.includes('xemdon');
+    const t = text.toLowerCase().trim();
+    const n = t.replace(/\s/g, '');
+    // Exact/compound matches (no spaces)
+    if (n.includes('xemgiỏ') || n.includes('xemgio') || n.includes('giỏhàng') || n.includes('giohang')
+      || n.includes('xemđơn') || n.includes('xemdon') || n.includes('đơnhàng') || n.includes('donhang')
+      || n.includes('kiểmtra') || n.includes('kiemtra') || n.includes('tổngđơn') || n.includes('tongdon')
+      || n.includes('tổngtiền') || n.includes('tongtien')) return true;
+    // Short keyword matches — only when message is brief (≤ 5 words) to avoid false positives
+    const words = t.split(/\s+/);
+    if (words.length <= 5) {
+      const shortKeys = ['giỏ', 'gio', 'đơn', 'don', 'cart', 'check', 'xem', 'summary', 'tổng', 'tong', 'kiểm', 'kiem', 'review'];
+      if (shortKeys.some(k => words.includes(k))) return true;
+    }
+    return false;
   }
 
   function isOnlyLinks(text) {
@@ -1399,9 +1445,13 @@
     if (!text) return null;
     const t = text.trim();
 
-    // Xóa #N (chỉ xóa cả sản phẩm, không phải xóa variation)
-    const del = t.match(/^(xóa|xoa|xoá)\s*#?(\d+)\s*$/i);
-    if (del) return { action: 'delete', index: parseInt(del[2]) - 1 };
+    // Xóa nhiều: "xóa #1, #2, #3" hoặc "xóa #1 #2 #3" hoặc "xóa #1, xóa #2"
+    const bulkDel = t.match(/^(xóa|xoa|xoá)\s+(.+)/i);
+    if (bulkDel) {
+      const nums = [...bulkDel[2].matchAll(/#?(\d+)/g)].map(m => parseInt(m[1]) - 1);
+      if (nums.length > 1) return { action: 'deleteMany', indices: nums };
+      if (nums.length === 1) return { action: 'delete', index: nums[0] };
+    }
 
     // Sửa #N fieldname: value (field bất kỳ, dùng : làm phân cách)
     const edit = t.match(/^(sửa|sua|edit)\s+#?(\d+)\s+([^:]+?)\s*:\s*(.+)/i);
