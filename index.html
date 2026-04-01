@@ -1844,6 +1844,29 @@
       pulling = false;
     });
   })();
+
+  // ===== iOS KEYBOARD FIX =====
+  if (window.visualViewport) {
+    const inputWrap = document.querySelector('.input-bar-wrap');
+    const mainArea = document.getElementById('mainArea');
+
+    function onViewportResize() {
+      const vv = window.visualViewport;
+      const keyboardHeight = window.innerHeight - vv.height;
+      if (keyboardHeight > 100) {
+        inputWrap.style.paddingBottom = keyboardHeight + 'px';
+        mainArea.style.height = vv.height + 'px';
+        const msgList = document.getElementById('messageList');
+        if (msgList) msgList.scrollTop = msgList.scrollHeight;
+      } else {
+        inputWrap.style.paddingBottom = '';
+        mainArea.style.height = '';
+      }
+    }
+
+    window.visualViewport.addEventListener('resize', onViewportResize);
+    window.visualViewport.addEventListener('scroll', onViewportResize);
+  }
 </script>
 <script>
   if ('serviceWorker' in navigator) {
