@@ -1845,8 +1845,9 @@
     });
   })();
 
-  // ===== iOS KEYBOARD FIX =====
-  if (window.visualViewport) {
+  // ===== iOS KEYBOARD FIX (iOS only, Android handles this natively) =====
+  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  if (isIOS && window.visualViewport) {
     const inputWrap = document.querySelector('.input-bar-wrap');
     const mainArea = document.getElementById('mainArea');
 
