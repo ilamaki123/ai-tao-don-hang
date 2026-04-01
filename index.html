@@ -467,6 +467,19 @@
       z-index: 999;
     }
 
+    .btn-close-sidebar {
+      display: none;
+      background: none;
+      border: none;
+      font-size: 28px;
+      color: #888;
+      cursor: pointer;
+      padding: 0 4px;
+      line-height: 1;
+    }
+
+    .btn-close-sidebar:hover { color: #333; }
+
     /* ===== RESPONSIVE MOBILE ===== */
     @media (max-width: 768px) {
       .sidebar {
@@ -491,6 +504,10 @@
       .btn-hamburger {
         display: flex;
         align-items: center;
+      }
+
+      .btn-close-sidebar {
+        display: block;
       }
 
       .topbar {
@@ -531,7 +548,10 @@
 
 <!-- SIDEBAR -->
 <div class="sidebar" id="sidebar">
-  <div class="sidebar-logo">AI Chat</div>
+  <div style="display:flex;align-items:center;justify-content:space-between;">
+    <div class="sidebar-logo">AI Chat</div>
+    <button class="btn-close-sidebar" onclick="closeSidebar()">&times;</button>
+  </div>
   <div class="sidebar-welcome">Welcome, Vinh Pham</div>
   <button class="btn-new-chat" onclick="newChat()">
     <span>+</span> New Chat
