@@ -446,12 +446,91 @@
       font-size: 12px;
       color: #bbb;
     }
+
+    /* ===== MOBILE HAMBURGER ===== */
+    .btn-hamburger {
+      display: none;
+      background: none;
+      border: none;
+      font-size: 22px;
+      cursor: pointer;
+      color: #00354E;
+      padding: 6px;
+      z-index: 1001;
+    }
+
+    .sidebar-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 999;
+    }
+
+    /* ===== RESPONSIVE MOBILE ===== */
+    @media (max-width: 768px) {
+      .sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        z-index: 1000;
+        transform: translateX(-100%);
+        transition: transform 0.25s ease;
+        box-shadow: 2px 0 12px rgba(0,0,0,0.15);
+      }
+
+      .sidebar.open {
+        transform: translateX(0);
+      }
+
+      .sidebar-overlay.open {
+        display: block;
+      }
+
+      .btn-hamburger {
+        display: flex;
+        align-items: center;
+      }
+
+      .topbar {
+        justify-content: space-between;
+        padding: 10px 14px;
+      }
+
+      .messages {
+        padding: 12px 14px;
+      }
+
+      .message {
+        max-width: 90%;
+      }
+
+      .input-bar-wrap {
+        padding: 10px 10px 14px;
+      }
+
+      .input-bar {
+        max-width: 100%;
+      }
+
+      .preview-wrap {
+        max-width: 100%;
+      }
+
+      .message-image {
+        max-width: 200px;
+      }
+    }
   </style>
 </head>
 <body>
 
+<!-- SIDEBAR OVERLAY (mobile) -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
 <!-- SIDEBAR -->
-<div class="sidebar">
+<div class="sidebar" id="sidebar">
   <div class="sidebar-logo">AI Chat</div>
   <div class="sidebar-welcome">Welcome, Vinh Pham</div>
   <button class="btn-new-chat" onclick="newChat()">
@@ -465,6 +544,7 @@
 
   <!-- Topbar -->
   <div class="topbar">
+    <button class="btn-hamburger" onclick="toggleSidebar()">&#9776;</button>
     <button class="btn-logout" onclick="logout()">&#8594; Logout</button>
   </div>
 
@@ -622,6 +702,7 @@
     document.getElementById('inputArea').style.display = 'flex';
     renderMessages();
     updateHint();
+    closeSidebar();
   }
 
   function newChat() {
@@ -1476,6 +1557,16 @@
 
   function sleep(ms) {
     return new Promise(r => setTimeout(r, ms));
+  }
+
+  function toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('open');
+    document.getElementById('sidebarOverlay').classList.toggle('open');
+  }
+
+  function closeSidebar() {
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebarOverlay').classList.remove('open');
   }
 
   function logout() {
