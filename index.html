@@ -1310,10 +1310,10 @@
                   newItems[i].image_id = uploadData.data.id;
                   newItems[i].image_path = uploadData.data.path;
                 }
-              } catch (e) { /* silent fail per item */ }
+              } catch (e) { console.error('[upload-image] error:', e.message); }
             }));
           }
-        } catch (e) { /* silent fail */ }
+        } catch (e) { console.error('[extract-product-images] error:', e.message); }
         session.items.push(...newItems);
 
         removeTyping();
