@@ -1804,7 +1804,9 @@
   (function() {
     let startY = 0;
     let pulling = false;
-    const threshold = 80;
+    const threshold = 150;
+    const deadZone = 30;
+    const resistance = 0.4;
     const ptr = document.getElementById('ptrIndicator');
 
     document.addEventListener('touchstart', function(e) {
@@ -1816,17 +1818,17 @@
 
     document.addEventListener('touchmove', function(e) {
       if (!pulling) return;
-      const dy = e.touches[0].clientY - startY;
-      if (dy > 0 && dy < 150) {
-        ptr.style.height = dy + 'px';
-        ptr.textContent = dy > threshold ? 'Thả để refresh' : 'Kéo xuống để refresh';
-      }
+      const rawDy = e.touches[0].clientY - startY;
+      if (rawDy < deadZone) { ptr.style.height = '0'; return; }
+      const dy = Math.min((rawDy - deadZone) * resistance, 200);
+      ptr.style.height = dy + 'px';
+      ptr.textContent = dy > threshold * resistance ? 'Thả để refresh' : 'Kéo xuống để refresh';
     }, { passive: true });
 
     document.addEventListener('touchend', function() {
       if (!pulling) return;
       const h = parseInt(ptr.style.height) || 0;
-      if (h > threshold) {
+      if (h > threshold * resistance) {
         ptr.textContent = 'Đang tải lại...';
         ptr.style.height = '40px';
         setTimeout(() => location.reload(), 300);
