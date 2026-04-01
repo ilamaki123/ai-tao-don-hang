@@ -16,6 +16,7 @@
       font-family: 'Segoe UI', sans-serif;
       background-image: linear-gradient(-225deg, #E3FDF5 0%, #FFE6FA 100%);
       height: 100vh;
+      height: 100dvh;
       display: flex;
       overflow: hidden;
     }
@@ -512,11 +513,16 @@
 
       .topbar {
         justify-content: space-between;
-        padding: 10px 14px;
+        padding: 8px 14px;
       }
 
       .messages {
-        padding: 12px 14px;
+        padding: 8px 14px;
+      }
+
+      .empty-state {
+        justify-content: flex-end;
+        padding-bottom: 30px;
       }
 
       .message {
@@ -524,7 +530,7 @@
       }
 
       .input-bar-wrap {
-        padding: 10px 10px 14px;
+        padding: 8px 10px env(safe-area-inset-bottom, 10px);
       }
 
       .input-bar {
