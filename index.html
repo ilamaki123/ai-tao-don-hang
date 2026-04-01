@@ -1590,13 +1590,15 @@
   }
 
   function toggleSidebar() {
-    document.getElementById('sidebar').classList.toggle('open');
+    const open = document.getElementById('sidebar').classList.toggle('open');
     document.getElementById('sidebarOverlay').classList.toggle('open');
+    document.querySelector('.btn-hamburger').style.display = open ? 'none' : '';
   }
 
   function closeSidebar() {
     document.getElementById('sidebar').classList.remove('open');
     document.getElementById('sidebarOverlay').classList.remove('open');
+    document.querySelector('.btn-hamburger').style.display = '';
   }
 
   function logout() {
