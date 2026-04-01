@@ -64,6 +64,21 @@
     .btn-new-chat:hover { background: #004d72; }
 
 
+    .search-sessions {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      font-size: 13px;
+      outline: none;
+      margin-bottom: 10px;
+      background: #f9f9f9;
+      color: #333;
+    }
+
+    .search-sessions:focus { border-color: #7c5cbf; background: #fff; }
+    .search-sessions::placeholder { color: #bbb; }
+
     .chat-history { flex: 1; overflow-y: auto; }
 
     .chat-history-item {
@@ -567,6 +582,7 @@
   <button class="btn-new-chat" onclick="newChat()">
     <span>+</span> New Chat
   </button>
+  <input type="text" class="search-sessions" id="searchSessions" placeholder="Tìm tên, SĐT..." oninput="filterSessions()" />
   <div class="chat-history" id="chatHistory"></div>
 </div>
 
@@ -755,9 +771,16 @@
   if (!activeSessionId) renderHistory();
   syncSessionsFromServer();
 
-  function renderHistory() {
+  function renderHistory(filter = '') {
     const el = document.getElementById('chatHistory');
-    el.innerHTML = sessions.map(s => `
+    const q = filter.toLowerCase().trim();
+    const filtered = q ? sessions.filter(s => {
+      const title = (s.title || '').toLowerCase();
+      const phone = (s.customer?.phone || '').toLowerCase();
+      const name = (s.customer?.name || '').toLowerCase();
+      return title.includes(q) || phone.includes(q) || name.includes(q);
+    }) : sessions;
+    el.innerHTML = filtered.map(s => `
       <div class="chat-history-item ${s.id === activeSessionId ? 'active' : ''}" onclick="selectSession(${s.id})">
         <span class="icon">&#128172;</span>
         <div class="info">
@@ -767,6 +790,11 @@
         <button class="btn-delete-chat" onclick="deleteSession(event, ${s.id})" title="Xóa đoạn chat">&#x2715;</button>
       </div>
     `).join('');
+  }
+
+  function filterSessions() {
+    const q = document.getElementById('searchSessions').value;
+    renderHistory(q);
   }
 
   function deleteSession(event, id) {
