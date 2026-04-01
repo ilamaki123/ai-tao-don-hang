@@ -379,7 +379,7 @@
       const user = await callLoginAPI(username, password);
       clearTimeout(slowTimer);
 
-      const sessionData = { username: user.username, name: user.name, token: user.token, roles: user.roles };
+      const sessionData = { id: user.id, username: user.username, name: user.name, token: user.token, roles: user.roles };
       if (remember) {
         localStorage.setItem('ai_chat_user', JSON.stringify(sessionData));
       } else {
@@ -419,6 +419,7 @@
 
       const user = data.data.user;
       return {
+        id: user.id,
         username: user.email,
         name: user.name || (user.first_name ? (user.first_name + (user.last_name ? ' ' + user.last_name : '')) : user.email),
         token: data.data.access_token,

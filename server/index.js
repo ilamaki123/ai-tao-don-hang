@@ -190,8 +190,45 @@ const BASSO_URL = process.env.BASSO_BASE_URL || '';
 const IS_MOCK = !BASSO_KEY || BASSO_KEY === 'your-basso-key-here';
 console.log('Mock mode:', IS_MOCK);
 
-// token → roles map (in-memory, reset on server restart but refreshed on next login)
-const tokenRolesMap = new Map();
+// token → user info map (in-memory, refreshed on login)
+const tokenUserMap = new Map();
+
+// ===== SESSION FILE I/O =====
+const SESSIONS_DIR = path.join(__dirname, 'data', 'sessions');
+const SIXTY_DAYS_MS = 60 * 24 * 60 * 60 * 1000;
+
+function resolveUser(req) {
+  const token = (req.headers['authorization'] || '').replace('Bearer ', '').trim();
+  return token ? tokenUserMap.get(token) || null : null;
+}
+
+function getSessionsPath(userId) {
+  return path.join(SESSIONS_DIR, `${userId}.json`);
+}
+
+function loadUserSessions(userId) {
+  try {
+    const data = JSON.parse(fs.readFileSync(getSessionsPath(userId), 'utf8'));
+    return Array.isArray(data) ? data : [];
+  } catch { return []; }
+}
+
+function saveUserSessions(userId, sessions) {
+  if (!fs.existsSync(SESSIONS_DIR)) fs.mkdirSync(SESSIONS_DIR, { recursive: true });
+  fs.writeFileSync(getSessionsPath(userId), JSON.stringify(sessions, null, 2));
+}
+
+function cleanExpiredMessages(sessions) {
+  const now = Date.now();
+  let changed = false;
+  for (const s of sessions) {
+    if (!s.messages) continue;
+    const before = s.messages.length;
+    s.messages = s.messages.filter(m => !m.timestamp || (now - m.timestamp) < SIXTY_DAYS_MS);
+    if (s.messages.length !== before) changed = true;
+  }
+  return changed;
+}
 
 app.use(cors());
 app.use(express.json());
@@ -212,10 +249,9 @@ app.get('/health', (req, res) => {
 
 // ===== GET ROLES BY TOKEN =====
 app.get('/api/get-roles', (req, res) => {
-  const auth = (req.headers['authorization'] || '').replace('Bearer ', '').trim();
-  if (!auth) return res.json({ success: false, roles: [] });
-  const roles = tokenRolesMap.get(auth) || [];
-  res.json({ success: true, roles });
+  const user = resolveUser(req);
+  if (!user) return res.json({ success: false, roles: [] });
+  res.json({ success: true, roles: user.roles || [] });
 });
 
 // ===== PRICE RULES =====
@@ -258,24 +294,55 @@ app.post('/api/help', async (req, res) => {
   res.json({ success: true, data: getHelp() });
 });
 
+// ===== SESSIONS =====
+app.get('/api/sessions', (req, res) => {
+  const user = resolveUser(req);
+  if (!user) return res.status(401).json({ success: false, message: 'Unauthorized' });
+  const sessions = loadUserSessions(user.id);
+  const changed = cleanExpiredMessages(sessions);
+  if (changed) saveUserSessions(user.id, sessions);
+  res.json({ success: true, data: sessions });
+});
+
+app.post('/api/sessions', (req, res) => {
+  const user = resolveUser(req);
+  if (!user) return res.status(401).json({ success: false, message: 'Unauthorized' });
+  const { sessions } = req.body;
+  if (!Array.isArray(sessions)) return res.status(400).json({ success: false, message: 'sessions must be array' });
+  saveUserSessions(user.id, sessions);
+  res.json({ success: true });
+});
+
+app.delete('/api/sessions/:id', (req, res) => {
+  const user = resolveUser(req);
+  if (!user) return res.status(401).json({ success: false, message: 'Unauthorized' });
+  const sessionId = parseInt(req.params.id);
+  const sessions = loadUserSessions(user.id);
+  const filtered = sessions.filter(s => s.id !== sessionId);
+  saveUserSessions(user.id, filtered);
+  res.json({ success: true });
+});
+
 // ===== BASSO LOGIN =====
 app.post('/api/basso-login', async (req, res) => {
   const { email, pass } = req.body;
 
   if (IS_MOCK) {
     const mockAccounts = [
-      { email: 'admin', pass: '123456', name: 'Admin' },
-      { email: 'vinh',  pass: '123456', name: 'Vinh Pham' },
+      { id: 1, email: 'admin', pass: '123456', name: 'Admin' },
+      { id: 2, email: 'vinh',  pass: '123456', name: 'Vinh Pham' },
     ];
     const found = mockAccounts.find(a => a.email === email && a.pass === pass);
     if (!found) {
       return res.json({ success: false, message: 'Sai email hoặc mật khẩu', data: [], errors: [] });
     }
+    const mockToken = 'mock_token_' + Date.now();
+    tokenUserMap.set(mockToken, { id: found.id, email: found.email, roles: ['manager'] });
     return res.json({
       success: true, message: 'Đăng nhập thành công',
       data: {
-        user: { id: 1, email: found.email, name: found.name, roles: ['manager'] },
-        access_token: 'mock_token_' + Date.now(),
+        user: { id: found.id, email: found.email, name: found.name, roles: ['manager'] },
+        access_token: mockToken,
         token_type: 'Bearer',
         expires_at: Math.floor(Date.now() / 1000) + 86400,
       },
@@ -292,9 +359,10 @@ app.post('/api/basso-login', async (req, res) => {
     });
     const data = await response.json();
     console.log('[basso-login] user object:', JSON.stringify(data?.data?.user));
-    // Lưu token → roles để client có thể fetch sau
-    if (data?.data?.access_token && data?.data?.user?.roles) {
-      tokenRolesMap.set(data.data.access_token, data.data.user.roles);
+    // Lưu token → user info
+    if (data?.data?.access_token && data?.data?.user) {
+      const u = data.data.user;
+      tokenUserMap.set(data.data.access_token, { id: u.id, email: u.email || u.username, roles: u.roles || [] });
     }
     res.json(data);
   } catch (err) {

@@ -664,13 +664,66 @@
   // ===== LOCAL STORAGE =====
   const LS_SESSIONS_KEY = 'ai_chat_sessions_v1';
 
+  let _syncTimer = null;
+
+  function sanitizeForServer(sessions) {
+    return sessions.map(s => ({
+      ...s,
+      cartImages: [],
+      messages: (s.messages || []).map(m => ({ ...m, images: undefined })),
+    }));
+  }
+
+  async function syncSessionsToServer() {
+    if (!sessionUser?.token) return;
+    try {
+      await fetch(`${API_BASE}/api/sessions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify({ sessions: sanitizeForServer(sessions) }),
+      });
+    } catch {}
+  }
+
+  async function syncSessionsFromServer() {
+    if (!sessionUser?.token) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/sessions`, { headers: getAuthHeaders() });
+      const data = await res.json();
+      if (!data.success || !Array.isArray(data.data)) return;
+      const serverSessions = data.data;
+      if (serverSessions.length === 0 && sessions.length > 0) {
+        // Local has data, server empty → push local to server
+        syncSessionsToServer();
+        return;
+      }
+      if (serverSessions.length > 0) {
+        // Merge: server is source of truth, add local-only sessions
+        const serverIds = new Set(serverSessions.map(s => s.id));
+        const localOnly = sessions.filter(s => !serverIds.has(s.id));
+        sessions = [...serverSessions, ...localOnly].map(s => ({ ...s, cartImages: s.cartImages || [] }));
+        renderHistory();
+        if (sessions.length && !activeSessionId) selectSession(sessions[0].id);
+        else if (activeSessionId) renderMessages();
+        // Save merged back
+        try { localStorage.setItem(LS_SESSIONS_KEY, JSON.stringify(sanitizeForServer(sessions))); } catch {}
+        if (localOnly.length > 0) syncSessionsToServer();
+      }
+    } catch {}
+  }
+
+  async function deleteSessionOnServer(id) {
+    if (!sessionUser?.token) return;
+    try {
+      await fetch(`${API_BASE}/api/sessions/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
+    } catch {}
+  }
+
   function saveSessions() {
     try {
-      // cartImages là File objects, không serialize được → bỏ qua
       const toSave = sessions.map(s => ({ ...s, cartImages: [] }));
       localStorage.setItem(LS_SESSIONS_KEY, JSON.stringify(toSave));
     } catch {
-      // Quota exceeded (quá nhiều ảnh) → lưu lại không có ảnh
       try {
         const toSave = sessions.map(s => ({
           ...s, cartImages: [],
@@ -679,6 +732,9 @@
         localStorage.setItem(LS_SESSIONS_KEY, JSON.stringify(toSave));
       } catch {}
     }
+    // Debounced server sync
+    clearTimeout(_syncTimer);
+    _syncTimer = setTimeout(() => syncSessionsToServer(), 2000);
   }
 
   function loadSessions() {
@@ -697,6 +753,7 @@
   // ===== INIT =====
   loadSessions();
   if (!activeSessionId) renderHistory();
+  syncSessionsFromServer();
 
   function renderHistory() {
     const el = document.getElementById('chatHistory');
@@ -723,6 +780,7 @@
     }
     renderHistory();
     saveSessions();
+    deleteSessionOnServer(id);
   }
 
   function selectSession(id) {
@@ -824,7 +882,7 @@
   function addMessage(role, text, extra = {}) {
     const session = getActiveSession();
     if (!session) return;
-    session.messages.push({ role, text, ...extra });
+    session.messages.push({ role, text, timestamp: Date.now(), ...extra });
     renderMessages();
     saveSessions();
   }
@@ -1344,11 +1402,6 @@
 
 
 
-    // ===== ĐÃ XONG =====
-    if (session.state === 'DONE') {
-      removeTyping();
-      addMessage('ai', 'Đơn hàng đã được tạo xong. Nhấn "New Chat" để tạo đơn mới.');
-    }
   }
 
   function detectCountryId(items) {
@@ -1439,12 +1492,14 @@
     removeTyping();
 
     if (orderData.success) {
-      session.state = 'DONE';
+      session.state = 'WAITING_IMAGE';
+      session.items = [];
+      session.salePct = 0;
       updateHint();
-      addMessage('ai', 'Đã tạo đơn hàng thành công!', {
+      addMessage('ai', `Đã tạo đơn hàng thành công!\n\nCó thể tiếp tục upload ảnh giỏ hàng để tạo đơn mới cho ${session.customer.name}.`, {
         orderData: {
           orderCode: orderData.data.orderCode,
-          items: session.items,
+          items: [],
           order_url: `https://basso.vn/basso/customer_order/detail/${orderData.data.orderId}`,
         }
       });
