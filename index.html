@@ -1004,10 +1004,15 @@
   });
 
   // ===== SEND =====
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
   function handleKey(e) {
-    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
-      e.preventDefault();
-      sendMessage();
+    if (e.key === 'Enter' && !e.isComposing) {
+      if (isMobile) return; // Mobile: Enter = xuống dòng, gửi bằng nút
+      if (!e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
     }
   }
 
