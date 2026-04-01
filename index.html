@@ -1492,6 +1492,7 @@
     removeTyping();
 
     if (orderData.success) {
+      const completedItems = [...session.items];
       session.state = 'WAITING_IMAGE';
       session.items = [];
       session.salePct = 0;
@@ -1499,7 +1500,7 @@
       addMessage('ai', `Đã tạo đơn hàng thành công!\n\nCó thể tiếp tục upload ảnh giỏ hàng để tạo đơn mới cho ${session.customer.name}.`, {
         orderData: {
           orderCode: orderData.data.orderCode,
-          items: [],
+          items: completedItems,
           order_url: `https://basso.vn/basso/customer_order/detail/${orderData.data.orderId}`,
         }
       });
