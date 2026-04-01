@@ -1,9 +1,12 @@
 require('dotenv').config();
 if (!globalThis.fetch) {
-  const { fetch, FormData, Blob } = require('undici');
+  const { fetch, FormData, Blob, Headers, Request, Response } = require('undici');
   globalThis.fetch = fetch;
   globalThis.FormData = FormData;
   globalThis.Blob = Blob;
+  globalThis.Headers = Headers;
+  globalThis.Request = Request;
+  globalThis.Response = Response;
 }
 const express = require('express');
 const cors = require('cors');
