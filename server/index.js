@@ -467,9 +467,11 @@ app.post('/api/upload-image', upload.single('file'), async (req, res) => {
   }
 
   try {
+    // Use undici File (or Blob with name) for Node 16 compatibility
+    const { File: UFile } = require('undici');
+    const file = new UFile([req.file.buffer], req.file.originalname, { type: req.file.mimetype });
     const formData = new FormData();
-    const blob = new Blob([req.file.buffer], { type: req.file.mimetype });
-    formData.append('file', blob, req.file.originalname);
+    formData.append('file', file);
 
     const response = await fetch(`${BASSO_URL}/partner/uploadImage`, {
       method: 'POST',
@@ -480,6 +482,7 @@ app.post('/api/upload-image', upload.single('file'), async (req, res) => {
     console.log('[upload-image] Basso response:', JSON.stringify(data));
     res.json(data);
   } catch (err) {
+    console.error('[upload-image] error:', err.message);
     res.status(500).json({ success: false, message: err.message });
   }
 });
