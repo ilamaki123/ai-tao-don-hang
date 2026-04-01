@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ai-basso-v1';
+const CACHE_NAME = 'ai-basso-v2';
 const STATIC_ASSETS = [
   '/login.html',
   '/index.html',
@@ -27,6 +27,13 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   // API calls: always network, never cache
   if (url.pathname.startsWith('/api/')) return;
+  // Navigation requests (page loads): network first, critical for iOS PWA
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request).catch(() => caches.match(event.request))
+    );
+    return;
+  }
   // Static assets: network first, fallback to cache
   event.respondWith(
     fetch(event.request)
