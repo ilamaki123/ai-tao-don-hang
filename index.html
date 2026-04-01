@@ -681,7 +681,7 @@
   // ===== AUTH CHECK =====
   const sessionUser = JSON.parse(localStorage.getItem('ai_chat_user') || sessionStorage.getItem('ai_chat_user') || 'null');
   if (!sessionUser) {
-    window.location.href = 'login.html';
+    window.location.replace('login.html');
   } else {
     document.querySelector('.sidebar-welcome').textContent = 'Welcome, ' + sessionUser.name;
   }
@@ -1726,7 +1726,7 @@
   function logout() {
     localStorage.removeItem('ai_chat_user');
     sessionStorage.removeItem('ai_chat_user');
-    window.location.href = 'login.html';
+    window.location.replace('login.html');
   }
 
   function formatPrice(item) {

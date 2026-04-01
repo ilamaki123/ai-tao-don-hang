@@ -332,7 +332,7 @@
 
   // ===== CHECK SESSION =====
   const saved = localStorage.getItem('ai_chat_user') || sessionStorage.getItem('ai_chat_user');
-  if (saved) window.location.href = 'index.html';
+  if (saved) window.location.replace('index.html');
 
   // ===== WARM UP SERVER on page load =====
   fetch(`${API_BASE}/health`).catch(() => {});
@@ -386,7 +386,7 @@
         sessionStorage.setItem('ai_chat_user', JSON.stringify(sessionData));
       }
 
-      window.location.href = 'index.html';
+      window.location.replace('index.html');
 
     } catch (err) {
       clearTimeout(slowTimer);
