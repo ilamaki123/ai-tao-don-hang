@@ -1189,7 +1189,7 @@
       const editMatch = !file && text.match(/(?:sửa|sua|edit)\s*#?(\d+)\s+(\S+)\s*[:\s]\s*(.+)/i);
       if (editMatch) {
         const idx = parseInt(editMatch[1]) - 1;
-        const rawField = editMatch[2].trim();
+        const rawField = editMatch[2].trim().replace(/:$/, '');
         const field = rawField.toLowerCase();
         const value = editMatch[3].trim();
         if (idx < 0 || idx >= editing.items.length) {
