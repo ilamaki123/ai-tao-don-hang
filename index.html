@@ -16,7 +16,6 @@
       font-family: 'Segoe UI', sans-serif;
       background-image: linear-gradient(-225deg, #E3FDF5 0%, #FFE6FA 100%);
       height: 100vh;
-      height: 100dvh;
       display: flex;
       overflow: hidden;
     }
@@ -597,6 +596,14 @@
   </style>
 </head>
 <body>
+<script>
+  // Set exact viewport height for all platforms (Android + iOS PWA)
+  function setAppHeight() {
+    document.body.style.height = window.innerHeight + 'px';
+  }
+  setAppHeight();
+  window.addEventListener('resize', setAppHeight);
+</script>
 
 <div class="ptr-indicator" id="ptrIndicator"></div>
 
