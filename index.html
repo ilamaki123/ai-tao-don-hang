@@ -20,7 +20,6 @@
       display: flex;
       overflow: hidden;
       padding-top: env(safe-area-inset-top, 0px);
-      padding-bottom: env(safe-area-inset-bottom, 0px);
     }
 
     /* ===== SIDEBAR ===== */
@@ -559,7 +558,7 @@
       }
 
       .input-bar-wrap {
-        padding: 8px 10px calc(14px + env(safe-area-inset-bottom, 0px));
+        padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 0px));
       }
 
       .input-bar {
@@ -1845,28 +1844,16 @@
     });
   })();
 
-  // ===== iOS KEYBOARD FIX (iOS only, Android handles this natively) =====
-  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-  if (isIOS && window.visualViewport) {
-    const inputWrap = document.querySelector('.input-bar-wrap');
-    const mainArea = document.getElementById('mainArea');
-
-    function onViewportResize() {
-      const vv = window.visualViewport;
-      const keyboardHeight = window.innerHeight - vv.height;
-      if (keyboardHeight > 100) {
-        inputWrap.style.paddingBottom = keyboardHeight + 'px';
-        mainArea.style.height = vv.height + 'px';
-        const msgList = document.getElementById('messageList');
-        if (msgList) msgList.scrollTop = msgList.scrollHeight;
-      } else {
-        inputWrap.style.paddingBottom = '';
-        mainArea.style.height = '';
-      }
+  // ===== iOS KEYBOARD FIX =====
+  if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+    const inputEl = document.querySelector('.input-text');
+    if (inputEl) {
+      inputEl.addEventListener('focus', () => {
+        setTimeout(() => {
+          inputEl.scrollIntoView({ block: 'end', behavior: 'smooth' });
+        }, 300);
+      });
     }
-
-    window.visualViewport.addEventListener('resize', onViewportResize);
-    window.visualViewport.addEventListener('scroll', onViewportResize);
   }
 </script>
 <script>
