@@ -781,13 +781,10 @@
     if (!session) return;
     showTyping();
     try {
-      const res = await fetch(`${API_BASE}/api/update-order`, {
+      const res = await fetch(`${API_BASE}/api/cancel-order`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({
-          order_code: orderCode,
-          update_items: (session.editingOrder?.items || []).map(i => ({ id: i.id, status: 'cancelled' })),
-        }),
+        body: JSON.stringify({ order_code: orderCode }),
       });
       const data = await res.json();
       removeTyping();

@@ -560,6 +560,29 @@ app.post('/api/update-order', async (req, res) => {
   }
 });
 
+// ===== PROXY: HỦY ĐƠN HÀNG =====
+app.post('/api/cancel-order', async (req, res) => {
+  const { order_code } = req.body;
+  if (!order_code) return res.status(400).json({ success: false, message: 'Thiếu order_code' });
+
+  if (IS_MOCK) {
+    return res.json({ success: true, message: 'Mock: đã hủy đơn', data: { order_status: 'cancelled' }, _mock: true });
+  }
+
+  try {
+    const response = await fetch(`${BASSO_URL}/partner/cancelOrder`, {
+      method: 'POST',
+      headers: { ...bassoHeaders(req), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ order_code }),
+    });
+    const data = await response.json();
+    console.log('[cancel-order] Basso response:', JSON.stringify(data).substring(0, 500));
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // ===== START =====
 if (require.main === module) {
   const PORT = process.env.PORT || 3000;
