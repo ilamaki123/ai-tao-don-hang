@@ -558,7 +558,7 @@
       }
 
       .input-bar-wrap {
-        padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 0px));
+        padding: 8px 10px 8px;
       }
 
       .input-bar {
@@ -1844,16 +1844,36 @@
     });
   })();
 
-  // ===== iOS KEYBOARD FIX =====
-  if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-    const inputEl = document.querySelector('.input-text');
-    if (inputEl) {
-      inputEl.addEventListener('focus', () => {
-        setTimeout(() => {
-          inputEl.scrollIntoView({ block: 'end', behavior: 'smooth' });
-        }, 300);
-      });
-    }
+  // ===== iOS PWA KEYBOARD FIX =====
+  if (/iPhone|iPad|iPod/i.test(navigator.userAgent) && window.visualViewport) {
+    const inputWrap = document.querySelector('.input-bar-wrap');
+    const mainArea = document.getElementById('mainArea');
+    let keyboardOpen = false;
+
+    window.visualViewport.addEventListener('resize', () => {
+      const offset = window.innerHeight - window.visualViewport.height;
+      if (offset > 100) {
+        // Keyboard open
+        keyboardOpen = true;
+        mainArea.style.height = window.visualViewport.height + 'px';
+        inputWrap.style.position = 'fixed';
+        inputWrap.style.bottom = (window.innerHeight - window.visualViewport.height - window.visualViewport.offsetTop) + 'px';
+        inputWrap.style.left = '0';
+        inputWrap.style.right = '0';
+        inputWrap.style.zIndex = '100';
+        inputWrap.style.background = 'linear-gradient(to top, #fff 80%, transparent)';
+      } else if (keyboardOpen) {
+        // Keyboard closed
+        keyboardOpen = false;
+        mainArea.style.height = '';
+        inputWrap.style.position = '';
+        inputWrap.style.bottom = '';
+        inputWrap.style.left = '';
+        inputWrap.style.right = '';
+        inputWrap.style.zIndex = '';
+        inputWrap.style.background = '';
+      }
+    });
   }
 </script>
 <script>
