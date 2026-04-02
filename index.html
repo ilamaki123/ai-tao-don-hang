@@ -790,16 +790,17 @@
     const lines = editing.items.map((item, i) => {
       const status = item._status;
       const tag = status === 'deleted' ? ' ❌ [XÓA]' : status === 'modified' ? ' ✏️ [SỬA]' : '';
-      const prefix = status === 'deleted' ? '~~' : '';
-      const suffix = status === 'deleted' ? '~~' : '';
-      return `${prefix}${i + 1}. [#${item.id}] ${item.name} x${item.quantity || 1}${item.price ? ' — $' + item.price : ''}${tag}${suffix}`;
-    }).join('\n');
+      const vars = (item.variations || []).map(v => `${v.name}: ${v.value}`).join(', ');
+      const varsLine = vars ? `\n   ${vars}` : '';
+      return `${i + 1}. [#${item.id}] ${item.name} x${item.quantity || 1}${item.price ? ' — $' + item.price : ''}${varsLine}${tag}`;
+    }).join('\n\n');
     const addLines = editing.addItems.length > 0
-      ? '\n\n🆕 Sản phẩm thêm mới:\n' + editing.addItems.map((item, i) =>
-          `➕ ${item.name} x${item.quantity || 1}${item.price ? ' — $' + item.price : ''}`
-        ).join('\n')
+      ? '\n\n🆕 Sản phẩm thêm mới:\n' + editing.addItems.map((item, i) => {
+          const vars = (item.variations || []).map(v => `${v.name}: ${v.value}`).join(', ');
+          return `➕ ${item.name} x${item.quantity || 1}${item.price ? ' — $' + item.price : ''}${vars ? '\n   ' + vars : ''}`;
+        }).join('\n\n')
       : '';
-    const hint = `\n\n─────────────────\n📝 Đang chỉnh sửa đơn ${editing.orderCode}\n• sửa #N qty/giá/tên: giá trị\n• xóa #N\n• Upload ảnh + link để thêm SP\n• Gõ "cập nhật đơn" để gửi thay đổi\n• Gõ "hủy chỉnh sửa" để thoát`;
+    const hint = `\n\n─────────────────\n📝 Đang chỉnh sửa đơn ${editing.orderCode}\n• sửa #N qty/giá/tên/link: giá trị\n• sửa #N size/color/fit/...: giá trị\n• xóa #N\n• Upload ảnh + link để thêm SP\n• Gõ "cập nhật đơn" để gửi thay đổi\n• Gõ "hủy chỉnh sửa" để thoát`;
     return `📦 Đơn hàng ${editing.orderCode}:\n\n${lines}${addLines}${hint}`;
   }
 
@@ -814,6 +815,7 @@
       if (i.quantity !== orig.quantity) upd.quantity = i.quantity;
       if (i.price !== orig.price) upd.price = i.price;
       if (i.link !== orig.link) upd.link = i.link;
+      if (JSON.stringify(i.variations) !== JSON.stringify(orig.variations)) upd.variations = i.variations;
       return upd;
     });
     const addItems = editing.addItems.map(i => ({
@@ -821,6 +823,7 @@
       link: i.link || '',
       quantity: i.quantity || 1,
       price: i.price || 0,
+      variations: i.variations || [],
       ...(i.image_id ? { image_id: i.image_id } : {}),
     }));
 
@@ -1135,11 +1138,12 @@
         return;
       }
 
-      // Sửa SP: "sửa #N qty/giá/tên: giá trị"
-      const editMatch = !file && text.match(/(?:sửa|sua|edit)\s*#?(\d+)\s+(qty|quantity|giá|gia|price|tên|ten|name|link)\s*[:\s]\s*(.+)/i);
+      // Sửa SP: "sửa #N qty/giá/tên/link/size/color/...: giá trị"
+      const editMatch = !file && text.match(/(?:sửa|sua|edit)\s*#?(\d+)\s+(\S+)\s*[:\s]\s*(.+)/i);
       if (editMatch) {
         const idx = parseInt(editMatch[1]) - 1;
-        const field = editMatch[2].toLowerCase();
+        const rawField = editMatch[2].trim();
+        const field = rawField.toLowerCase();
         const value = editMatch[3].trim();
         if (idx < 0 || idx >= editing.items.length) {
           removeTyping();
@@ -1147,14 +1151,27 @@
           return;
         }
         const item = editing.items[idx];
-        if (field === 'qty' || field === 'quantity') item.quantity = parseInt(value) || 1;
-        else if (field === 'giá' || field === 'gia' || field === 'price') item.price = parseFloat(value) || 0;
-        else if (field === 'tên' || field === 'ten' || field === 'name') item.name = value;
-        else if (field === 'link') item.link = value;
+        const basicFields = ['qty', 'quantity', 'giá', 'gia', 'price', 'tên', 'ten', 'name', 'link'];
+        if (basicFields.includes(field)) {
+          if (field === 'qty' || field === 'quantity') item.quantity = parseInt(value) || 1;
+          else if (field === 'giá' || field === 'gia' || field === 'price') item.price = parseFloat(value) || 0;
+          else if (field === 'tên' || field === 'ten' || field === 'name') item.name = value;
+          else if (field === 'link') item.link = value;
+        } else {
+          // Variation field (size, color, fit, waist, length, width, etc.)
+          const varName = rawField.charAt(0).toUpperCase() + rawField.slice(1).toLowerCase();
+          if (!item.variations) item.variations = [];
+          const existing = item.variations.find(v => v.name.toLowerCase() === field);
+          if (existing) {
+            existing.value = value;
+          } else {
+            item.variations.push({ name: varName, value });
+          }
+        }
         item._status = 'modified';
         saveSessions();
         removeTyping();
-        addMessage('ai', `✏️ Đã sửa #${idx + 1} ${field}: ${value}\n\n` + renderEditOrderSummary(editing));
+        addMessage('ai', `✏️ Đã sửa #${idx + 1} ${rawField}: ${value}\n\n` + renderEditOrderSummary(editing));
         return;
       }
 
