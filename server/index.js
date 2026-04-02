@@ -352,12 +352,21 @@ app.post('/api/basso-login', async (req, res) => {
 
   try {
     const body = new URLSearchParams({ email, pass }).toString();
+    console.log('[basso-login] calling:', `${BASSO_URL}/partner/login`);
     const response = await fetch(`${BASSO_URL}/partner/login`, {
       method: 'POST',
       headers: { 'X-Partner-Api-Key': BASSO_KEY, 'Content-Type': 'application/x-www-form-urlencoded' },
       body,
     });
-    const data = await response.json();
+    console.log('[basso-login] status:', response.status);
+    const rawText = await response.text();
+    console.log('[basso-login] raw response:', rawText.substring(0, 500));
+    let data;
+    try {
+      data = JSON.parse(rawText);
+    } catch {
+      return res.status(502).json({ success: false, message: 'Basso API trả về không phải JSON', raw: rawText.substring(0, 200) });
+    }
     console.log('[basso-login] user object:', JSON.stringify(data?.data?.user));
     // Lưu token → user info
     if (data?.data?.access_token && data?.data?.user) {
@@ -366,6 +375,7 @@ app.post('/api/basso-login', async (req, res) => {
     }
     res.json(data);
   } catch (err) {
+    console.error('[basso-login] error:', err.message);
     res.status(500).json({ success: false, message: err.message });
   }
 });
