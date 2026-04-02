@@ -756,7 +756,8 @@
       }
       const orderItems = (data.data.items || []).map(item => ({
         ...item,
-        _original: { ...item },
+        variations: (item.variations || []).map(v => ({ ...v })),
+        _original: { ...item, variations: (item.variations || []).map(v => ({ ...v })) },
         _status: 'unchanged',
       }));
       session.editingOrder = {
