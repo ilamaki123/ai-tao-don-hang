@@ -724,12 +724,24 @@
           <a class="order-link" href="${data.order_url || '#'}" target="_blank">Xem đơn hàng &rarr;</a>
           <button class="order-link" style="border:none;cursor:pointer" onclick="enterEditOrder('${code}')">Chỉnh sửa đơn</button>
           <button class="order-link" style="border:none;cursor:pointer;background:#e55" onclick="cancelOrder('${code}')">Hủy đơn hàng</button>
+          <button class="order-link" style="border:none;cursor:pointer;background:#28a745" onclick="startNewOrder()">Tạo đơn mới</button>
         </div>
       </div>
     `;
   }
 
   // ===== EDIT ORDER MODE =====
+  function startNewOrder() {
+    const session = getActiveSession();
+    if (!session) return;
+    session.state = 'WAITING_IMAGE';
+    session.items = [];
+    session.salePct = 0;
+    saveSessions();
+    updateHint();
+    addMessage('ai', `Bắt đầu tạo đơn mới cho ${session.customer?.name || 'khách hàng'}. Vui lòng upload ảnh giỏ hàng kèm link sản phẩm.`);
+  }
+
   async function enterEditOrder(orderCode) {
     const session = getActiveSession();
     if (!session) return;
