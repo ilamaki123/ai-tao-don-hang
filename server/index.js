@@ -503,6 +503,63 @@ app.post('/api/create-order', async (req, res) => {
   }
 });
 
+// ===== PROXY: CHI TIẾT ĐƠN HÀNG =====
+app.get('/api/get-order', async (req, res) => {
+  const { order_code } = req.query;
+  if (!order_code) return res.status(400).json({ success: false, message: 'Thiếu order_code' });
+
+  if (IS_MOCK) {
+    return res.json({
+      success: true,
+      data: {
+        order: { id: 999, code: order_code, status: 'pending' },
+        items: [
+          { id: 101, name: 'Mock Product 1', link: 'https://example.com', quantity: 1, price: 10, term_id: 5, variations: [] },
+          { id: 102, name: 'Mock Product 2', link: 'https://example.com', quantity: 2, price: 20, term_id: 5, variations: [] },
+        ]
+      },
+      _mock: true,
+    });
+  }
+
+  try {
+    const response = await fetch(
+      `${BASSO_URL}/partner/getOrderByCode?order_code=${encodeURIComponent(order_code)}`,
+      { headers: bassoHeaders(req) }
+    );
+    const data = await response.json();
+    console.log('[get-order] Basso response:', JSON.stringify(data).substring(0, 500));
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ===== PROXY: CẬP NHẬT ĐƠN HÀNG =====
+app.post('/api/update-order', async (req, res) => {
+  if (IS_MOCK) {
+    return res.json({
+      success: true,
+      message: 'Mock: đơn hàng đã cập nhật',
+      data: { order: { code: req.body.order_code, status: 'pending' } },
+      _mock: true,
+    });
+  }
+
+  try {
+    const response = await fetch(`${BASSO_URL}/partner/updateOrder`, {
+      method: 'POST',
+      headers: { ...bassoHeaders(req), 'Content-Type': 'application/json' },
+      body: JSON.stringify(req.body),
+    });
+    const data = await response.json();
+    console.log('[update-order] Basso response:', JSON.stringify(data).substring(0, 500));
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // ===== START =====
 if (require.main === module) {
   const PORT = process.env.PORT || 3000;
