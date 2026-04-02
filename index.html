@@ -825,9 +825,7 @@
       if (i.price !== orig.price) upd.price = i.price;
       if (i.link !== orig.link) upd.link = i.link;
       if (JSON.stringify(i.variations) !== JSON.stringify(orig.variations)) {
-        upd.variations = JSON.stringify(i.variations);
-        // Kèm name để Basso nhận request hợp lệ
-        if (!upd.name) upd.name = i.name;
+        upd.variations = i.variations || [];
       }
       return upd;
     });
@@ -836,7 +834,7 @@
       link: i.link || '',
       quantity: i.quantity || 1,
       price: i.price || 0,
-      variations: JSON.stringify(i.variations || []),
+      variations: i.variations || [],
       ...(i.image_id ? { image_id: i.image_id } : {}),
     }));
 
