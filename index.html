@@ -865,17 +865,25 @@
           updateItems.length > 0 ? `✏️ Sửa ${updateItems.length} SP` : '',
           addItems.length > 0 ? `➕ Thêm ${addItems.length} SP` : '',
         ].filter(Boolean).join(', ');
-        // Lấy danh sách items hiện tại sau update (items còn lại + items mới)
-        const remainingItems = editing.items.filter(i => i._status !== 'deleted');
-        const allItems = [...remainingItems, ...editing.addItems];
         session.state = 'WAITING_IMAGE';
         delete session.editingOrder;
         saveSessions();
+        // Gọi getOrderByCode để lấy danh sách SP chính xác từ Basso
+        let orderItems = [];
+        let orderId = data.data?.order?.id || '';
+        try {
+          const orderRes = await fetch(`${API_BASE}/api/get-order?order_code=${orderCode}`, { headers: getAuthHeaders() });
+          const orderData = await orderRes.json();
+          if (orderData.success) {
+            orderItems = orderData.data.items || [];
+            orderId = orderData.data.order?.id || orderId;
+          }
+        } catch {}
         addMessage('ai', `✅ Đã cập nhật đơn ${orderCode}: ${summary}`, {
           orderData: {
             orderCode,
-            items: allItems,
-            order_url: `https://basso.vn/basso/customer_order/detail/${data.data?.order?.id || ''}`,
+            items: orderItems,
+            order_url: `https://basso.vn/basso/customer_order/detail/${orderId}`,
           }
         });
       } else {
