@@ -789,13 +789,14 @@
   function renderEditOrderSummary(editing) {
     const lines = editing.items.map((item, i) => {
       const status = item._status;
-      const cls = status === 'deleted' ? 'edit-item-deleted' : status === 'modified' ? 'edit-item-modified' : '';
-      const tag = status === 'deleted' ? ' [XÓA]' : status === 'modified' ? ' [SỬA]' : '';
-      return `<span class="${cls}">${i + 1}. [#${item.id}] ${item.name} x${item.quantity || 1}${item.price ? ' — $' + item.price : ''}${tag}</span>`;
+      const tag = status === 'deleted' ? ' ❌ [XÓA]' : status === 'modified' ? ' ✏️ [SỬA]' : '';
+      const prefix = status === 'deleted' ? '~~' : '';
+      const suffix = status === 'deleted' ? '~~' : '';
+      return `${prefix}${i + 1}. [#${item.id}] ${item.name} x${item.quantity || 1}${item.price ? ' — $' + item.price : ''}${tag}${suffix}`;
     }).join('\n');
     const addLines = editing.addItems.length > 0
       ? '\n\n🆕 Sản phẩm thêm mới:\n' + editing.addItems.map((item, i) =>
-          `<span class="edit-item-new">+ ${item.name} x${item.quantity || 1}${item.price ? ' — $' + item.price : ''}</span>`
+          `➕ ${item.name} x${item.quantity || 1}${item.price ? ' — $' + item.price : ''}`
         ).join('\n')
       : '';
     const hint = `\n\n─────────────────\n📝 Đang chỉnh sửa đơn ${editing.orderCode}\n• sửa #N qty/giá/tên: giá trị\n• xóa #N\n• Upload ảnh + link để thêm SP\n• Gõ "cập nhật đơn" để gửi thay đổi\n• Gõ "hủy chỉnh sửa" để thoát`;
