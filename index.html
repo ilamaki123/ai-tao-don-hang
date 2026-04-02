@@ -12,14 +12,26 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
+    html, body {
+      height: 100%;
+      overflow: hidden;
+    }
+
+    html {
+      background: #E3FDF5;
+    }
+
     body {
       font-family: 'Segoe UI', sans-serif;
       background-image: linear-gradient(-225deg, #E3FDF5 0%, #FFE6FA 100%);
-      height: 100vh;
-      height: 100dvh;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
       display: flex;
-      overflow: hidden;
       padding-top: env(safe-area-inset-top, 0px);
+      padding-bottom: env(safe-area-inset-bottom, 0px);
     }
 
     /* ===== SIDEBAR ===== */
