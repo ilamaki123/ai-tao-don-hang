@@ -1134,11 +1134,29 @@
 
       // Hủy chỉnh sửa
       if (!file && /^(?:hủy\s*chỉnh\s*sửa|huy\s*chinh\s*sua|cancel\s*edit|thoát|thoat)$/i.test(text.trim())) {
+        const orderCode = editing.orderCode;
+        // Lấy items từ Basso
+        let orderItems = [];
+        let orderId = '';
+        try {
+          const orderRes = await fetch(`${API_BASE}/api/get-order?order_code=${orderCode}`, { headers: getAuthHeaders() });
+          const orderData = await orderRes.json();
+          if (orderData.success) {
+            orderItems = orderData.data.items || [];
+            orderId = orderData.data.order?.id || '';
+          }
+        } catch {}
         session.state = 'WAITING_IMAGE';
         delete session.editingOrder;
         saveSessions();
         removeTyping();
-        addMessage('ai', 'Đã thoát chế độ chỉnh sửa đơn hàng.');
+        addMessage('ai', `Đã thoát chỉnh sửa đơn ${orderCode}.`, {
+          orderData: {
+            orderCode,
+            items: orderItems,
+            order_url: `https://basso.vn/basso/customer_order/detail/${orderId}`,
+          }
+        });
         return;
       }
 
