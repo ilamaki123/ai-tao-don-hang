@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#00354E" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -12,26 +12,12 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
-    html, body {
-      height: 100%;
-      overflow: hidden;
-    }
-
-    html {
-      background: #E3FDF5;
-    }
-
     body {
       font-family: 'Segoe UI', sans-serif;
       background-image: linear-gradient(-225deg, #E3FDF5 0%, #FFE6FA 100%);
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
+      height: 100vh;
       display: flex;
-      padding-top: env(safe-area-inset-top, 0px);
-      padding-bottom: env(safe-area-inset-bottom, 0px);
+      overflow: hidden;
     }
 
     /* ===== SIDEBAR ===== */
@@ -531,7 +517,6 @@
         transform: translateX(-100%);
         transition: transform 0.25s ease;
         box-shadow: 2px 0 12px rgba(0,0,0,0.15);
-        padding-top: env(safe-area-inset-top, 0px);
       }
 
       .sidebar.open {
@@ -570,7 +555,7 @@
       }
 
       .input-bar-wrap {
-        padding: 8px 10px 8px;
+        padding: 8px 10px 14px;
       }
 
       .input-bar {
@@ -1856,51 +1841,6 @@
     });
   })();
 
-  // ===== iOS PWA KEYBOARD FIX =====
-  if (/iPhone|iPad|iPod/i.test(navigator.userAgent) && window.visualViewport) {
-    const inputWrap = document.querySelector('.input-bar-wrap');
-    const inputEl = document.querySelector('.input-text');
-    let keyboardOpen = false;
-
-    function resetLayout() {
-      inputWrap.style.cssText = '';
-      // Force iOS to recalculate layout
-      window.scrollTo(0, 0);
-      document.body.style.height = '100vh';
-      requestAnimationFrame(() => {
-        document.body.style.height = '';
-      });
-    }
-
-    window.visualViewport.addEventListener('resize', () => {
-      const offset = window.innerHeight - window.visualViewport.height;
-      if (offset > 100) {
-        keyboardOpen = true;
-        const kbTop = window.visualViewport.height + window.visualViewport.offsetTop;
-        inputWrap.style.position = 'fixed';
-        inputWrap.style.bottom = (window.innerHeight - kbTop) + 'px';
-        inputWrap.style.left = '0';
-        inputWrap.style.right = '0';
-        inputWrap.style.zIndex = '100';
-        inputWrap.style.background = 'linear-gradient(to top, #f3eeff 80%, transparent)';
-      } else if (keyboardOpen) {
-        keyboardOpen = false;
-        resetLayout();
-      }
-    });
-
-    // Also reset on blur as fallback
-    if (inputEl) {
-      inputEl.addEventListener('blur', () => {
-        setTimeout(() => {
-          if (keyboardOpen) {
-            keyboardOpen = false;
-            resetLayout();
-          }
-        }, 200);
-      });
-    }
-  }
 </script>
 <script>
   if ('serviceWorker' in navigator) {
