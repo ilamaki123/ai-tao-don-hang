@@ -1847,33 +1847,47 @@
   // ===== iOS PWA KEYBOARD FIX =====
   if (/iPhone|iPad|iPod/i.test(navigator.userAgent) && window.visualViewport) {
     const inputWrap = document.querySelector('.input-bar-wrap');
-    const mainArea = document.getElementById('mainArea');
+    const inputEl = document.querySelector('.input-text');
     let keyboardOpen = false;
+
+    function resetLayout() {
+      inputWrap.style.cssText = '';
+      // Force iOS to recalculate layout
+      window.scrollTo(0, 0);
+      document.body.style.height = '100vh';
+      requestAnimationFrame(() => {
+        document.body.style.height = '';
+      });
+    }
 
     window.visualViewport.addEventListener('resize', () => {
       const offset = window.innerHeight - window.visualViewport.height;
       if (offset > 100) {
-        // Keyboard open
         keyboardOpen = true;
-        mainArea.style.height = window.visualViewport.height + 'px';
+        const kbTop = window.visualViewport.height + window.visualViewport.offsetTop;
         inputWrap.style.position = 'fixed';
-        inputWrap.style.bottom = (window.innerHeight - window.visualViewport.height - window.visualViewport.offsetTop) + 'px';
+        inputWrap.style.bottom = (window.innerHeight - kbTop) + 'px';
         inputWrap.style.left = '0';
         inputWrap.style.right = '0';
         inputWrap.style.zIndex = '100';
-        inputWrap.style.background = 'linear-gradient(to top, #fff 80%, transparent)';
+        inputWrap.style.background = 'linear-gradient(to top, #f3eeff 80%, transparent)';
       } else if (keyboardOpen) {
-        // Keyboard closed
         keyboardOpen = false;
-        mainArea.style.height = '';
-        inputWrap.style.position = '';
-        inputWrap.style.bottom = '';
-        inputWrap.style.left = '';
-        inputWrap.style.right = '';
-        inputWrap.style.zIndex = '';
-        inputWrap.style.background = '';
+        resetLayout();
       }
     });
+
+    // Also reset on blur as fallback
+    if (inputEl) {
+      inputEl.addEventListener('blur', () => {
+        setTimeout(() => {
+          if (keyboardOpen) {
+            keyboardOpen = false;
+            resetLayout();
+          }
+        }, 200);
+      });
+    }
   }
 </script>
 <script>
