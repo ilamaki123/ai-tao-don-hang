@@ -547,6 +547,7 @@ app.post('/api/update-order', async (req, res) => {
   }
 
   try {
+    console.log('[update-order] Request body:', JSON.stringify(req.body).substring(0, 1000));
     const response = await fetch(`${BASSO_URL}/partner/updateOrder`, {
       method: 'POST',
       headers: { ...bassoHeaders(req), 'Content-Type': 'application/json' },
