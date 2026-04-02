@@ -859,15 +859,25 @@
       const data = await res.json();
       removeTyping();
       if (data.success) {
-        session.state = 'WAITING_IMAGE';
-        delete session.editingOrder;
-        saveSessions();
+        const orderCode = editing.orderCode;
         const summary = [
           deleteIds.length > 0 ? `🗑️ Xóa ${deleteIds.length} SP` : '',
           updateItems.length > 0 ? `✏️ Sửa ${updateItems.length} SP` : '',
           addItems.length > 0 ? `➕ Thêm ${addItems.length} SP` : '',
         ].filter(Boolean).join(', ');
-        addMessage('ai', `✅ Đã cập nhật đơn ${editing.orderCode}: ${summary}`);
+        // Lấy danh sách items hiện tại sau update (items còn lại + items mới)
+        const remainingItems = editing.items.filter(i => i._status !== 'deleted');
+        const allItems = [...remainingItems, ...editing.addItems];
+        session.state = 'WAITING_IMAGE';
+        delete session.editingOrder;
+        saveSessions();
+        addMessage('ai', `✅ Đã cập nhật đơn ${orderCode}: ${summary}`, {
+          orderData: {
+            orderCode,
+            items: allItems,
+            order_url: `https://basso.vn/basso/customer_order/detail/${data.data?.order?.id || ''}`,
+          }
+        });
       } else {
         addMessage('ai', `❌ Cập nhật thất bại: ${data.message || (data.errors || []).join(', ')}`);
       }
