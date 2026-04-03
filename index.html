@@ -1845,8 +1845,8 @@
     const thumbHtml = item.thumb ? `<img class="cart-card-thumb" src="${item.thumb}" />` : '';
     return `<div class="cart-card">
       <div class="cart-card-fields" style="margin-top:0">
-        ${thumbHtml}
         <span class="cart-card-num">${i+1}.</span>
+        ${thumbHtml}
         <span class="cart-field" onclick="editCartField(${i},'name')" style="flex:1;min-width:0;margin-right:28px">
           <span class="cart-field-label">Tên</span>
           <span class="cart-field-value" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(item.name)}</span>
