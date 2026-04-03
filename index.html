@@ -840,7 +840,7 @@
     } else {
       // Cart view — render interactive cards inline
       if (m.cartView) {
-        return `<div class="message ai" style="max-width:calc(100% + 200px);width:calc(100% + 200px);margin-left:-100px"><div id="inlineCart">${buildInlineCartHtml()}</div></div>`;
+        return `<div class="message ai" style="max-width:100%;width:100%"><div id="inlineCart">${buildInlineCartHtml()}</div></div>`;
       }
       return `
         <div class="message ai">
