@@ -910,6 +910,9 @@
       `;
     } else {
       // Cart view — render interactive cards inline
+      if (m.editOrderView) {
+        return `<div class="message ai" style="max-width:100%;width:100%"><div id="inlineEditOrder">${buildInlineEditOrderHtml()}</div></div>`;
+      }
       if (m.cartView) {
         return `<div class="message ai" style="max-width:100%;width:100%"><div id="inlineCart">${buildInlineCartHtml()}</div></div>`;
       }
@@ -981,7 +984,8 @@
       };
       session.state = 'EDITING_ORDER';
       saveSessions();
-      addMessage('ai', renderEditOrderSummary(session.editingOrder));
+      updateHint();
+      ensureEditOrderMessage();
     } catch (err) {
       removeTyping();
       addMessage('ai', `Lỗi kết nối: ${err.message}`);
@@ -1017,22 +1021,156 @@
     }
   }
 
-  function renderEditOrderSummary(editing) {
-    const lines = editing.items.map((item, i) => {
-      const status = item._status;
-      const tag = status === 'deleted' ? ' ❌ [XÓA]' : status === 'modified' ? ' ✏️ [SỬA]' : '';
-      const vars = (item.variations || []).map(v => `${v.name}: ${v.value}`).join(', ');
-      const varsLine = vars ? `\n   ${vars}` : '';
-      return `${i + 1}. ${item.name} x${item.quantity || 1}${item.price ? ' — $' + item.price : ''}${varsLine}${tag}`;
-    }).join('\n\n');
-    const addLines = editing.addItems.length > 0
-      ? '\n\n🆕 Sản phẩm thêm mới:\n' + editing.addItems.map((item, i) => {
-          const vars = (item.variations || []).map(v => `${v.name}: ${v.value}`).join(', ');
-          return `➕ ${item.name} x${item.quantity || 1}${item.price ? ' — $' + item.price : ''}${vars ? '\n   ' + vars : ''}`;
-        }).join('\n\n')
-      : '';
-    const hint = `\n\n─────────────────\n📝 Đang chỉnh sửa đơn ${editing.orderCode}\n• sửa N qty/giá/tên/link: giá trị\n• sửa N size/color/fit/...: giá trị\n• xóa N\n• Upload ảnh + link để thêm SP\n• Gõ "cập nhật đơn" để gửi thay đổi\n• Gõ "hủy chỉnh sửa" để thoát`;
-    return `📦 Đơn hàng ${editing.orderCode}:\n\n${lines}${addLines}${hint}`;
+  function buildInlineEditOrderHtml() {
+    const session = getActiveSession();
+    if (!session || !session.editingOrder) return '';
+    const editing = session.editingOrder;
+    const allItems = [...editing.items, ...editing.addItems.map(item => ({ ...item, _status: 'new' }))];
+    const cards = allItems.map((item, i) => {
+      const isOrig = i < editing.items.length;
+      const status = item._status || 'unchanged';
+      const opacity = status === 'deleted' ? 'opacity:0.4;' : '';
+      const badge = status === 'deleted' ? ' ❌' : status === 'modified' ? ' ✏️' : status === 'new' ? ' 🆕' : '';
+      const vars = (item.variations || []).map((v, vi) =>
+        `<span class="cart-field" ${isOrig && status !== 'deleted' ? `onclick="editOrderItemField(${i},'var',${vi})"` : ''}>
+          <span class="cart-field-label">${escapeHtml(v.name)}</span>
+          <span class="cart-field-value">${escapeHtml(v.value)}</span>
+        </span>`
+      ).join('');
+      const priceShow = item.price ? '$' + item.price : '';
+      const linkShow = item.link ? item.link.substring(0, 35) + '...' : '⚠️ chưa có link';
+      const thumbHtml = item.thumb ? `<img class="cart-card-thumb" src="${item.thumb}" />` : '';
+      const shortName = item.name.length > 30 ? item.name.substring(0, 30) + '...' : item.name;
+      return `<div class="cart-card" style="${opacity}" id="editCard${i}">
+        <div class="cart-card-compact" onclick="toggleCardExpand(${i},'editCard')">
+          <span class="cart-card-num">${i+1}.${badge}</span>
+          ${thumbHtml}
+          <span class="cart-card-compact-name">${escapeHtml(shortName)}</span>
+          <span class="cart-card-compact-price">${priceShow}</span>
+          <span class="cart-card-compact-arrow">▼</span>
+        </div>
+        <div class="cart-card-details">
+          <div class="cart-card-fields" style="margin-top:0">
+            <span class="cart-card-num">${i+1}.${badge}</span>
+            ${thumbHtml}
+            <span class="cart-field" ${isOrig && status !== 'deleted' ? `onclick="editOrderItemField(${i},'name')"` : ''} style="flex:1;min-width:0;margin-right:28px">
+              <span class="cart-field-label">Tên</span>
+              <span class="cart-field-value" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(item.name)}</span>
+            </span>
+          </div>
+          <div class="cart-card-fields">
+            <span class="cart-field" ${isOrig && status !== 'deleted' ? `onclick="editOrderItemField(${i},'quantity')"` : ''}>
+              <span class="cart-field-label">Qty</span>
+              <span class="cart-field-value">${item.quantity || 1}</span>
+            </span>
+            <span class="cart-field" ${isOrig && status !== 'deleted' ? `onclick="editOrderItemField(${i},'price')"` : ''}>
+              <span class="cart-field-label">Giá</span>
+              <span class="cart-field-value">${priceShow}</span>
+            </span>
+            <span class="cart-field" ${isOrig && status !== 'deleted' ? `onclick="editOrderItemField(${i},'link')"` : ''} style="flex:1;min-width:0">
+              <span class="cart-field-label">Link</span>
+              <span class="cart-field-value" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(linkShow)}</span>
+            </span>
+            ${vars}
+          </div>
+          ${status !== 'deleted' ? `<button class="cart-card-delete" onclick="markDeleteOrderItem(${i})" title="Xóa">&times;</button>` : `<button class="cart-card-delete" onclick="unmarkDeleteOrderItem(${i})" title="Hoàn tác" style="color:#28a745">↩</button>`}
+        </div>
+      </div>`;
+    }).join('');
+
+    return `
+      <div class="cart-panel" style="display:block;border:none;max-height:none;padding:8px 0;">
+        <div class="cart-header">
+          <span class="cart-title">Chỉnh sửa đơn ${editing.orderCode}</span>
+        </div>
+        <div class="cart-cards">${cards}</div>
+        <div class="cart-actions" style="justify-content:space-between">
+          <button class="cart-btn" style="background:#f0f0f0;color:#666" onclick="cancelEditOrderUI()">Hủy chỉnh sửa</button>
+          <button class="cart-btn cart-btn-order" onclick="submitOrderUpdate(getActiveSession())">Cập nhật đơn</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderEditOrder() {
+    const el = document.getElementById('inlineEditOrder');
+    if (el) el.innerHTML = buildInlineEditOrderHtml();
+  }
+
+  function ensureEditOrderMessage() {
+    const session = getActiveSession();
+    if (!session) return;
+    session.messages = session.messages.filter(m => !m.editOrderView);
+    session.messages.push({ role: 'ai', text: '', editOrderView: true, timestamp: Date.now() });
+    renderMessages();
+    saveSessions();
+  }
+
+  function editOrderItemField(idx, field, varIdx) {
+    const session = getActiveSession();
+    if (!session || !session.editingOrder) return;
+    const editing = session.editingOrder;
+    const isOrig = idx < editing.items.length;
+    const item = isOrig ? editing.items[idx] : editing.addItems[idx - editing.items.length];
+    let currentVal, label;
+    if (field === 'var') {
+      const v = item.variations[varIdx];
+      label = v.name; currentVal = v.value;
+    } else if (field === 'name') {
+      label = 'Tên'; currentVal = item.name;
+    } else if (field === 'quantity') {
+      label = 'Số lượng'; currentVal = item.quantity || 1;
+    } else if (field === 'price') {
+      label = 'Giá'; currentVal = item.price || 0;
+    } else if (field === 'link') {
+      label = 'Link'; currentVal = item.link || '';
+    }
+    openEditModal(`Sửa ${label} (#${idx+1})`, currentVal, (newVal) => {
+      if (field === 'var') item.variations[varIdx].value = newVal;
+      else if (field === 'name') item.name = newVal;
+      else if (field === 'quantity') item.quantity = parseInt(newVal) || 1;
+      else if (field === 'price') item.price = parseFloat(newVal) || 0;
+      else if (field === 'link') item.link = newVal;
+      if (isOrig) item._status = 'modified';
+      saveSessions();
+      renderEditOrder();
+    });
+  }
+
+  function markDeleteOrderItem(idx) {
+    const session = getActiveSession();
+    if (!session || !session.editingOrder) return;
+    const editing = session.editingOrder;
+    if (idx < editing.items.length) {
+      editing.items[idx]._status = 'deleted';
+    } else {
+      editing.addItems.splice(idx - editing.items.length, 1);
+    }
+    saveSessions();
+    renderEditOrder();
+  }
+
+  function unmarkDeleteOrderItem(idx) {
+    const session = getActiveSession();
+    if (!session || !session.editingOrder) return;
+    editing = session.editingOrder;
+    if (idx < editing.items.length) editing.items[idx]._status = 'unchanged';
+    saveSessions();
+    renderEditOrder();
+  }
+
+  function cancelEditOrderUI() {
+    const session = getActiveSession();
+    if (!session || !session.editingOrder) return;
+    const orderCode = session.editingOrder.orderCode;
+    session.state = 'DONE';
+    session.items = [];
+    session.salePct = 0;
+    delete session.editingOrder;
+    session.messages = session.messages.filter(m => !m.editOrderView);
+    saveSessions();
+    updateHint();
+    addMessage('ai', `Đã thoát chỉnh sửa đơn ${orderCode}.`);
   }
 
   async function submitOrderUpdate(session) {
@@ -1359,108 +1497,6 @@
     if (session.state === 'EDITING_ORDER' && session.editingOrder) {
       const editing = session.editingOrder;
 
-      // Hủy chỉnh sửa
-      if (!file && /^(?:hủy\s*chỉnh\s*sửa|huy\s*chinh\s*sua|cancel\s*edit|cancel|thoát|thoat|hủy|huy|back|quay\s*lại|quay\s*lai)$/i.test(text.trim())) {
-        const orderCode = editing.orderCode;
-        // Lấy items từ Basso
-        let orderItems = [];
-        let orderId = '';
-        try {
-          const orderRes = await fetch(`${API_BASE}/api/get-order?order_code=${orderCode}`, { headers: getAuthHeaders() });
-          const orderData = await orderRes.json();
-          if (orderData.success) {
-            orderItems = orderData.data.items || [];
-            orderId = orderData.data.order?.id || '';
-          }
-        } catch {}
-        session.state = 'DONE';
-        session.items = [];
-        session.salePct = 0;
-        delete session.editingOrder;
-        saveSessions();
-        updateHint();
-        removeTyping();
-        addMessage('ai', `Đã thoát chỉnh sửa đơn ${orderCode}.\n\nBấm "Tạo đơn mới" để tiếp tục.`, {
-          orderData: {
-            title: 'Đơn hàng',
-            orderCode,
-            items: orderItems,
-            order_url: `https://basso.vn/basso/customer_order/detail/${orderId}`,
-          }
-        });
-        return;
-      }
-
-      // Cập nhật đơn
-      if (!file && /^(?:cập\s*nhật\s*đơn|cap\s*nhat\s*don|cập\s*nhật|cap\s*nhat|update\s*order|update|gửi|gui|submit|xác\s*nhận|xac\s*nhan|lưu|luu|save|ok|done)$/i.test(text.trim())) {
-        await submitOrderUpdate(session);
-        return;
-      }
-
-      // Xem trạng thái chỉnh sửa
-      if (!file && isXemGio(text)) {
-        removeTyping();
-        addMessage('ai', renderEditOrderSummary(editing));
-        return;
-      }
-
-      // Xóa SP: "xóa #1 #2 #3" hoặc "xóa #1, xóa #2" hoặc "xóa #1"
-      const delMatch = !file && /(?:xóa|xoa|delete|remove)\s*#?\d/i.test(text);
-      if (delMatch) {
-        const nums = text.match(/\d+/g);
-        if (nums && nums.length > 0) {
-          const indices = [...new Set(nums.map(n => parseInt(n) - 1))];
-          const valid = indices.filter(i => i >= 0 && i < editing.items.length);
-          if (valid.length === 0) {
-            removeTyping();
-            addMessage('ai', `Không tìm thấy SP hợp lệ. Đơn có ${editing.items.length} SP.`);
-            return;
-          }
-          const names = valid.map(i => { editing.items[i]._status = 'deleted'; return `#${i + 1} ${editing.items[i].name}`; });
-          saveSessions();
-          removeTyping();
-          addMessage('ai', `🗑️ Đã đánh dấu xóa ${names.length} SP:\n${names.join('\n')}\n\n` + renderEditOrderSummary(editing));
-          return;
-        }
-      }
-
-      // Sửa SP: "sửa N qty/giá/tên/link/size/color/...: giá trị"
-      const editMatch = !file && text.match(/(?:sửa|sua|edit)\s*#?(\d+)\s+(\S+)\s*[:\s]\s*(.+)/i);
-      if (editMatch) {
-        const idx = parseInt(editMatch[1]) - 1;
-        const rawField = editMatch[2].trim().replace(/:$/, '');
-        const field = rawField.toLowerCase();
-        const value = editMatch[3].trim();
-        if (idx < 0 || idx >= editing.items.length) {
-          removeTyping();
-          addMessage('ai', `Không tìm thấy SP #${idx + 1}.`);
-          return;
-        }
-        const item = editing.items[idx];
-        const basicFields = ['qty', 'quantity', 'giá', 'gia', 'price', 'tên', 'ten', 'name', 'link'];
-        if (basicFields.includes(field)) {
-          if (field === 'qty' || field === 'quantity') item.quantity = parseInt(value) || 1;
-          else if (field === 'giá' || field === 'gia' || field === 'price') item.price = parseFloat(value) || 0;
-          else if (field === 'tên' || field === 'ten' || field === 'name') item.name = value;
-          else if (field === 'link') item.link = value;
-        } else {
-          // Variation field (size, color, fit, waist, length, width, etc.)
-          const varName = rawField.charAt(0).toUpperCase() + rawField.slice(1).toLowerCase();
-          if (!item.variations) item.variations = [];
-          const existing = item.variations.find(v => v.name.toLowerCase() === field);
-          if (existing) {
-            existing.value = value;
-          } else {
-            item.variations.push({ name: varName, value });
-          }
-        }
-        item._status = 'modified';
-        saveSessions();
-        removeTyping();
-        addMessage('ai', `✏️ Đã sửa #${idx + 1} ${rawField}: ${value}\n\n` + renderEditOrderSummary(editing));
-        return;
-      }
-
       // Upload ảnh → thêm SP mới vào đơn
       if (file) {
         const links = extractLinks(text);
@@ -1475,7 +1511,6 @@
           return;
         }
         const newItems = (analyzeData.data.items || []).map(item => ({ ...item }));
-        // Upload ảnh sản phẩm
         try {
           const extractForm = new FormData();
           extractForm.append('image', file);
@@ -1485,6 +1520,7 @@
             const cropped = await cropProductImages(file, extractData.data.products);
             await Promise.all(cropped.map(async (dataUrl, i) => {
               if (i >= newItems.length) return;
+              newItems[i].thumb = dataUrl;
               try {
                 const blob = await (await fetch(dataUrl)).blob();
                 const imgFile = new File([blob], `product_${i + 1}.jpg`, { type: 'image/jpeg' });
@@ -1492,25 +1528,22 @@
                 uploadForm.append('file', imgFile);
                 const uploadRes = await fetch(`${API_BASE}/api/upload-image`, { method: 'POST', headers: getAuthHeaders(), body: uploadForm });
                 const uploadData = await uploadRes.json();
-                if (uploadData.success && uploadData.data.id) {
-                  newItems[i].image_id = uploadData.data.id;
-                }
+                if (uploadData.success && uploadData.data.id) newItems[i].image_id = uploadData.data.id;
               } catch (e) { console.error('[upload-image] error:', e.message); }
             }));
           }
         } catch (e) { console.error('[extract-product-images] error:', e.message); }
-
         editing.addItems.push(...newItems);
         saveSessions();
         removeTyping();
-        const added = newItems.map((item, i) => `+ ${item.name} x${item.quantity || 1}${item.price ? ' — $' + item.price : ''}`).join('\n');
-        addMessage('ai', `🆕 Đã thêm ${newItems.length} SP mới vào danh sách chờ:\n${added}\n\n` + renderEditOrderSummary(editing));
+        addMessage('ai', `Đã thêm ${newItems.length} SP mới.`);
+        renderEditOrder();
         return;
       }
 
-      // Không hiểu lệnh
+      // Text input khi đang edit → hướng dẫn dùng card UI
       removeTyping();
-      addMessage('ai', `Đang chỉnh sửa đơn ${editing.orderCode}. Gõ "xem" để xem trạng thái, hoặc "cập nhật đơn" để gửi thay đổi.`);
+      addMessage('ai', 'Chỉnh sửa trực tiếp trên các thẻ sản phẩm phía trên. Upload ảnh + link để thêm SP mới.');
       return;
     }
 
@@ -2067,8 +2100,9 @@
     closeConfirmModal();
   }
 
-  function toggleCardExpand(idx) {
-    const card = document.getElementById('cartCard' + idx);
+  function toggleCardExpand(idx, prefix) {
+    const id = (prefix || 'cartCard') + idx;
+    const card = document.getElementById(id);
     if (card) card.classList.toggle('expanded');
   }
 
