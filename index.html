@@ -1872,6 +1872,10 @@
           <span class="cart-field-label">Giá</span>
           <span class="cart-field-value">${priceShow}</span>
         </span>
+        <span class="cart-field" onclick="editCartField(${i},'itemSale')" style="color:${item.itemSalePct ? '#e55' : '#999'}">
+          <span class="cart-field-label">Sale</span>
+          <span class="cart-field-value">${item.itemSalePct ? item.itemSalePct + '%' : '—'}</span>
+        </span>
         <span class="cart-field" onclick="editCartField(${i},'link')" style="flex:1;min-width:0">
           <span class="cart-field-label">Link</span>
           <span class="cart-field-value" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(linkShow)}</span>
@@ -1899,6 +1903,8 @@
       label = 'Số lượng'; currentVal = item.quantity || 1;
     } else if (field === 'price') {
       label = 'Giá'; currentVal = item.price || 0;
+    } else if (field === 'itemSale') {
+      label = 'Giảm giá riêng (%)'; currentVal = item.itemSalePct || 0;
     } else if (field === 'link') {
       label = 'Link sản phẩm'; currentVal = item.link || '';
     }
@@ -1912,6 +1918,10 @@
         item.quantity = parseInt(newVal) || 1;
       } else if (field === 'price') {
         item.price = parseFloat(newVal) || 0;
+      } else if (field === 'itemSale') {
+        const pct = parseFloat(newVal) || 0;
+        item.itemSalePct = pct > 0 ? pct : undefined;
+        item.noSale = false;
       } else if (field === 'link') {
         item.link = newVal;
       }
