@@ -613,19 +613,6 @@
   <!-- Messages (ẩn khi chưa có chat) -->
   <div class="messages" id="messageList" style="display:none;"></div>
 
-  <!-- Cart Panel -->
-  <div class="cart-panel" id="cartPanel" style="display:none;">
-    <div class="cart-header">
-      <span class="cart-title">Giỏ hàng (<span id="cartCount">0</span> sản phẩm)</span>
-      <span class="cart-total" id="cartTotal"></span>
-    </div>
-    <div class="cart-cards" id="cartCards"></div>
-    <div class="cart-actions">
-      <button class="cart-btn cart-btn-clear" onclick="clearCartUI()">Xóa giỏ</button>
-      <button class="cart-btn cart-btn-order" onclick="submitOrder(getActiveSession())">Tạo đơn</button>
-    </div>
-  </div>
-
   <!-- Input bar -->
   <div class="input-bar-wrap" id="inputArea" style="display:none;">
     <!-- Preview ảnh trước khi gửi -->
@@ -775,7 +762,6 @@
     document.getElementById('messageList').style.display = 'flex';
     document.getElementById('inputArea').style.display = 'flex';
     renderMessages();
-    renderCart();
     updateHint();
   }
 
@@ -843,10 +829,13 @@
         </div>
       `;
     } else {
+      // Cart view — render interactive cards inline
+      if (m.cartView) {
+        return `<div class="message ai"><div id="inlineCart">${buildInlineCartHtml()}</div></div>`;
+      }
       return `
         <div class="message ai">
           <div class="message-bubble" style="white-space:pre-wrap">${escapeHtml(m.text)}</div>
-          ${m.htmlContent ? `<div class="message-html">${m.htmlContent}</div>` : ''}
           ${m.orderData ? renderOrderCard(m.orderData) : ''}
         </div>
       `;
@@ -1545,9 +1534,9 @@
         session.items.push(...newItems);
 
         removeTyping();
-        addMessage('ai', `${progressLabel ? progressLabel + ' ' : ''}Đã thêm ${newItems.length} sản phẩm. Chỉnh sửa trực tiếp trên giỏ hàng bên dưới.`);
+        addMessage('ai', `${progressLabel ? progressLabel + ' ' : ''}Đã thêm ${newItems.length} sản phẩm.`);
         saveSessions();
-        renderCart();
+        ensureCartMessage();
         return;
       }
 
@@ -1789,18 +1778,47 @@
   }
 
   // ===== INTERACTIVE CART =====
-  function renderCart() {
+  function buildInlineCartHtml() {
     const session = getActiveSession();
-    const panel = document.getElementById('cartPanel');
-    if (!session || session.items.length === 0 || session.state === 'DONE') {
-      if (panel) panel.style.display = 'none';
-      return;
-    }
-    panel.style.display = 'block';
-    document.getElementById('cartCount').textContent = session.items.length;
+    if (!session || session.items.length === 0) return '<div class="cart-panel" style="display:block;border:none;padding:8px 0;">Giỏ hàng trống.</div>';
     const totals = calcCartTotal(session.items, session.salePct || 0);
-    document.getElementById('cartTotal').textContent = Object.keys(totals).length > 0 ? formatTotal(totals) : '';
-    document.getElementById('cartCards').innerHTML = session.items.map((item, i) => renderCartCard(item, i, session)).join('');
+    const totalStr = Object.keys(totals).length > 0 ? formatTotal(totals) : '';
+    const cards = session.items.map((item, i) => renderCartCard(item, i, session)).join('');
+    return `
+      <div class="cart-panel" style="display:block;border:none;max-height:none;padding:8px 0;">
+        <div class="cart-header">
+          <span class="cart-title">Giỏ hàng (${session.items.length} sản phẩm)</span>
+          <span class="cart-total">${totalStr}</span>
+        </div>
+        <div class="cart-cards">${cards}</div>
+        <div class="cart-actions">
+          <button class="cart-btn cart-btn-clear" onclick="clearCartUI()">Xóa giỏ</button>
+          <button class="cart-btn cart-btn-order" onclick="submitOrder(getActiveSession())">Tạo đơn</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderCart() {
+    const el = document.getElementById('inlineCart');
+    if (el) {
+      el.innerHTML = buildInlineCartHtml();
+      const msgList = document.getElementById('messageList');
+      if (msgList) msgList.scrollTop = msgList.scrollHeight;
+    }
+  }
+
+  function ensureCartMessage() {
+    const session = getActiveSession();
+    if (!session) return;
+    // Tìm message cartView cuối cùng
+    const lastCartIdx = session.messages.findLastIndex(m => m.cartView);
+    if (lastCartIdx === -1) {
+      // Chưa có → thêm mới
+      session.messages.push({ role: 'ai', text: '', cartView: true, timestamp: Date.now() });
+    }
+    renderMessages();
+    saveSessions();
   }
 
   function renderCartCard(item, i, session) {
