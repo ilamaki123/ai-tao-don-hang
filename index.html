@@ -1872,10 +1872,12 @@
           <span class="cart-field-label">Giá</span>
           <span class="cart-field-value">${priceShow}</span>
         </span>
-        <span class="cart-field" onclick="editCartField(${i},'itemSale')" style="color:${item.itemSalePct ? '#e55' : '#999'}">
+        <span class="cart-field" onclick="editCartField(${i},'itemSale')" style="color:${item.itemSalePct ? '#e55' : item.noSale ? '#999' : '#999'}">
           <span class="cart-field-label">Sale</span>
-          <span class="cart-field-value">${item.itemSalePct ? item.itemSalePct + '%' : '—'}</span>
+          <span class="cart-field-value">${item.noSale ? 'Miễn' : item.itemSalePct ? item.itemSalePct + '%' : '—'}</span>
         </span>
+        ${(session.salePct > 0 && !item.noSale && !item.itemSalePct) ? `<span class="cart-field" onclick="toggleNoSale(${i})" style="color:#e55;font-size:11px;cursor:pointer"><span class="cart-field-value">Miễn sale</span></span>` : ''}
+        ${item.noSale ? `<span class="cart-field" onclick="toggleNoSale(${i})" style="color:#28a745;font-size:11px;cursor:pointer"><span class="cart-field-value">Áp sale lại</span></span>` : ''}
         <span class="cart-field" onclick="editCartField(${i},'link')" style="flex:1;min-width:0">
           <span class="cart-field-label">Link</span>
           <span class="cart-field-value" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(linkShow)}</span>
@@ -1982,6 +1984,15 @@
   function doConfirmModal() {
     if (_confirmCallback) _confirmCallback();
     closeConfirmModal();
+  }
+
+  function toggleNoSale(idx) {
+    const session = getActiveSession();
+    if (!session || !session.items[idx]) return;
+    session.items[idx].noSale = !session.items[idx].noSale;
+    if (session.items[idx].noSale) delete session.items[idx].itemSalePct;
+    saveSessions();
+    renderCart();
   }
 
   function applySaleUI() {
