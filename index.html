@@ -1194,10 +1194,10 @@
         return;
       }
 
-      // Xóa SP: "xóa #1 #2 #3" hoặc "xóa #1"
-      const delMatch = !file && text.match(/(?:xóa|xoa|delete|remove)\s+([\d\s#,]+)/i);
+      // Xóa SP: "xóa #1 #2 #3" hoặc "xóa #1, xóa #2" hoặc "xóa #1"
+      const delMatch = !file && /(?:xóa|xoa|delete|remove)\s*#?\d/i.test(text);
       if (delMatch) {
-        const nums = delMatch[1].match(/\d+/g);
+        const nums = text.match(/\d+/g);
         if (nums && nums.length > 0) {
           const indices = [...new Set(nums.map(n => parseInt(n) - 1))];
           const valid = indices.filter(i => i >= 0 && i < editing.items.length);
