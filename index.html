@@ -667,7 +667,7 @@
     if (session.state === 'INIT') {
       hint.textContent = 'Nhập số điện thoại khách hàng để bắt đầu';
     } else if (session.state === 'EDITING_ORDER') {
-      hint.textContent = 'sửa #N | xóa #N | upload ảnh+link | "cập nhật đơn" | "hủy chỉnh sửa"';
+      hint.textContent = 'sửa N | xóa N | upload ảnh+link | "cập nhật đơn" | "hủy chỉnh sửa"';
     } else if (session.state === 'WAITING_IMAGE') {
       hint.textContent = 'Upload ảnh giỏ hàng + links | "xem giỏ hàng" | "tạo đơn"';
     } else if (session.state === 'DONE') {
@@ -821,7 +821,7 @@
           return `➕ ${item.name} x${item.quantity || 1}${item.price ? ' — $' + item.price : ''}${vars ? '\n   ' + vars : ''}`;
         }).join('\n\n')
       : '';
-    const hint = `\n\n─────────────────\n📝 Đang chỉnh sửa đơn ${editing.orderCode}\n• sửa #N qty/giá/tên/link: giá trị\n• sửa #N size/color/fit/...: giá trị\n• xóa #N\n• Upload ảnh + link để thêm SP\n• Gõ "cập nhật đơn" để gửi thay đổi\n• Gõ "hủy chỉnh sửa" để thoát`;
+    const hint = `\n\n─────────────────\n📝 Đang chỉnh sửa đơn ${editing.orderCode}\n• sửa N qty/giá/tên/link: giá trị\n• sửa N size/color/fit/...: giá trị\n• xóa N\n• Upload ảnh + link để thêm SP\n• Gõ "cập nhật đơn" để gửi thay đổi\n• Gõ "hủy chỉnh sửa" để thoát`;
     return `📦 Đơn hàng ${editing.orderCode}:\n\n${lines}${addLines}${hint}`;
   }
 
@@ -1214,7 +1214,7 @@
         }
       }
 
-      // Sửa SP: "sửa #N qty/giá/tên/link/size/color/...: giá trị"
+      // Sửa SP: "sửa N qty/giá/tên/link/size/color/...: giá trị"
       const editMatch = !file && text.match(/(?:sửa|sua|edit)\s*#?(\d+)\s+(\S+)\s*[:\s]\s*(.+)/i);
       if (editMatch) {
         const idx = parseInt(editMatch[1]) - 1;
@@ -1829,7 +1829,7 @@
     const totals = calcCartTotal(session.items, salePct);
     const totalLine = Object.keys(totals).length > 0 ? `\n💰 Tổng${salePct > 0 ? ` (sau -${salePct}%)` : ''}: ${formatTotal(totals)}` : '';
     const saleHint = salePct > 0 ? `\n🏷️ Đang áp dụng giảm giá ${salePct}% toàn đơn` : '';
-    const editHint = `\n\n─────────────────\n✏️  sửa #N tên/qty/giá/link: <giá trị>\n✏️  sửa #N size/color/fit/width/...: <giá trị>\n🗑️  xóa #N\n💸  giảm N% | bỏ giảm giá | sale #N M% | bỏ sale #N`;
+    const editHint = `\n\n─────────────────\n✏️  sửa N tên/qty/giá/link: <giá trị>\n✏️  sửa N size/color/fit/width/...: <giá trị>\n🗑️  xóa N\n💸  giảm N% | bỏ giảm giá | sale #N M% | bỏ sale #N`;
     return `📦 Giỏ hàng (${session.items.length} sản phẩm):${saleHint}\n\n${lines}${warning}${totalLine}${editHint}`;
   }
 
