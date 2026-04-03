@@ -874,6 +874,7 @@
   function startNewOrder() {
     const session = getActiveSession();
     if (!session) return;
+    invalidateOldCarts();
     session.state = 'WAITING_IMAGE';
     session.items = [];
     session.salePct = 0;
@@ -1646,6 +1647,7 @@
     removeTyping();
 
     if (orderData.success) {
+      invalidateOldCarts();
       const completedItems = [...session.items];
       session.state = 'DONE';
       session.items = [];
@@ -1818,15 +1820,17 @@
     }
   }
 
+  function invalidateOldCarts() {
+    const session = getActiveSession();
+    if (!session) return;
+    session.messages.forEach(m => { if (m.cartView) m.cartView = false; });
+  }
+
   function ensureCartMessage() {
     const session = getActiveSession();
     if (!session) return;
-    // Tìm message cartView cuối cùng
-    const lastCartIdx = session.messages.findLastIndex(m => m.cartView);
-    if (lastCartIdx === -1) {
-      // Chưa có → thêm mới
-      session.messages.push({ role: 'ai', text: '', cartView: true, timestamp: Date.now() });
-    }
+    // Luôn tạo cart message mới ở cuối
+    session.messages.push({ role: 'ai', text: '', cartView: true, timestamp: Date.now() });
     renderMessages();
     saveSessions();
   }
