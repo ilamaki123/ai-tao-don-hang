@@ -455,6 +455,102 @@
       font-size: 12px;
       color: #bbb;
     }
+
+    /* ===== CART PANEL ===== */
+    .cart-panel {
+      border-top: 2px solid #e8d8ff;
+      background: #fff;
+      max-height: 45vh;
+      overflow-y: auto;
+      padding: 12px 20px;
+    }
+
+    .cart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .cart-title { font-size: 14px; font-weight: 600; color: #00354E; }
+    .cart-total { font-size: 14px; font-weight: 600; color: #7c5cbf; }
+
+    .cart-cards { display: flex; flex-direction: column; gap: 10px; }
+
+    .cart-card {
+      background: #f9f7ff;
+      border: 1px solid #e8d8ff;
+      border-radius: 10px;
+      padding: 12px;
+      position: relative;
+    }
+
+    .cart-card-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .cart-card-name { font-weight: 600; font-size: 14px; color: #333; flex: 1; min-width: 0; }
+    .cart-card-num { font-size: 12px; color: #999; margin-right: 4px; }
+
+    .cart-card-fields {
+      display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; font-size: 13px; color: #555;
+    }
+
+    .cart-field {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: #fff; border: 1px solid #e0d8f0; border-radius: 6px;
+      padding: 3px 8px; cursor: pointer; transition: border-color 0.2s;
+    }
+
+    .cart-field:hover { border-color: #7c5cbf; }
+    .cart-field-label { font-size: 11px; color: #999; }
+    .cart-field-value { font-size: 13px; color: #333; }
+
+    .cart-field input {
+      border: none; outline: none; font-size: 13px; width: 60px; background: transparent; color: #7c5cbf;
+    }
+
+    .cart-field-link { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    .cart-card-vars {
+      display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px;
+    }
+
+    .cart-var-chip {
+      font-size: 12px; background: #f0eaff; color: #555;
+      padding: 2px 8px; border-radius: 4px; cursor: pointer; border: 1px solid transparent;
+    }
+
+    .cart-var-chip:hover { border-color: #7c5cbf; }
+
+    .cart-card-delete {
+      position: absolute; top: 8px; right: 8px;
+      background: none; border: none; color: #ccc; font-size: 16px;
+      cursor: pointer; padding: 2px 6px; border-radius: 4px;
+    }
+
+    .cart-card-delete:hover { color: #e55; background: #fde8e8; }
+
+    .cart-actions {
+      display: flex; gap: 10px; margin-top: 12px; justify-content: flex-end;
+    }
+
+    .cart-btn {
+      border: none; border-radius: 8px; padding: 10px 20px;
+      font-size: 14px; cursor: pointer; font-weight: 500;
+    }
+
+    .cart-btn-order { background: #7c5cbf; color: #fff; }
+    .cart-btn-order:hover { background: #6a4aad; }
+    .cart-btn-clear { background: #f0f0f0; color: #666; }
+    .cart-btn-clear:hover { background: #e0e0e0; }
+
+    .cart-sale-row {
+      display: flex; align-items: center; gap: 8px; margin-top: 8px;
+      font-size: 13px; color: #555;
+    }
+
+    .cart-sale-input {
+      width: 50px; border: 1px solid #ddd; border-radius: 4px;
+      padding: 3px 6px; font-size: 13px; text-align: center;
+    }
   </style>
 </head>
 <body>
@@ -486,6 +582,19 @@
 
   <!-- Messages (ẩn khi chưa có chat) -->
   <div class="messages" id="messageList" style="display:none;"></div>
+
+  <!-- Cart Panel -->
+  <div class="cart-panel" id="cartPanel" style="display:none;">
+    <div class="cart-header">
+      <span class="cart-title">Giỏ hàng (<span id="cartCount">0</span> sản phẩm)</span>
+      <span class="cart-total" id="cartTotal"></span>
+    </div>
+    <div class="cart-cards" id="cartCards"></div>
+    <div class="cart-actions">
+      <button class="cart-btn cart-btn-clear" onclick="clearCartUI()">Xóa giỏ</button>
+      <button class="cart-btn cart-btn-order" onclick="submitOrder(getActiveSession())">Tạo đơn</button>
+    </div>
+  </div>
 
   <!-- Input bar -->
   <div class="input-bar-wrap" id="inputArea" style="display:none;">
@@ -636,6 +745,7 @@
     document.getElementById('messageList').style.display = 'flex';
     document.getElementById('inputArea').style.display = 'flex';
     renderMessages();
+    renderCart();
     updateHint();
   }
 
@@ -669,7 +779,7 @@
     } else if (session.state === 'EDITING_ORDER') {
       hint.textContent = 'sửa N | xóa N | upload ảnh+link | "cập nhật đơn" | "hủy chỉnh sửa"';
     } else if (session.state === 'WAITING_IMAGE') {
-      hint.textContent = 'Upload ảnh giỏ hàng + links | "xem giỏ hàng" | "tạo đơn"';
+      hint.textContent = 'Upload ảnh giỏ hàng + link sản phẩm';
     } else if (session.state === 'DONE') {
       hint.textContent = 'Bấm "Tạo đơn mới" | "Chỉnh sửa đơn" | "Hủy đơn hàng" ở ô phía trên';
     } else {
@@ -1339,175 +1449,9 @@
     // ===== BƯỚC 2: Thêm sản phẩm từ ảnh =====
     if (session.state === 'WAITING_IMAGE') {
 
-      // Lệnh giảm giá: "giảm 20%", "sale 20%", "off 20%", "bỏ giảm giá"
-      if (!file) {
-        const cancelSale = /bỏ\s*giảm\s*giá|bo\s*giam\s*gia|reset\s*sale/i.test(text) || /bỏ\s*sale(?!\s*#?\d)/i.test(text);
-        const saleMatch = text.match(/(?:giảm(?:\s*giá)?|giam(?:\s*gia)?|sale|off|discount)\s*(\d+(?:\.\d+)?)\s*%/i);
-        if (cancelSale) {
-          session.salePct = 0;
-          removeTyping();
-          addMessage('ai', `✅ Đã bỏ giảm giá. Giá gốc được áp dụng.\n\n` + renderCartSummary(session));
-          return;
-        }
-        if (saleMatch) {
-          session.salePct = parseFloat(saleMatch[1]);
-          removeTyping();
-          addMessage('ai', `✅ Đã áp dụng giảm giá ${session.salePct}% cho tất cả sản phẩm.\n\n` + renderCartSummary(session));
-          return;
-        }
-        // Bỏ sale item riêng lẻ: "bỏ sale #2", "miễn sale #2"
-        const noSaleMatch = text.match(/(?:bỏ\s*sale|bo\s*sale|miễn\s*sale|mien\s*sale)\s*#?(\d+)/i);
-        if (noSaleMatch) {
-          const idx = parseInt(noSaleMatch[1]) - 1;
-          if (idx < 0 || idx >= session.items.length) {
-            removeTyping();
-            addMessage('ai', `Không tìm thấy sản phẩm #${idx + 1}.`);
-            return;
-          }
-          session.items[idx].noSale = true;
-          delete session.items[idx].itemSalePct;
-          removeTyping();
-          addMessage('ai', `✅ Đã bỏ sale cho #${idx + 1}: ${session.items[idx].name}.\n\n` + renderCartSummary(session));
-          return;
-        }
-        // Áp sale riêng cho item: "sale #2 30%", "giảm #2 15%", "áp sale #2 25%"
-        const itemSaleMatch = text.match(/(?:sale|giảm(?:\s*giá)?|giam(?:\s*gia)?|áp\s*sale|ap\s*sale|off|discount)\s*#?(\d+)\s+(\d+(?:\.\d+)?)\s*%/i);
-        if (itemSaleMatch) {
-          const idx = parseInt(itemSaleMatch[1]) - 1;
-          const pct = parseFloat(itemSaleMatch[2]);
-          if (idx < 0 || idx >= session.items.length) {
-            removeTyping();
-            addMessage('ai', `Không tìm thấy sản phẩm #${idx + 1}.`);
-            return;
-          }
-          session.items[idx].itemSalePct = pct;
-          session.items[idx].noSale = false;
-          removeTyping();
-          addMessage('ai', `✅ Đã áp dụng sale ${pct}% riêng cho #${idx + 1}: ${session.items[idx].name}.\n\n` + renderCartSummary(session));
-          return;
-        }
-      }
-
-      // User gõ "tạo đơn" → tạo đơn luôn
-      if (!file && isTaoDon(text)) {
-        if (session.items.length === 0) {
-          removeTyping();
-          addMessage('ai', 'Chưa có sản phẩm nào. Vui lòng upload ảnh giỏ hàng trước.');
-          return;
-        }
-        await submitOrder(session);
-        return;
-      }
-
-
-      // User xem giỏ hàng
-      if (!file && isXemGio(text)) {
-        removeTyping();
-        addMessage('ai', renderCartSummary(session));
-        return;
-      }
-
-      // Xóa toàn bộ giỏ hàng
-      if (!file && /^(?:xóa\s*giỏ\s*hàng|xoa\s*gio\s*hang|xóa\s*toàn\s*bộ|xoa\s*toan\s*bo|xóa\s*hết|xoa\s*het|xóa\s*tất\s*cả|xoa\s*tat\s*ca|clear\s*bag|clear\s*cart|clear\s*all|reset\s*cart|reset\s*giỏ|làm\s*mới\s*giỏ)$/i.test(text.trim())) {
-        if (session.items.length === 0) {
-          removeTyping();
-          addMessage('ai', 'Giỏ hàng đang trống.');
-          return;
-        }
-        const count = session.items.length;
-        session.items = [];
-        session.salePct = 0;
-        saveSessions();
-        removeTyping();
-        addMessage('ai', `✅ Đã xóa toàn bộ ${count} sản phẩm khỏi giỏ hàng.`);
-        return;
-      }
-
-      // User sửa / xóa sản phẩm
-      const editCmd = !file ? parseEditCommand(text) : null;
-      if (editCmd) {
-        const n = session.items.length;
-        if (editCmd.action !== 'deleteMany' && (editCmd.index < 0 || editCmd.index >= n)) {
-          removeTyping();
-          addMessage('ai', `Không tìm thấy sản phẩm #${editCmd.index + 1}. Giỏ hàng hiện có ${n} sản phẩm.`);
-          return;
-        }
-
-        if (editCmd.action === 'deleteMany') {
-          const valid = [...new Set(editCmd.indices)].filter(i => i >= 0 && i < session.items.length).sort((a, b) => b - a);
-          if (!valid.length) {
-            removeTyping();
-            addMessage('ai', `Không tìm thấy sản phẩm nào hợp lệ để xóa.`);
-            return;
-          }
-          const names = valid.map(i => `#${i + 1} ${session.items[i].name}`).reverse();
-          valid.forEach(i => session.items.splice(i, 1));
-          removeTyping();
-          addMessage('ai', `Đã xóa ${names.length} sản phẩm: ${names.join(', ')}.\n\n` + renderCartSummary(session));
-          saveSessions();
-          return;
-        }
-
-        if (editCmd.action === 'delete') {
-          const deleted = session.items.splice(editCmd.index, 1)[0];
-          removeTyping();
-          addMessage('ai', `Đã xóa #${editCmd.index + 1}: ${deleted.name}.\n\n` + renderCartSummary(session));
-          return;
-        }
-
-        if (editCmd.action === 'edit') {
-          const item = session.items[editCmd.index];
-
-          // Sửa variation (size, color, fit, width, waist, length, ...)
-          if (editCmd.field === 'variation') {
-            item.variations = item.variations || [];
-            const existing = item.variations.find(v => v.name.toLowerCase() === editCmd.variationName.toLowerCase());
-            const oldVal = existing ? existing.value : '(chưa có)';
-            if (existing) {
-              existing.value = editCmd.value;
-            } else {
-              item.variations.push({ name: editCmd.variationName, value: editCmd.value });
-            }
-            removeTyping();
-            addMessage('ai', `✏️ Đã cập nhật #${editCmd.index + 1} ${editCmd.variationName}: "${oldVal}" → "${editCmd.value}".\n\n` + renderCartSummary(session));
-            return;
-          }
-
-          const oldVal = item[editCmd.field];
-
-          if (editCmd.field === 'quantity') {
-            const qty = parseInt(editCmd.value);
-            if (isNaN(qty) || qty < 1) {
-              removeTyping();
-              addMessage('ai', 'Số lượng không hợp lệ. Nhập số nguyên dương (ví dụ: sửa #2 qty: 3).');
-              return;
-            }
-            item.quantity = qty;
-          } else if (editCmd.field === 'price') {
-            const parsed = parsePriceInput(editCmd.value);
-            if (parsed.price === null) {
-              removeTyping();
-              addMessage('ai', 'Giá không hợp lệ. Ví dụ: sửa #2 giá: 150000 hoặc sửa #2 giá: $99.');
-              return;
-            }
-            item.price = parsed.price;
-            if (parsed.currency) item.currency = parsed.currency;
-          } else {
-            item[editCmd.field] = editCmd.value;
-          }
-
-          const newVal = editCmd.field === 'price' ? formatPrice(item) : item[editCmd.field];
-          removeTyping();
-          addMessage('ai', `✏️ Đã cập nhật #${editCmd.index + 1} ${editCmd.field}: "${oldVal}" → "${newVal}".\n\n` + renderCartSummary(session));
-          return;
-        }
-      }
-
       // User gửi link bổ sung — kích hoạt khi có ít nhất 1 URL và còn item thiếu link
-      const pendingLinks = extractLinks(text);
+      const pendingLinks = !file ? extractLinks(text) : [];
       if (!file && pendingLinks.length > 0 && session.items.some(i => !i.link)) {
-        console.log('[LINK UPDATE] links nhận được:', pendingLinks);
-        console.log('[LINK UPDATE] items trước khi update:', JSON.stringify(session.items.map(i => ({name: i.name, link: i.link}))));
         let updated = 0;
         let linkIdx = 0;
         for (const item of session.items) {
@@ -1516,9 +1460,10 @@
             updated++;
           }
         }
-        console.log('[LINK UPDATE] items sau khi update:', JSON.stringify(session.items.map(i => ({name: i.name, link: i.link}))));
+        saveSessions();
         removeTyping();
-        addMessage('ai', `Đã cập nhật ${updated} link.\n\n` + renderCartSummary(session));
+        addMessage('ai', `Đã cập nhật ${updated} link.`);
+        renderCart();
         return;
       }
 
@@ -1570,38 +1515,18 @@
         session.items.push(...newItems);
 
         removeTyping();
-
-        // Hiển thị items vừa thêm
-        const newItemsText = newItems.map((item, i) => {
-          const vars = (item.variations || []).map(v => `${v.name}: ${v.value}`).join(', ');
-          const linkStatus = item.link ? item.link : '⚠️ chưa có link';
-          const imgStatus = item.image_id ? '🖼️ ảnh OK' : '📷 chưa có ảnh';
-          return `${i + 1}. ${item.name}\n   Qty: ${item.quantity} | ${formatPrice(item)}${vars ? '\n   ' + vars : ''}\n   ${imgStatus}\n   ${linkStatus}`;
-        }).join('\n\n');
-
-        const totalCount = session.items.length;
-        const totals = calcCartTotal(session.items, session.salePct || 0);
-        const totalLine = Object.keys(totals).length > 0 ? `\n💰 Tổng đơn: ${formatTotal(totals)}` : '';
-        addMessage('ai',
-          `${progressLabel ? progressLabel + ' ' : ''}Đã thêm ${newItems.length} sản phẩm:\n\n${newItemsText}\n\n─────────────────\nTổng cộng: ${totalCount} sản phẩm${totalLine}\n\nGửi thêm ảnh hoặc gõ "tạo đơn" để hoàn tất.`
-        );
+        addMessage('ai', `${progressLabel ? progressLabel + ' ' : ''}Đã thêm ${newItems.length} sản phẩm. Chỉnh sửa trực tiếp trên giỏ hàng bên dưới.`);
+        saveSessions();
+        renderCart();
         return;
       }
 
-      // Không match lệnh nào → hướng dẫn
+      // Không phải ảnh, không phải link → hướng dẫn
       removeTyping();
-      const hasItems = session.items.length > 0;
-      addMessage('ai', 'Bé Mon không hiểu lệnh này. Bạn có thể gõ "help" để xem hướng dẫn chi tiết.');
+      addMessage('ai', 'Vui lòng upload ảnh giỏ hàng kèm link sản phẩm. Chỉnh sửa trực tiếp trên giỏ hàng bên dưới.');
       return;
     }
 
-
-
-    // ===== ĐÃ XONG =====
-    if (session.state === 'DONE') {
-      removeTyping();
-      addMessage('ai', 'Đơn hàng đã được tạo xong. Nhấn "New Chat" để tạo đơn mới.');
-    }
   }
 
   function detectCountryId(items) {
@@ -1831,6 +1756,107 @@
     const saleHint = salePct > 0 ? `\n🏷️ Đang áp dụng giảm giá ${salePct}% toàn đơn` : '';
     const editHint = `\n\n─────────────────\n✏️  sửa N tên/qty/giá/link: <giá trị>\n✏️  sửa N size/color/fit/width/...: <giá trị>\n🗑️  xóa N\n💸  giảm N% | bỏ giảm giá | sale #N M% | bỏ sale #N`;
     return `📦 Giỏ hàng (${session.items.length} sản phẩm):${saleHint}\n\n${lines}${warning}${totalLine}${editHint}`;
+  }
+
+  // ===== INTERACTIVE CART =====
+  function renderCart() {
+    const session = getActiveSession();
+    const panel = document.getElementById('cartPanel');
+    if (!session || session.items.length === 0 || session.state === 'DONE') {
+      if (panel) panel.style.display = 'none';
+      return;
+    }
+    panel.style.display = 'block';
+    document.getElementById('cartCount').textContent = session.items.length;
+    const totals = calcCartTotal(session.items, session.salePct || 0);
+    document.getElementById('cartTotal').textContent = Object.keys(totals).length > 0 ? formatTotal(totals) : '';
+    document.getElementById('cartCards').innerHTML = session.items.map((item, i) => renderCartCard(item, i, session)).join('');
+  }
+
+  function renderCartCard(item, i, session) {
+    const vars = (item.variations || []).map((v, vi) =>
+      `<span class="cart-var-chip" onclick="editCartField(${i},'var',${vi})">${v.name}: ${v.value}</span>`
+    ).join('');
+    const pct = getItemSalePct(item, session.salePct || 0);
+    const ep = effectivePrice(item, session.salePct || 0);
+    const priceShow = pct > 0 ? `<s>${formatPrice(item)}</s> ${formatPrice({...item, price: ep})} (-${pct}%)` : formatPrice(item);
+    const linkShow = item.link ? item.link.substring(0, 40) + (item.link.length > 40 ? '...' : '') : '⚠️ chưa có link';
+    return `<div class="cart-card">
+      <button class="cart-card-delete" onclick="deleteCartItem(${i})" title="Xóa">&times;</button>
+      <div class="cart-card-row">
+        <span class="cart-card-num">#${i+1}</span>
+        <span class="cart-card-name" onclick="editCartField(${i},'name')">${escapeHtml(item.name)}</span>
+      </div>
+      <div class="cart-card-fields">
+        <span class="cart-field" onclick="editCartField(${i},'quantity')">
+          <span class="cart-field-label">Qty</span>
+          <span class="cart-field-value">${item.quantity || 1}</span>
+        </span>
+        <span class="cart-field" onclick="editCartField(${i},'price')">
+          <span class="cart-field-label">Giá</span>
+          <span class="cart-field-value">${priceShow}</span>
+        </span>
+        <span class="cart-field" onclick="editCartField(${i},'link')">
+          <span class="cart-field-label">Link</span>
+          <span class="cart-field-value cart-field-link">${escapeHtml(linkShow)}</span>
+        </span>
+      </div>
+      ${vars ? `<div class="cart-card-vars">${vars}</div>` : ''}
+    </div>`;
+  }
+
+  function editCartField(idx, field, varIdx) {
+    const session = getActiveSession();
+    if (!session || !session.items[idx]) return;
+    const item = session.items[idx];
+    let currentVal, label;
+    if (field === 'var') {
+      const v = item.variations[varIdx];
+      label = v.name;
+      currentVal = v.value;
+    } else if (field === 'name') {
+      label = 'Tên'; currentVal = item.name;
+    } else if (field === 'quantity') {
+      label = 'Số lượng'; currentVal = item.quantity || 1;
+    } else if (field === 'price') {
+      label = 'Giá'; currentVal = item.price || 0;
+    } else if (field === 'link') {
+      label = 'Link'; currentVal = item.link || '';
+    }
+    const newVal = prompt(`Sửa ${label} (#${idx+1}):`, currentVal);
+    if (newVal === null || newVal === String(currentVal)) return;
+    if (field === 'var') {
+      item.variations[varIdx].value = newVal;
+    } else if (field === 'name') {
+      item.name = newVal;
+    } else if (field === 'quantity') {
+      item.quantity = parseInt(newVal) || 1;
+    } else if (field === 'price') {
+      item.price = parseFloat(newVal) || 0;
+    } else if (field === 'link') {
+      item.link = newVal;
+    }
+    saveSessions();
+    renderCart();
+  }
+
+  function deleteCartItem(idx) {
+    const session = getActiveSession();
+    if (!session) return;
+    session.items.splice(idx, 1);
+    saveSessions();
+    renderCart();
+  }
+
+  function clearCartUI() {
+    const session = getActiveSession();
+    if (!session || session.items.length === 0) return;
+    if (!confirm('Xóa toàn bộ giỏ hàng?')) return;
+    session.items = [];
+    session.salePct = 0;
+    saveSessions();
+    renderCart();
+    addMessage('ai', 'Đã xóa toàn bộ giỏ hàng.');
   }
 
   // ===== UTILS =====
