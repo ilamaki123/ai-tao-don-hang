@@ -586,9 +586,16 @@
       .cart-card-details { display: none; }
       .cart-card.expanded .cart-card-details { display: block; margin-top: 8px; }
       .cart-card-delete { top: auto; bottom: 8px; right: 8px; }
-      .cart-panel { padding: 12px 10px; }
-      .cart-card { padding: 10px 12px; }
+      .cart-panel { padding: 12px 10px; max-width: 100%; overflow: hidden; }
+      .cart-card { padding: 10px 12px; max-width: 100%; overflow: hidden; }
       .cart-card-thumb { width: 36px; height: 36px; }
+      .cart-card-fields { font-size: 12px; }
+      .cart-field { max-width: 100%; }
+      .cart-field-value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px; }
+      .cart-header { font-size: 13px; }
+      .cart-actions { flex-wrap: wrap; gap: 8px; padding: 0 4px; }
+      .cart-btn { padding: 8px 14px; font-size: 13px; }
+      .message.ai { max-width: 100% !important; width: 100% !important; overflow: hidden; }
     }
 
     .cart-actions {
