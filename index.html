@@ -535,6 +535,30 @@
 
     .cart-card-delete:hover { color: #e55; background: #fde8e8; }
 
+    /* Mobile compact cart */
+    .cart-card-details { }
+    .cart-card-compact { display: none; }
+    .cart-card-expand-btn { display: none; }
+
+    @media (max-width: 768px) {
+      .cart-card-compact {
+        display: flex; align-items: center; gap: 8px; cursor: pointer;
+      }
+      .cart-card-compact-name {
+        flex: 1; font-size: 13px; font-weight: 500; color: #333;
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      }
+      .cart-card-compact-price { font-size: 13px; font-weight: 600; color: #7c5cbf; white-space: nowrap; }
+      .cart-card-compact-arrow { font-size: 12px; color: #aaa; transition: transform 0.2s; }
+      .cart-card.expanded .cart-card-compact-arrow { transform: rotate(180deg); }
+      .cart-card-details { display: none; }
+      .cart-card.expanded .cart-card-details { display: block; margin-top: 8px; }
+      .cart-card-delete { top: auto; bottom: 8px; right: 8px; }
+      .cart-panel { padding: 12px 10px; }
+      .cart-card { padding: 10px 12px; }
+      .cart-card-thumb { width: 36px; height: 36px; }
+    }
+
     .cart-actions {
       display: flex; gap: 10px; margin-top: 14px; justify-content: flex-end; padding: 0 12px;
     }
@@ -1855,37 +1879,47 @@
     const priceShow = pct > 0 ? `<s>${formatPrice(item)}</s> ${formatPrice({...item, price: ep})} (-${pct}%)` : formatPrice(item);
     const linkShow = item.link ? item.link.substring(0, 40) + (item.link.length > 40 ? '...' : '') : '⚠️ chưa có link';
     const thumbHtml = item.thumb ? `<img class="cart-card-thumb" src="${item.thumb}" />` : '';
-    return `<div class="cart-card">
-      <div class="cart-card-fields" style="margin-top:0">
+    const shortName = item.name.length > 30 ? item.name.substring(0, 30) + '...' : item.name;
+    return `<div class="cart-card" id="cartCard${i}">
+      <div class="cart-card-compact" onclick="toggleCardExpand(${i})">
         <span class="cart-card-num">${i+1}.</span>
         ${thumbHtml}
-        <span class="cart-field" onclick="editCartField(${i},'name')" style="flex:1;min-width:0;margin-right:28px">
-          <span class="cart-field-label">Tên</span>
-          <span class="cart-field-value" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(item.name)}</span>
-        </span>
+        <span class="cart-card-compact-name">${escapeHtml(shortName)}</span>
+        <span class="cart-card-compact-price">${priceShow}</span>
+        <span class="cart-card-compact-arrow">▼</span>
       </div>
-      <div class="cart-card-fields">
-        <span class="cart-field" onclick="editCartField(${i},'quantity')">
-          <span class="cart-field-label">Qty</span>
-          <span class="cart-field-value">${item.quantity || 1}</span>
-        </span>
-        <span class="cart-field" onclick="editCartField(${i},'price')">
-          <span class="cart-field-label">Giá</span>
-          <span class="cart-field-value">${priceShow}</span>
-        </span>
-        <span class="cart-field" onclick="editCartField(${i},'itemSale')" style="color:${item.itemSalePct ? '#e55' : item.noSale ? '#999' : '#999'}">
-          <span class="cart-field-label">Sale</span>
-          <span class="cart-field-value">${item.noSale ? 'Miễn' : item.itemSalePct ? item.itemSalePct + '%' : '—'}</span>
-        </span>
-        ${(session.salePct > 0 && !item.noSale && !item.itemSalePct) ? `<span class="cart-field" onclick="toggleNoSale(${i})" style="color:#e55;font-size:11px;cursor:pointer"><span class="cart-field-value">Miễn sale</span></span>` : ''}
-        ${item.noSale ? `<span class="cart-field" onclick="toggleNoSale(${i})" style="color:#28a745;font-size:11px;cursor:pointer"><span class="cart-field-value">Áp sale lại</span></span>` : ''}
-        <span class="cart-field" onclick="editCartField(${i},'link')" style="flex:1;min-width:0">
-          <span class="cart-field-label">Link</span>
-          <span class="cart-field-value" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(linkShow)}</span>
-        </span>
-        ${vars}
+      <div class="cart-card-details">
+        <div class="cart-card-fields" style="margin-top:0">
+          <span class="cart-card-num">${i+1}.</span>
+          ${thumbHtml}
+          <span class="cart-field" onclick="editCartField(${i},'name')" style="flex:1;min-width:0;margin-right:28px">
+            <span class="cart-field-label">Tên</span>
+            <span class="cart-field-value" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(item.name)}</span>
+          </span>
+        </div>
+        <div class="cart-card-fields">
+          <span class="cart-field" onclick="editCartField(${i},'quantity')">
+            <span class="cart-field-label">Qty</span>
+            <span class="cart-field-value">${item.quantity || 1}</span>
+          </span>
+          <span class="cart-field" onclick="editCartField(${i},'price')">
+            <span class="cart-field-label">Giá</span>
+            <span class="cart-field-value">${priceShow}</span>
+          </span>
+          <span class="cart-field" onclick="editCartField(${i},'itemSale')" style="color:${item.itemSalePct ? '#e55' : '#999'}">
+            <span class="cart-field-label">Sale</span>
+            <span class="cart-field-value">${item.noSale ? 'Miễn' : item.itemSalePct ? item.itemSalePct + '%' : '—'}</span>
+          </span>
+          ${(session.salePct > 0 && !item.noSale && !item.itemSalePct) ? `<span class="cart-field" onclick="toggleNoSale(${i})" style="color:#e55;font-size:11px;cursor:pointer"><span class="cart-field-value">Miễn sale</span></span>` : ''}
+          ${item.noSale ? `<span class="cart-field" onclick="toggleNoSale(${i})" style="color:#28a745;font-size:11px;cursor:pointer"><span class="cart-field-value">Áp sale lại</span></span>` : ''}
+          <span class="cart-field" onclick="editCartField(${i},'link')" style="flex:1;min-width:0">
+            <span class="cart-field-label">Link</span>
+            <span class="cart-field-value" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(linkShow)}</span>
+          </span>
+          ${vars}
+        </div>
+        <button class="cart-card-delete" onclick="deleteCartItem(${i})" title="Xóa">&times;</button>
       </div>
-      <button class="cart-card-delete" onclick="deleteCartItem(${i})" title="Xóa">&times;</button>
     </div>`;
   }
 
@@ -1985,6 +2019,11 @@
   function doConfirmModal() {
     if (_confirmCallback) _confirmCallback();
     closeConfirmModal();
+  }
+
+  function toggleCardExpand(idx) {
+    const card = document.getElementById('cartCard' + idx);
+    if (card) card.classList.toggle('expanded');
   }
 
   function toggleNoSale(idx) {
