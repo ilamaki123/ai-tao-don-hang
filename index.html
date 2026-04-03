@@ -551,6 +551,36 @@
       width: 50px; border: 1px solid #ddd; border-radius: 4px;
       padding: 3px 6px; font-size: 13px; text-align: center;
     }
+
+    /* ===== EDIT MODAL ===== */
+    .edit-modal-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+      z-index: 2000; align-items: center; justify-content: center;
+    }
+    .edit-modal-overlay.show { display: flex; }
+    .edit-modal {
+      background: #fff; border-radius: 14px; padding: 24px; width: 90%; max-width: 360px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    }
+    .edit-modal-title {
+      font-size: 15px; font-weight: 600; color: #00354E; margin-bottom: 16px;
+    }
+    .edit-modal-input {
+      width: 100%; padding: 10px 14px; border: 1.5px solid #ddd; border-radius: 8px;
+      font-size: 15px; outline: none; transition: border-color 0.2s;
+    }
+    .edit-modal-input:focus { border-color: #7c5cbf; }
+    .edit-modal-btns {
+      display: flex; gap: 10px; margin-top: 16px; justify-content: flex-end;
+    }
+    .edit-modal-btn {
+      padding: 8px 20px; border-radius: 8px; border: none; font-size: 14px;
+      cursor: pointer; font-weight: 500;
+    }
+    .edit-modal-btn-cancel { background: #f0f0f0; color: #666; }
+    .edit-modal-btn-cancel:hover { background: #e0e0e0; }
+    .edit-modal-btn-save { background: #7c5cbf; color: #fff; }
+    .edit-modal-btn-save:hover { background: #6a4aad; }
   </style>
 </head>
 <body>
@@ -1805,6 +1835,8 @@
     </div>`;
   }
 
+  let _editModalCallback = null;
+
   function editCartField(idx, field, varIdx) {
     const session = getActiveSession();
     if (!session || !session.items[idx]) return;
@@ -1815,30 +1847,57 @@
       label = v.name;
       currentVal = v.value;
     } else if (field === 'name') {
-      label = 'Tên'; currentVal = item.name;
+      label = 'Tên sản phẩm'; currentVal = item.name;
     } else if (field === 'quantity') {
       label = 'Số lượng'; currentVal = item.quantity || 1;
     } else if (field === 'price') {
       label = 'Giá'; currentVal = item.price || 0;
     } else if (field === 'link') {
-      label = 'Link'; currentVal = item.link || '';
+      label = 'Link sản phẩm'; currentVal = item.link || '';
     }
-    const newVal = prompt(`Sửa ${label} (#${idx+1}):`, currentVal);
-    if (newVal === null || newVal === String(currentVal)) return;
-    if (field === 'var') {
-      item.variations[varIdx].value = newVal;
-    } else if (field === 'name') {
-      item.name = newVal;
-    } else if (field === 'quantity') {
-      item.quantity = parseInt(newVal) || 1;
-    } else if (field === 'price') {
-      item.price = parseFloat(newVal) || 0;
-    } else if (field === 'link') {
-      item.link = newVal;
-    }
-    saveSessions();
-    renderCart();
+    openEditModal(`Sửa ${label} (#${idx+1})`, currentVal, (newVal) => {
+      if (newVal === String(currentVal)) return;
+      if (field === 'var') {
+        item.variations[varIdx].value = newVal;
+      } else if (field === 'name') {
+        item.name = newVal;
+      } else if (field === 'quantity') {
+        item.quantity = parseInt(newVal) || 1;
+      } else if (field === 'price') {
+        item.price = parseFloat(newVal) || 0;
+      } else if (field === 'link') {
+        item.link = newVal;
+      }
+      saveSessions();
+      renderCart();
+    });
   }
+
+  function openEditModal(title, value, callback) {
+    _editModalCallback = callback;
+    document.getElementById('editModalTitle').textContent = title;
+    const input = document.getElementById('editModalInput');
+    input.value = value;
+    document.getElementById('editModal').classList.add('show');
+    setTimeout(() => { input.focus(); input.select(); }, 100);
+  }
+
+  function closeEditModal() {
+    document.getElementById('editModal').classList.remove('show');
+    _editModalCallback = null;
+  }
+
+  function saveEditModal() {
+    const val = document.getElementById('editModalInput').value.trim();
+    if (_editModalCallback && val !== '') _editModalCallback(val);
+    closeEditModal();
+  }
+
+  // Enter to save, Escape to cancel
+  document.getElementById('editModalInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); saveEditModal(); }
+    if (e.key === 'Escape') closeEditModal();
+  });
 
   function deleteCartItem(idx) {
     const session = getActiveSession();
@@ -1953,5 +2012,18 @@
     return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 </script>
+
+<!-- Edit Modal -->
+<div class="edit-modal-overlay" id="editModal">
+  <div class="edit-modal">
+    <div class="edit-modal-title" id="editModalTitle"></div>
+    <input class="edit-modal-input" id="editModalInput" autocomplete="off" />
+    <div class="edit-modal-btns">
+      <button class="edit-modal-btn edit-modal-btn-cancel" onclick="closeEditModal()">Hủy</button>
+      <button class="edit-modal-btn edit-modal-btn-save" onclick="saveEditModal()">Lưu</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
