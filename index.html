@@ -1821,15 +1821,16 @@
     const el = document.getElementById('inlineCart');
     if (el) {
       el.innerHTML = buildInlineCartHtml();
-      const msgList = document.getElementById('messageList');
-      if (msgList) msgList.scrollTop = msgList.scrollHeight;
+    } else {
+      // Nếu không tìm thấy inlineCart, re-render toàn bộ messages
+      renderMessages();
     }
   }
 
   function invalidateOldCarts() {
     const session = getActiveSession();
     if (!session) return;
-    session.messages.forEach(m => { if (m.cartView) m.cartView = false; });
+    session.messages = session.messages.filter(m => !m.cartView);
   }
 
   function ensureCartMessage() {
