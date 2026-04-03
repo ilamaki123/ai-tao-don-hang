@@ -874,6 +874,8 @@
           addItems.length > 0 ? `➕ Thêm ${addItems.length} SP` : '',
         ].filter(Boolean).join(', ');
         session.state = 'WAITING_IMAGE';
+        session.items = [];
+        session.salePct = 0;
         delete session.editingOrder;
         saveSessions();
         // Gọi getOrderByCode để lấy danh sách SP chính xác từ Basso
@@ -1153,6 +1155,8 @@
           }
         } catch {}
         session.state = 'WAITING_IMAGE';
+        session.items = [];
+        session.salePct = 0;
         delete session.editingOrder;
         saveSessions();
         removeTyping();
