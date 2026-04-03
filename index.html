@@ -670,8 +670,10 @@
       hint.textContent = 'sửa #N | xóa #N | upload ảnh+link | "cập nhật đơn" | "hủy chỉnh sửa"';
     } else if (session.state === 'WAITING_IMAGE') {
       hint.textContent = 'Upload ảnh giỏ hàng + links | "xem giỏ hàng" | "tạo đơn"';
+    } else if (session.state === 'DONE') {
+      hint.textContent = 'Bấm "Tạo đơn mới" | "Chỉnh sửa đơn" | "Hủy đơn hàng" ở ô phía trên';
     } else {
-      hint.textContent = 'Nhấn New Chat để tạo đơn hàng mới';
+      hint.textContent = '';
     }
   }
 
@@ -790,12 +792,12 @@
       const data = await res.json();
       removeTyping();
       if (data.success) {
-        session.state = 'WAITING_IMAGE';
+        session.state = 'DONE';
         session.items = [];
         session.salePct = 0;
         saveSessions();
         updateHint();
-        addMessage('ai', `✅ Đã hủy đơn hàng ${orderCode}.\n\nCó thể tiếp tục upload ảnh giỏ hàng để tạo đơn mới cho ${session.customer?.name || 'khách hàng'}.`);
+        addMessage('ai', `✅ Đã hủy đơn hàng ${orderCode}.\n\nBấm "Tạo đơn mới" để tiếp tục.`);
       } else {
         addMessage('ai', `❌ Không thể hủy: ${data.message || (data.errors || []).join(', ')}`);
       }
@@ -873,7 +875,7 @@
           updateItems.length > 0 ? `✏️ Sửa ${updateItems.length} SP` : '',
           addItems.length > 0 ? `➕ Thêm ${addItems.length} SP` : '',
         ].filter(Boolean).join(', ');
-        session.state = 'WAITING_IMAGE';
+        session.state = 'DONE';
         session.items = [];
         session.salePct = 0;
         delete session.editingOrder;
@@ -889,7 +891,7 @@
             orderId = orderData.data.order?.id || orderId;
           }
         } catch {}
-        addMessage('ai', `✅ Đã cập nhật đơn ${orderCode}: ${summary}`, {
+        addMessage('ai', `✅ Đã cập nhật đơn ${orderCode}: ${summary}\n\nBấm "Tạo đơn mới" để tiếp tục.`, {
           orderData: {
             title: 'Đã cập nhật đơn',
             orderCode,
@@ -1136,6 +1138,13 @@
       }
     }
 
+    // ===== ĐÃ XONG — CHỈ CHO THAO TÁC QUA BUTTON =====
+    if (session.state === 'DONE') {
+      removeTyping();
+      addMessage('ai', 'Vui lòng bấm "Tạo đơn mới" ở ô đơn hàng phía trên để tiếp tục, hoặc chọn "Chỉnh sửa đơn" / "Hủy đơn hàng".');
+      return;
+    }
+
     // ===== CHỈNH SỬA ĐƠN HÀNG =====
     if (session.state === 'EDITING_ORDER' && session.editingOrder) {
       const editing = session.editingOrder;
@@ -1154,13 +1163,14 @@
             orderId = orderData.data.order?.id || '';
           }
         } catch {}
-        session.state = 'WAITING_IMAGE';
+        session.state = 'DONE';
         session.items = [];
         session.salePct = 0;
         delete session.editingOrder;
         saveSessions();
+        updateHint();
         removeTyping();
-        addMessage('ai', `Đã thoát chỉnh sửa đơn ${orderCode}.`, {
+        addMessage('ai', `Đã thoát chỉnh sửa đơn ${orderCode}.\n\nBấm "Tạo đơn mới" để tiếp tục.`, {
           orderData: {
             title: 'Đơn hàng',
             orderCode,
@@ -1682,12 +1692,15 @@
     removeTyping();
 
     if (orderData.success) {
+      const completedItems = [...session.items];
       session.state = 'DONE';
+      session.items = [];
+      session.salePct = 0;
       updateHint();
-      addMessage('ai', 'Đã tạo đơn hàng thành công!', {
+      addMessage('ai', 'Đã tạo đơn hàng thành công!\n\nBấm "Tạo đơn mới" để tiếp tục.', {
         orderData: {
           orderCode: orderData.data.orderCode,
-          items: session.items,
+          items: completedItems,
           order_url: `https://basso.vn/basso/customer_order/detail/${orderData.data.orderId}`,
         }
       });
