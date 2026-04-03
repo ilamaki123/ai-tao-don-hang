@@ -488,6 +488,11 @@
 
     .cart-card-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
     .cart-card-name { font-weight: 600; font-size: 14px; color: #333; flex: 1; min-width: 0; }
+    .cart-card-thumb {
+      width: 50px; height: 50px; object-fit: cover; border-radius: 8px;
+      border: 1px solid #e8d8ff; flex-shrink: 0;
+    }
+
     .cart-card-num { font-size: 13px; color: #7c5cbf; font-weight: 600; min-width: 20px; display: flex; align-items: center; }
 
     .cart-card-fields {
@@ -1517,6 +1522,7 @@
             // Tự động upload từng ảnh crop lên Basso và gán image_id
             await Promise.all(cropped.map(async (dataUrl, i) => {
               if (i >= newItems.length) return;
+              newItems[i].thumb = dataUrl;
               try {
                 const blob = await (await fetch(dataUrl)).blob();
                 const imgFile = new File([blob], `product_${i + 1}.jpg`, { type: 'image/jpeg' });
@@ -1833,8 +1839,10 @@
     const ep = effectivePrice(item, session.salePct || 0);
     const priceShow = pct > 0 ? `<s>${formatPrice(item)}</s> ${formatPrice({...item, price: ep})} (-${pct}%)` : formatPrice(item);
     const linkShow = item.link ? item.link.substring(0, 40) + (item.link.length > 40 ? '...' : '') : '⚠️ chưa có link';
+    const thumbHtml = item.thumb ? `<img class="cart-card-thumb" src="${item.thumb}" />` : '';
     return `<div class="cart-card">
       <div class="cart-card-fields" style="margin-top:0">
+        ${thumbHtml}
         <span class="cart-card-num">${i+1}.</span>
         <span class="cart-field" onclick="editCartField(${i},'name')" style="flex:1;min-width:0;margin-right:28px">
           <span class="cart-field-label">Tên</span>
