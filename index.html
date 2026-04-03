@@ -1803,9 +1803,15 @@
           <span class="cart-total">${totalStr}</span>
         </div>
         <div class="cart-cards">${cards}</div>
-        <div class="cart-actions">
-          <button class="cart-btn cart-btn-clear" onclick="clearCartUI()">Xóa giỏ hàng</button>
-          <button class="cart-btn cart-btn-order" onclick="submitOrder(getActiveSession())">Tạo đơn</button>
+        <div class="cart-actions" style="justify-content:space-between">
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="cart-btn" style="background:#f0eaff;color:#7c5cbf" onclick="applySaleUI()">Giảm giá ${session.salePct ? session.salePct + '%' : ''}</button>
+            ${session.salePct > 0 ? `<button class="cart-btn" style="background:#fde8e8;color:#e55;font-size:12px" onclick="removeSaleUI()">Bỏ giảm giá</button>` : ''}
+          </div>
+          <div style="display:flex;gap:10px">
+            <button class="cart-btn cart-btn-clear" onclick="clearCartUI()">Xóa giỏ hàng</button>
+            <button class="cart-btn cart-btn-order" onclick="submitOrder(getActiveSession())">Tạo đơn</button>
+          </div>
         </div>
       </div>
     `;
@@ -1965,6 +1971,25 @@
   function doConfirmModal() {
     if (_confirmCallback) _confirmCallback();
     closeConfirmModal();
+  }
+
+  function applySaleUI() {
+    const session = getActiveSession();
+    if (!session) return;
+    openEditModal('Giảm giá toàn đơn (%)', session.salePct || 0, (val) => {
+      const pct = parseFloat(val) || 0;
+      session.salePct = pct;
+      saveSessions();
+      renderCart();
+    });
+  }
+
+  function removeSaleUI() {
+    const session = getActiveSession();
+    if (!session) return;
+    session.salePct = 0;
+    saveSessions();
+    renderCart();
   }
 
   function clearCartUI() {
