@@ -789,7 +789,16 @@
       });
       const data = await res.json();
       removeTyping();
-      addMessage('ai', data.success ? `✅ Đã hủy đơn hàng ${orderCode}.` : `❌ Không thể hủy: ${data.message || (data.errors || []).join(', ')}`);
+      if (data.success) {
+        session.state = 'WAITING_IMAGE';
+        session.items = [];
+        session.salePct = 0;
+        saveSessions();
+        updateHint();
+        addMessage('ai', `✅ Đã hủy đơn hàng ${orderCode}.\n\nCó thể tiếp tục upload ảnh giỏ hàng để tạo đơn mới cho ${session.customer?.name || 'khách hàng'}.`);
+      } else {
+        addMessage('ai', `❌ Không thể hủy: ${data.message || (data.errors || []).join(', ')}`);
+      }
     } catch (err) {
       removeTyping();
       addMessage('ai', `Lỗi: ${err.message}`);
