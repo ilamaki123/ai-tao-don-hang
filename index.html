@@ -587,6 +587,9 @@
     .edit-modal-btn-cancel:hover { background: #e0e0e0; }
     .edit-modal-btn-save { background: #7c5cbf; color: #fff; }
     .edit-modal-btn-save:hover { background: #6a4aad; }
+    .edit-modal-btn-danger { background: #e55; color: #fff; }
+    .edit-modal-btn-danger:hover { background: #d33; }
+    .confirm-modal-text { font-size: 14px; color: #555; line-height: 1.5; }
   </style>
 </head>
 <body>
@@ -1799,7 +1802,7 @@
         </div>
         <div class="cart-cards">${cards}</div>
         <div class="cart-actions">
-          <button class="cart-btn cart-btn-clear" onclick="clearCartUI()">Xóa giỏ</button>
+          <button class="cart-btn cart-btn-clear" onclick="clearCartUI()">Xóa giỏ hàng</button>
           <button class="cart-btn cart-btn-order" onclick="submitOrder(getActiveSession())">Tạo đơn</button>
         </div>
       </div>
@@ -1940,15 +1943,36 @@
     renderCart();
   }
 
+  let _confirmCallback = null;
+
+  function showConfirm(title, text, btnText, callback) {
+    _confirmCallback = callback;
+    document.getElementById('confirmModalTitle').textContent = title;
+    document.getElementById('confirmModalText').textContent = text;
+    document.getElementById('confirmModalBtn').textContent = btnText;
+    document.getElementById('confirmModal').classList.add('show');
+  }
+
+  function closeConfirmModal() {
+    document.getElementById('confirmModal').classList.remove('show');
+    _confirmCallback = null;
+  }
+
+  function doConfirmModal() {
+    if (_confirmCallback) _confirmCallback();
+    closeConfirmModal();
+  }
+
   function clearCartUI() {
     const session = getActiveSession();
     if (!session || session.items.length === 0) return;
-    if (!confirm('Xóa toàn bộ giỏ hàng?')) return;
-    session.items = [];
-    session.salePct = 0;
-    saveSessions();
-    renderCart();
-    addMessage('ai', 'Đã xóa toàn bộ giỏ hàng.');
+    showConfirm('Xóa giỏ hàng', `Bạn có chắc muốn xóa toàn bộ ${session.items.length} sản phẩm khỏi giỏ hàng?`, 'Xóa', () => {
+      session.items = [];
+      session.salePct = 0;
+      saveSessions();
+      renderCart();
+      addMessage('ai', 'Đã xóa toàn bộ giỏ hàng.');
+    });
   }
 
   // ===== UTILS =====
@@ -2054,6 +2078,18 @@
     <div class="edit-modal-btns">
       <button class="edit-modal-btn edit-modal-btn-cancel" onclick="closeEditModal()">Hủy</button>
       <button class="edit-modal-btn edit-modal-btn-save" onclick="saveEditModal()">Lưu</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Modal -->
+<div class="edit-modal-overlay" id="confirmModal">
+  <div class="edit-modal">
+    <div class="edit-modal-title" id="confirmModalTitle"></div>
+    <div class="confirm-modal-text" id="confirmModalText"></div>
+    <div class="edit-modal-btns">
+      <button class="edit-modal-btn edit-modal-btn-cancel" onclick="closeConfirmModal()">Không</button>
+      <button class="edit-modal-btn edit-modal-btn-danger" id="confirmModalBtn" onclick="doConfirmModal()">Xóa</button>
     </div>
   </div>
 </div>
