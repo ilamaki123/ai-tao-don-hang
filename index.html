@@ -718,7 +718,7 @@
     const code = data.orderCode || '';
     return `
       <div class="order-card">
-        <div class="order-title">Đơn hàng đã tạo — ${code}</div>
+        <div class="order-title">${data.title || 'Đơn hàng đã tạo'} — ${code}</div>
         <pre>${items}</pre>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
           <a class="order-link" href="${data.order_url || '#'}" target="_blank">Xem đơn hàng &rarr;</a>
@@ -889,6 +889,7 @@
         } catch {}
         addMessage('ai', `✅ Đã cập nhật đơn ${orderCode}: ${summary}`, {
           orderData: {
+            title: 'Đã cập nhật đơn',
             orderCode,
             items: orderItems,
             order_url: `https://basso.vn/basso/customer_order/detail/${orderId}`,
@@ -1157,6 +1158,7 @@
         removeTyping();
         addMessage('ai', `Đã thoát chỉnh sửa đơn ${orderCode}.`, {
           orderData: {
+            title: 'Đơn hàng',
             orderCode,
             items: orderItems,
             order_url: `https://basso.vn/basso/customer_order/detail/${orderId}`,
