@@ -1039,7 +1039,8 @@
       ).join('');
       const priceShow = item.price ? '$' + item.price : '';
       const linkShow = item.link ? item.link.substring(0, 35) + '...' : '⚠️ chưa có link';
-      const thumbHtml = item.thumb ? `<img class="cart-card-thumb" src="${item.thumb}" />` : '';
+      const thumbSrc = item.thumb || (item.image_path ? (item.image_path.startsWith('http') ? item.image_path : 'https://basso.vn' + item.image_path) : '');
+      const thumbHtml = thumbSrc ? `<img class="cart-card-thumb" src="${thumbSrc}" />` : '';
       const shortName = item.name.length > 30 ? item.name.substring(0, 30) + '...' : item.name;
       return `<div class="cart-card" style="${opacity}" id="editCard${i}">
         <div class="cart-card-compact" onclick="toggleCardExpand(${i},'editCard')">
@@ -1957,7 +1958,8 @@
     const ep = effectivePrice(item, session.salePct || 0);
     const priceShow = pct > 0 ? `<s>${formatPrice(item)}</s> ${formatPrice({...item, price: ep})} (-${pct}%)` : formatPrice(item);
     const linkShow = item.link ? item.link.substring(0, 40) + (item.link.length > 40 ? '...' : '') : '⚠️ chưa có link';
-    const thumbHtml = item.thumb ? `<img class="cart-card-thumb" src="${item.thumb}" />` : '';
+    const thumbSrc = item.thumb || (item.image_path ? (item.image_path.startsWith('http') ? item.image_path : 'https://basso.vn' + item.image_path) : '');
+      const thumbHtml = thumbSrc ? `<img class="cart-card-thumb" src="${thumbSrc}" />` : '';
     const shortName = item.name.length > 30 ? item.name.substring(0, 30) + '...' : item.name;
     return `<div class="cart-card" id="cartCard${i}">
       <div class="cart-card-compact" onclick="toggleCardExpand(${i})">
