@@ -1139,7 +1139,7 @@
       const editing = session.editingOrder;
 
       // Hủy chỉnh sửa
-      if (!file && /^(?:hủy\s*chỉnh\s*sửa|huy\s*chinh\s*sua|cancel\s*edit|thoát|thoat)$/i.test(text.trim())) {
+      if (!file && /^(?:hủy\s*chỉnh\s*sửa|huy\s*chinh\s*sua|cancel\s*edit|cancel|thoát|thoat|hủy|huy|back|quay\s*lại|quay\s*lai)$/i.test(text.trim())) {
         const orderCode = editing.orderCode;
         // Lấy items từ Basso
         let orderItems = [];
@@ -1168,7 +1168,7 @@
       }
 
       // Cập nhật đơn
-      if (!file && /^(?:cập\s*nhật\s*đơn|cap\s*nhat\s*don|update\s*order|gửi|gui|submit|xác\s*nhận|xac\s*nhan)$/i.test(text.trim())) {
+      if (!file && /^(?:cập\s*nhật\s*đơn|cap\s*nhat\s*don|cập\s*nhật|cap\s*nhat|update\s*order|update|gửi|gui|submit|xác\s*nhận|xac\s*nhan|lưu|luu|save|ok|done)$/i.test(text.trim())) {
         await submitOrderUpdate(session);
         return;
       }
