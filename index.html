@@ -1180,20 +1180,24 @@
         return;
       }
 
-      // Xóa SP: "xóa #N"
-      const delMatch = !file && text.match(/(?:xóa|xoa|delete|remove)\s*#?(\d+)/i);
+      // Xóa SP: "xóa #1 #2 #3" hoặc "xóa #1"
+      const delMatch = !file && text.match(/(?:xóa|xoa|delete|remove)\s+([\d\s#,]+)/i);
       if (delMatch) {
-        const idx = parseInt(delMatch[1]) - 1;
-        if (idx < 0 || idx >= editing.items.length) {
+        const nums = delMatch[1].match(/\d+/g);
+        if (nums && nums.length > 0) {
+          const indices = [...new Set(nums.map(n => parseInt(n) - 1))];
+          const valid = indices.filter(i => i >= 0 && i < editing.items.length);
+          if (valid.length === 0) {
+            removeTyping();
+            addMessage('ai', `Không tìm thấy SP hợp lệ. Đơn có ${editing.items.length} SP.`);
+            return;
+          }
+          const names = valid.map(i => { editing.items[i]._status = 'deleted'; return `#${i + 1} ${editing.items[i].name}`; });
+          saveSessions();
           removeTyping();
-          addMessage('ai', `Không tìm thấy SP #${idx + 1}. Đơn có ${editing.items.length} SP.`);
+          addMessage('ai', `🗑️ Đã đánh dấu xóa ${names.length} SP:\n${names.join('\n')}\n\n` + renderEditOrderSummary(editing));
           return;
         }
-        editing.items[idx]._status = 'deleted';
-        saveSessions();
-        removeTyping();
-        addMessage('ai', `🗑️ Đã đánh dấu xóa #${idx + 1}: ${editing.items[idx].name}\n\n` + renderEditOrderSummary(editing));
-        return;
       }
 
       // Sửa SP: "sửa #N qty/giá/tên/link/size/color/...: giá trị"
