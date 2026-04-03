@@ -487,7 +487,7 @@
 
     .cart-card-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
     .cart-card-name { font-weight: 600; font-size: 14px; color: #333; flex: 1; min-width: 0; }
-    .cart-card-num { font-size: 12px; color: #999; margin-right: 4px; }
+    .cart-card-num { font-size: 13px; color: #7c5cbf; font-weight: 600; min-width: 20px; display: flex; align-items: center; }
 
     .cart-card-fields {
       display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; font-size: 13px; color: #555;
@@ -1835,7 +1835,7 @@
     return `<div class="cart-card">
       <button class="cart-card-delete" onclick="deleteCartItem(${i})" title="Xóa">&times;</button>
       <div class="cart-card-fields" style="margin-top:0">
-        <span class="cart-card-num">#${i+1}</span>
+        <span class="cart-card-num">${i+1}.</span>
         <span class="cart-field" onclick="editCartField(${i},'name')" style="flex:1;min-width:0">
           <span class="cart-field-label">Tên</span>
           <span class="cart-field-value" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(item.name)}</span>
