@@ -185,7 +185,17 @@ console.log('Mock mode:', IS_MOCK);
 const tokenRolesMap = new Map();
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+
+// Strip /b/<id> prefix so routes match /api/*, /health, etc.
+app.use((req, res, next) => {
+  const m = req.url.match(/^\/b\/[^/]+(\/.*)/);
+  if (m) {
+    req.url = m[1];
+    req.originalUrl = m[1];
+  }
+  next();
+});
 
 // Helper: build Basso headers với auth token từ client
 function bassoHeaders(req) {
