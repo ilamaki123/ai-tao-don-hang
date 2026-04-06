@@ -195,12 +195,13 @@ console.log('Mock mode:', IS_MOCK);
 const tokenUserMap = new Map();
 
 // ===== SESSION STORAGE (Redis) =====
-const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
-const redis = new Redis(REDIS_URL);
+const REDIS_HOST = process.env.REDIS_HOST || 'localhost';
+const REDIS_PORT = parseInt(process.env.REDIS_PORT) || 6379;
+const redis = new Redis({ host: REDIS_HOST, port: REDIS_PORT });
 const SIXTY_DAYS_MS = 60 * 24 * 60 * 60 * 1000;
 // No TTL — sessions persist until manually deleted. Only messages > 60 days are cleaned.
 
-redis.on('connect', () => console.log('[redis] Connected to', REDIS_URL));
+redis.on('connect', () => console.log('[redis] Connected to', REDIS_HOST + ':' + REDIS_PORT));
 redis.on('error', (err) => console.error('[redis] Error:', err.message));
 
 function resolveUser(req) {
