@@ -236,7 +236,7 @@ function cleanExpiredMessages(sessions) {
 }
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 
 // Serve static files (PWA: manifest, sw.js, icons) from project root
 app.use(express.static(path.join(__dirname, '..')));
@@ -313,12 +313,18 @@ app.get('/api/sessions', (req, res) => {
 });
 
 app.post('/api/sessions', (req, res) => {
-  const user = resolveUser(req);
-  if (!user) return res.status(401).json({ success: false, message: 'Unauthorized' });
-  const { sessions } = req.body;
-  if (!Array.isArray(sessions)) return res.status(400).json({ success: false, message: 'sessions must be array' });
-  saveUserSessions(user.id, sessions);
-  res.json({ success: true });
+  try {
+    const user = resolveUser(req);
+    if (!user) return res.status(401).json({ success: false, message: 'Unauthorized' });
+    const { sessions } = req.body;
+    if (!Array.isArray(sessions)) return res.status(400).json({ success: false, message: 'sessions must be array' });
+    console.log('[sessions] POST user:', user.id, 'count:', sessions.length);
+    saveUserSessions(user.id, sessions);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[sessions] POST error:', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
 });
 
 app.delete('/api/sessions/:id', (req, res) => {
