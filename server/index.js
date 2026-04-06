@@ -253,8 +253,12 @@ app.use(express.json({ limit: '10mb' }));
 
 // Strip /b/<id> prefix so routes match /api/*, /health, etc.
 app.use((req, res, next) => {
-  const m = req.path.match(/^\/b\/[^/]+(\/.*)/);
-  if (m) req.url = m[1];
+  const m = req.url.match(/^\/b\/[^/]+(\/.*)/);
+  if (m) {
+    console.log('[strip-prefix]', req.url, '->', m[1]);
+    req.url = m[1];
+    req.originalUrl = m[1];
+  }
   next();
 });
 
