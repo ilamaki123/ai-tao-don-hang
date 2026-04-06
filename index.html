@@ -2138,10 +2138,11 @@
     const session = getActiveSession();
     if (!session || session.items.length === 0) return;
     showConfirm('Xóa giỏ hàng', `Bạn có chắc muốn xóa toàn bộ ${session.items.length} sản phẩm khỏi giỏ hàng?`, 'Xóa', () => {
+      invalidateOldCarts();
       session.items = [];
       session.salePct = 0;
       saveSessions();
-      renderCart();
+      renderMessages();
       addMessage('ai', 'Đã xóa toàn bộ giỏ hàng.');
     });
   }
