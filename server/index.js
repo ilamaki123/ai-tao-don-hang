@@ -10,6 +10,7 @@ if (!globalThis.fetch) {
 }
 const express = require('express');
 const cors = require('cors');
+const Redis = require('ioredis');
 const multer = require('multer');
 const Anthropic = require('@anthropic-ai/sdk');
 const fs = require('fs');
@@ -193,34 +194,45 @@ console.log('Mock mode:', IS_MOCK);
 // token → user info map (in-memory, refreshed on login)
 const tokenUserMap = new Map();
 
-// ===== SESSION FILE I/O =====
-const SESSIONS_DIR = path.join(__dirname, 'data', 'sessions');
+// ===== SESSION STORAGE (Redis) =====
+const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
+const redis = new Redis(REDIS_URL);
 const SIXTY_DAYS_MS = 60 * 24 * 60 * 60 * 1000;
+const SESSION_TTL = 60 * 24 * 60 * 60; // 60 days in seconds
+
+redis.on('connect', () => console.log('[redis] Connected to', REDIS_URL));
+redis.on('error', (err) => console.error('[redis] Error:', err.message));
 
 function resolveUser(req) {
   const token = (req.headers['authorization'] || '').replace('Bearer ', '').trim();
-  // Ưu tiên tokenUserMap (có đầy đủ info sau login)
   if (token && tokenUserMap.has(token)) return tokenUserMap.get(token);
-  // Fallback: dùng X-User-Id header (khi server restart, tokenUserMap mất)
   const userId = req.headers['x-user-id'];
   if (userId) return { id: parseInt(userId) || userId, email: '', roles: [] };
   return null;
 }
 
-function getSessionsPath(userId) {
-  return path.join(SESSIONS_DIR, `${userId}.json`);
+function sessionKey(userId) {
+  return `sessions:${userId}`;
 }
 
-function loadUserSessions(userId) {
+async function loadUserSessions(userId) {
   try {
-    const data = JSON.parse(fs.readFileSync(getSessionsPath(userId), 'utf8'));
+    const raw = await redis.get(sessionKey(userId));
+    if (!raw) return [];
+    const data = JSON.parse(raw);
     return Array.isArray(data) ? data : [];
-  } catch { return []; }
+  } catch (e) {
+    console.error('[redis] loadUserSessions error:', e.message);
+    return [];
+  }
 }
 
-function saveUserSessions(userId, sessions) {
-  if (!fs.existsSync(SESSIONS_DIR)) fs.mkdirSync(SESSIONS_DIR, { recursive: true });
-  fs.writeFileSync(getSessionsPath(userId), JSON.stringify(sessions, null, 2));
+async function saveUserSessions(userId, sessions) {
+  try {
+    await redis.set(sessionKey(userId), JSON.stringify(sessions), 'EX', SESSION_TTL);
+  } catch (e) {
+    console.error('[redis] saveUserSessions error:', e.message);
+  }
 }
 
 function cleanExpiredMessages(sessions) {
@@ -310,23 +322,29 @@ app.post('/api/help', async (req, res) => {
 });
 
 // ===== SESSIONS =====
-app.get('/api/sessions', (req, res) => {
-  const user = resolveUser(req);
-  if (!user) return res.status(401).json({ success: false, message: 'Unauthorized' });
-  const sessions = loadUserSessions(user.id);
-  const changed = cleanExpiredMessages(sessions);
-  if (changed) saveUserSessions(user.id, sessions);
-  res.json({ success: true, data: sessions });
+app.get('/api/sessions', async (req, res) => {
+  try {
+    const user = resolveUser(req);
+    if (!user) return res.status(401).json({ success: false, message: 'Unauthorized' });
+    const sessions = await loadUserSessions(user.id);
+    const changed = cleanExpiredMessages(sessions);
+    if (changed) await saveUserSessions(user.id, sessions);
+    console.log('[sessions] GET user:', user.id, 'count:', sessions.length);
+    res.json({ success: true, data: sessions });
+  } catch (err) {
+    console.error('[sessions] GET error:', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
 });
 
-app.post('/api/sessions', (req, res) => {
+app.post('/api/sessions', async (req, res) => {
   try {
     const user = resolveUser(req);
     if (!user) return res.status(401).json({ success: false, message: 'Unauthorized' });
     const { sessions } = req.body;
     if (!Array.isArray(sessions)) return res.status(400).json({ success: false, message: 'sessions must be array' });
+    await saveUserSessions(user.id, sessions);
     console.log('[sessions] POST user:', user.id, 'count:', sessions.length);
-    saveUserSessions(user.id, sessions);
     res.json({ success: true });
   } catch (err) {
     console.error('[sessions] POST error:', err.message);
@@ -334,14 +352,20 @@ app.post('/api/sessions', (req, res) => {
   }
 });
 
-app.delete('/api/sessions/:id', (req, res) => {
-  const user = resolveUser(req);
-  if (!user) return res.status(401).json({ success: false, message: 'Unauthorized' });
-  const sessionId = parseInt(req.params.id);
-  const sessions = loadUserSessions(user.id);
-  const filtered = sessions.filter(s => s.id !== sessionId);
-  saveUserSessions(user.id, filtered);
-  res.json({ success: true });
+app.delete('/api/sessions/:id', async (req, res) => {
+  try {
+    const user = resolveUser(req);
+    if (!user) return res.status(401).json({ success: false, message: 'Unauthorized' });
+    const sessionId = parseInt(req.params.id);
+    const sessions = await loadUserSessions(user.id);
+    const filtered = sessions.filter(s => s.id !== sessionId);
+    await saveUserSessions(user.id, filtered);
+    console.log('[sessions] DELETE user:', user.id, 'sessionId:', sessionId);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[sessions] DELETE error:', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
 });
 
 // ===== BASSO LOGIN =====
