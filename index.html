@@ -1796,6 +1796,12 @@
   }
 
   async function submitOrder(session) {
+    if (!session || session.items.length === 0) {
+      addMessage('ai', 'Giỏ hàng trống. Vui lòng thêm sản phẩm trước.');
+      return;
+    }
+    showTyping();
+    try {
     const c = session.customer;
     const orderBody = {
       customer_id: c.id,
@@ -1856,6 +1862,11 @@
     } else {
       const errMsg = orderData.message || (orderData.errors || []).join(', ');
       addMessage('ai', `Tạo đơn thất bại: ${translateError(errMsg)}`);
+    }
+    saveSessions();
+    } catch (err) {
+      removeTyping();
+      addMessage('ai', `Lỗi tạo đơn: ${err.message}`);
     }
   }
 
