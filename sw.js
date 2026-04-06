@@ -1,10 +1,10 @@
-const CACHE_NAME = 'ai-basso-v4';
+const CACHE_NAME = 'ai-basso-v5';
 const STATIC_ASSETS = [
-  '/login.html',
-  '/index.html',
-  '/manifest.json',
-  '/icon-192.png',
-  '/icon-512.png'
+  'login.html',
+  'index.html',
+  'manifest.json',
+  'icon-192.png',
+  'icon-512.png'
 ];
 
 self.addEventListener('install', (event) => {
@@ -25,9 +25,11 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
+  // Only cache GET requests
+  if (event.request.method !== 'GET') return;
   // API calls: always network, never cache
-  if (url.pathname.startsWith('/api/')) return;
-  // Navigation requests (page loads): network first, critical for iOS PWA
+  if (url.pathname.includes('/api/')) return;
+  // Navigation requests: network first
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request).catch(() => caches.match(event.request))
