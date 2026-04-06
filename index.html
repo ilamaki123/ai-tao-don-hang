@@ -2325,7 +2325,10 @@
 
   function getAuthHeaders() {
     const user = JSON.parse(localStorage.getItem('ai_chat_user') || sessionStorage.getItem('ai_chat_user') || 'null');
-    return user && user.token ? { 'Authorization': `Bearer ${user.token}` } : {};
+    if (!user || !user.token) return {};
+    const headers = { 'Authorization': `Bearer ${user.token}` };
+    if (user.id) headers['X-User-Id'] = String(user.id);
+    return headers;
   }
 
   function translateError(msg) {

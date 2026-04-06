@@ -199,7 +199,12 @@ const SIXTY_DAYS_MS = 60 * 24 * 60 * 60 * 1000;
 
 function resolveUser(req) {
   const token = (req.headers['authorization'] || '').replace('Bearer ', '').trim();
-  return token ? tokenUserMap.get(token) || null : null;
+  // Ưu tiên tokenUserMap (có đầy đủ info sau login)
+  if (token && tokenUserMap.has(token)) return tokenUserMap.get(token);
+  // Fallback: dùng X-User-Id header (khi server restart, tokenUserMap mất)
+  const userId = req.headers['x-user-id'];
+  if (userId) return { id: parseInt(userId) || userId, email: '', roles: [] };
+  return null;
 }
 
 function getSessionsPath(userId) {
