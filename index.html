@@ -41,7 +41,7 @@
     .sidebar-welcome {
       font-size: 13px;
       color: #888;
-      margin-bottom: 10px;
+      margin-bottom: 18px;
     }
 
     .btn-new-chat {
@@ -55,7 +55,7 @@
       display: flex;
       align-items: center;
       gap: 6px;
-      margin-bottom: 10px;
+      margin-bottom: 20px;
       transition: background 0.2s;
     }
 
@@ -63,17 +63,9 @@
 
 
     .search-sessions {
-      width: 100%;
-      padding: 8px 10px;
-      border: 1px solid #e0e0e0;
-      border-radius: 6px;
-      font-size: 13px;
-      outline: none;
-      margin-bottom: 8px;
-      background: #f9f9f9;
-      color: #333;
+      width: 100%; padding: 8px 10px; border: 1px solid #e0e0e0; border-radius: 6px;
+      font-size: 13px; outline: none; margin-bottom: 8px; background: #f9f9f9; color: #333;
     }
-
     .search-sessions:focus { border-color: #7c5cbf; background: #fff; }
     .search-sessions::placeholder { color: #bbb; }
 
@@ -132,10 +124,6 @@
 
     .chat-history-item:hover .btn-delete-chat { display: block; }
     .btn-delete-chat:hover { color: #e55; background: #fde8e8; }
-
-    @media (max-width: 768px) {
-      .btn-delete-chat { display: block; color: #ccc; }
-    }
 
     /* ===== MAIN ===== */
     .main {
@@ -202,9 +190,6 @@
       line-height: 1.6;
       white-space: pre-wrap;
       word-break: break-word;
-      overflow-wrap: anywhere;
-      max-width: 100%;
-      overflow: hidden;
     }
 
     .message.user .message-bubble {
@@ -273,10 +258,6 @@
       padding: 14px 16px;
       margin-top: 8px;
       font-size: 13px;
-      overflow-wrap: anywhere;
-      word-break: break-word;
-      max-width: 100%;
-      overflow: hidden;
     }
 
     .order-card .order-title {
@@ -298,6 +279,20 @@
     }
 
     .order-card .order-link:hover { background: #6a4aad; }
+
+    .edit-order-banner {
+      background: #fff3cd;
+      border: 1px solid #ffc107;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 13px;
+      color: #856404;
+      margin-bottom: 8px;
+    }
+
+    .edit-item-deleted { text-decoration: line-through; color: #ccc; }
+    .edit-item-modified { color: #7c5cbf; font-weight: 500; }
+    .edit-item-new { color: #28a745; font-weight: 500; }
 
     .order-card pre {
       background: #f8f4ff;
@@ -475,139 +470,209 @@
 
     /* ===== MOBILE HAMBURGER ===== */
     .btn-hamburger {
-      display: none;
-      background: none;
-      border: none;
-      font-size: 22px;
-      cursor: pointer;
-      color: #00354E;
-      padding: 6px;
-      z-index: 1001;
+      display: none; background: none; border: none; font-size: 22px;
+      cursor: pointer; color: #00354E; padding: 6px; z-index: 1001;
     }
-
     .sidebar-overlay {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.4);
-      z-index: 999;
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 999;
     }
-
+    .sidebar-overlay.open { display: block; }
     .btn-close-sidebar {
-      display: none;
-      background: none;
-      border: none;
-      font-size: 28px;
-      color: #888;
-      cursor: pointer;
-      padding: 0 4px;
-      line-height: 1;
+      display: none; background: none; border: none; font-size: 28px;
+      color: #888; cursor: pointer; padding: 0 4px; line-height: 1;
     }
 
-    .btn-close-sidebar:hover { color: #333; }
-
-    /* ===== RESPONSIVE MOBILE ===== */
     @media (max-width: 768px) {
       .sidebar {
-        position: fixed;
-        left: 0;
-        top: 0;
-        bottom: 0;
-        z-index: 1000;
-        transform: translateX(-100%);
-        transition: transform 0.25s ease;
+        position: fixed; left: 0; top: 0; bottom: 0; z-index: 1000;
+        transform: translateX(-100%); transition: transform 0.25s ease;
         box-shadow: 2px 0 12px rgba(0,0,0,0.15);
       }
-
-      .sidebar.open {
-        transform: translateX(0);
-      }
-
-      .sidebar-overlay.open {
-        display: block;
-      }
-
-      .btn-hamburger {
-        display: flex;
-        align-items: center;
-      }
-
-      .btn-close-sidebar {
-        display: block;
-      }
-
-      .topbar {
-        justify-content: space-between;
-        padding: 8px 14px;
-      }
-
-      .messages {
-        padding: 8px 14px;
-      }
-
-      .empty-state {
-        justify-content: flex-end;
-        padding-bottom: 30px;
-      }
-
-      .message {
-        max-width: 90%;
-      }
-
-      .input-bar-wrap {
-        padding: 8px 10px 14px;
-      }
-
-      .input-bar {
-        max-width: 100%;
-      }
-
-      .preview-wrap {
-        max-width: 100%;
-      }
-
-      .message-image {
-        max-width: 200px;
-      }
-
-      .input-text {
-        font-size: 16px;
-      }
+      .sidebar.open { transform: translateX(0); }
+      .btn-hamburger { display: flex; align-items: center; }
+      .btn-close-sidebar { display: block; }
+      .topbar { justify-content: space-between; padding: 10px 14px; }
+      .messages { padding: 12px 14px; }
+      .message { max-width: 90%; }
+      .input-bar-wrap { padding: 10px 10px 14px; }
+      .input-bar { max-width: 100%; }
+      .input-text { font-size: 16px; }
+      .btn-delete-chat { display: block; color: #ccc; }
+      .btn-delete-chat { display: block; color: #ccc; }
     }
 
-    /* Pull to refresh */
-    .ptr-indicator {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 0;
-      background: linear-gradient(180deg, #e8d8ff 0%, transparent 100%);
+    /* ===== CART PANEL ===== */
+    .cart-panel {
+      background: #f3eeff;
+      border-radius: 16px;
+      max-height: 45vh;
+      overflow-y: auto;
+      padding: 18px 20px;
+    }
+
+    .cart-header {
       display: flex;
+      justify-content: space-between;
       align-items: center;
-      justify-content: center;
-      overflow: hidden;
-      z-index: 9999;
-      transition: height 0.2s;
-      font-size: 13px;
-      color: #7c5cbf;
-      font-weight: 500;
+      margin-bottom: 12px;
+      padding: 0 12px;
     }
+
+    .cart-title { font-size: 15px; font-weight: 600; color: #00354E; }
+    .cart-total { font-size: 15px; font-weight: 600; color: #7c5cbf; }
+
+    .cart-cards { display: flex; flex-direction: column; gap: 12px; padding: 0 6px; }
+
+    .cart-card {
+      background: #f9f7ff;
+      border: 1px solid #e8d8ff;
+      border-radius: 12px;
+      padding: 14px 16px;
+      position: relative;
+    }
+
+    .cart-card-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .cart-card-name { font-weight: 600; font-size: 14px; color: #333; flex: 1; min-width: 0; }
+    .cart-card-thumb {
+      width: 50px; height: 50px; object-fit: cover; border-radius: 8px;
+      border: 1px solid #e8d8ff; flex-shrink: 0;
+    }
+
+    .cart-card-num { font-size: 13px; color: #7c5cbf; font-weight: 600; min-width: 20px; display: flex; align-items: center; }
+
+    .cart-card-fields {
+      display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; font-size: 13px; color: #555;
+    }
+
+    .cart-field {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: #fff; border: 1px solid #e0d8f0; border-radius: 6px;
+      padding: 3px 8px; cursor: pointer; transition: border-color 0.2s;
+    }
+
+    .cart-field:hover { border-color: #7c5cbf; }
+    .cart-field-label { font-size: 11px; color: #999; }
+    .cart-field-label::after { content: ':'; }
+    .cart-field-value { font-size: 13px; color: #333; }
+
+    .cart-field input {
+      border: none; outline: none; font-size: 13px; width: 60px; background: transparent; color: #7c5cbf;
+    }
+
+    .cart-field-link { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    .cart-card-vars {
+      display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px;
+    }
+
+    .cart-var-chip {
+      font-size: 12px; background: #f0eaff; color: #555;
+      padding: 2px 8px; border-radius: 4px; cursor: pointer; border: 1px solid transparent;
+    }
+
+    .cart-var-chip:hover { border-color: #7c5cbf; }
+
+    .cart-card-delete {
+      position: absolute; top: 8px; right: 8px;
+      background: none; border: none; color: #bbb; font-size: 14px;
+      cursor: pointer; padding: 4px; border-radius: 6px; transition: color 0.2s, background 0.2s;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .cart-card-delete:hover { color: #e55; background: #fde8e8; }
+    .cart-card-delete svg { width: 16px; height: 16px; fill: currentColor; }
+
+    /* Mobile compact cart */
+    .cart-card-details { }
+    .cart-card-compact { display: none; }
+    .cart-card-expand-btn { display: none; }
+
+    @media (max-width: 768px) {
+      .cart-card-compact {
+        display: flex; align-items: center; gap: 8px; cursor: pointer;
+      }
+      .cart-card-compact-name {
+        flex: 1; font-size: 13px; font-weight: 500; color: #333;
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      }
+      .cart-card-compact-price { font-size: 13px; font-weight: 600; color: #7c5cbf; white-space: nowrap; }
+      .cart-card-compact-arrow { font-size: 12px; color: #aaa; transition: transform 0.2s; }
+      .cart-card.expanded .cart-card-compact-arrow { transform: rotate(180deg); }
+      .cart-card-details { display: none; }
+      .cart-card.expanded .cart-card-details { display: block; margin-top: 8px; }
+      .cart-card-delete { top: auto; bottom: 8px; right: 8px; }
+      .cart-panel { padding: 12px 10px; max-width: 100%; overflow: hidden; }
+      .cart-card { padding: 10px 12px; max-width: 100%; overflow: hidden; }
+      .cart-card-thumb { width: 36px; height: 36px; }
+      .cart-card-fields { font-size: 12px; }
+      .cart-field { max-width: 100%; }
+      .cart-field-value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px; }
+      .cart-header { font-size: 13px; }
+      .cart-actions { flex-wrap: wrap; gap: 8px; padding: 0 4px; }
+      .cart-btn { padding: 8px 14px; font-size: 13px; }
+    }
+
+    .cart-actions {
+      display: flex; gap: 10px; margin-top: 14px; justify-content: flex-end; padding: 0 12px;
+    }
+
+    .cart-btn {
+      border: none; border-radius: 8px; padding: 10px 20px;
+      font-size: 14px; cursor: pointer; font-weight: 500;
+    }
+
+    .cart-btn-order { background: #7c5cbf; color: #fff; }
+    .cart-btn-order:hover { background: #6a4aad; }
+    .cart-btn-clear { background: #f0f0f0; color: #666; }
+    .cart-btn-clear:hover { background: #e0e0e0; }
+
+    .cart-sale-row {
+      display: flex; align-items: center; gap: 8px; margin-top: 8px;
+      font-size: 13px; color: #555;
+    }
+
+    .cart-sale-input {
+      width: 50px; border: 1px solid #ddd; border-radius: 4px;
+      padding: 3px 6px; font-size: 13px; text-align: center;
+    }
+
+    /* ===== EDIT MODAL ===== */
+    .edit-modal-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+      z-index: 2000; align-items: center; justify-content: center;
+    }
+    .edit-modal-overlay.show { display: flex; }
+    .edit-modal {
+      background: #fff; border-radius: 14px; padding: 24px; width: 90%; max-width: 360px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    }
+    .edit-modal-title {
+      font-size: 15px; font-weight: 600; color: #00354E; margin-bottom: 16px;
+    }
+    .edit-modal-input {
+      width: 100%; padding: 10px 14px; border: 1.5px solid #ddd; border-radius: 8px;
+      font-size: 15px; outline: none; transition: border-color 0.2s;
+    }
+    .edit-modal-input:focus { border-color: #7c5cbf; }
+    .edit-modal-btns {
+      display: flex; gap: 10px; margin-top: 16px; justify-content: flex-end;
+    }
+    .edit-modal-btn {
+      padding: 8px 20px; border-radius: 8px; border: none; font-size: 14px;
+      cursor: pointer; font-weight: 500;
+    }
+    .edit-modal-btn-cancel { background: #f0f0f0; color: #666; }
+    .edit-modal-btn-cancel:hover { background: #e0e0e0; }
+    .edit-modal-btn-save { background: #7c5cbf; color: #fff; }
+    .edit-modal-btn-save:hover { background: #6a4aad; }
+    .edit-modal-btn-danger { background: #e55; color: #fff; }
+    .edit-modal-btn-danger:hover { background: #d33; }
+    .confirm-modal-text { font-size: 14px; color: #555; line-height: 1.5; }
   </style>
 </head>
 <body>
-<script>
-  // Set exact viewport height for all platforms (Android + iOS PWA)
-  function setAppHeight() {
-    document.body.style.height = window.innerHeight + 'px';
-  }
-  setAppHeight();
-  window.addEventListener('resize', setAppHeight);
-</script>
 
-<div class="ptr-indicator" id="ptrIndicator"></div>
-
-<!-- SIDEBAR OVERLAY (mobile) -->
+<!-- SIDEBAR OVERLAY -->
 <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
 
 <!-- SIDEBAR -->
@@ -687,7 +752,7 @@
   // ===== AUTH CHECK =====
   const sessionUser = JSON.parse(localStorage.getItem('ai_chat_user') || sessionStorage.getItem('ai_chat_user') || 'null');
   if (!sessionUser) {
-    window.location.replace('login.html');
+    window.location.href = 'login.html';
   } else {
     document.querySelector('.sidebar-welcome').textContent = 'Welcome, ' + sessionUser.name;
   }
@@ -709,16 +774,16 @@
   }
 
 
+
   // ===== STATE =====
   let sessions = [];
   let activeSessionId = null;
   let selectedFiles = [];
   let isLoading = false;
 
-  // ===== LOCAL STORAGE =====
+  // ===== LOCAL STORAGE + SERVER SYNC =====
   const LS_SESSIONS_KEY = 'ai_chat_sessions_v1';
-
-  let _syncTimer = null;
+  var _syncTimer = null;
 
   function sanitizeForServer(sessions) {
     return sessions.map(s => ({
@@ -747,19 +812,16 @@
       if (!data.success || !Array.isArray(data.data)) return;
       const serverSessions = data.data;
       if (serverSessions.length === 0 && sessions.length > 0) {
-        // Local has data, server empty → push local to server
         syncSessionsToServer();
         return;
       }
       if (serverSessions.length > 0) {
-        // Merge: server is source of truth, add local-only sessions
         const serverIds = new Set(serverSessions.map(s => s.id));
         const localOnly = sessions.filter(s => !serverIds.has(s.id));
         sessions = [...serverSessions, ...localOnly].map(s => ({ ...s, cartImages: s.cartImages || [] }));
         renderHistory();
         if (sessions.length && !activeSessionId) selectSession(sessions[0].id);
         else if (activeSessionId) renderMessages();
-        // Save merged back
         try { localStorage.setItem(LS_SESSIONS_KEY, JSON.stringify(sanitizeForServer(sessions))); } catch {}
         if (localOnly.length > 0) syncSessionsToServer();
       }
@@ -786,7 +848,6 @@
         localStorage.setItem(LS_SESSIONS_KEY, JSON.stringify(toSave));
       } catch {}
     }
-    // Debounced server sync
     clearTimeout(_syncTimer);
     _syncTimer = setTimeout(() => syncSessionsToServer(), 2000);
   }
@@ -887,10 +948,14 @@
     if (!session) return;
     if (session.state === 'INIT') {
       hint.textContent = 'Nhập số điện thoại khách hàng để bắt đầu';
+    } else if (session.state === 'EDITING_ORDER') {
+      hint.textContent = 'sửa N | xóa N | upload ảnh+link | "cập nhật đơn" | "hủy chỉnh sửa"';
     } else if (session.state === 'WAITING_IMAGE') {
-      hint.textContent = 'Upload ảnh giỏ hàng + links | "xem giỏ hàng" | "tạo đơn"';
+      hint.textContent = 'Upload ảnh giỏ hàng + link sản phẩm';
+    } else if (session.state === 'DONE') {
+      hint.textContent = 'Bấm "Tạo đơn mới" | "Chỉnh sửa đơn" | "Hủy đơn hàng" ở ô phía trên';
     } else {
-      hint.textContent = 'Nhấn New Chat để tạo đơn hàng mới';
+      hint.textContent = '';
     }
   }
 
@@ -920,10 +985,16 @@
         </div>
       `;
     } else {
+      // Cart view — render interactive cards inline
+      if (m.editOrderView) {
+        return `<div class="message ai" style="max-width:100%;width:100%"><div id="inlineEditOrder">${buildInlineEditOrderHtml()}</div></div>`;
+      }
+      if (m.cartView) {
+        return `<div class="message ai" style="max-width:100%;width:100%"><div id="inlineCart">${buildInlineCartHtml()}</div></div>`;
+      }
       return `
         <div class="message ai">
           <div class="message-bubble" style="white-space:pre-wrap">${escapeHtml(m.text)}</div>
-          ${m.htmlContent ? `<div class="message-html">${m.htmlContent}</div>` : ''}
           ${m.orderData ? renderOrderCard(m.orderData) : ''}
         </div>
       `;
@@ -934,15 +1005,330 @@
     const items = (data.items || []).map(i =>
       `  • ${i.name} x${i.quantity || 1}${i.price ? ' — ' + formatPrice(i) : ''}`
     ).join('\n');
+    const code = data.orderCode || '';
     return `
       <div class="order-card">
-        <div class="order-title">Đơn hàng đã tạo — ${data.orderCode || ''}</div>
+        <div class="order-title">${data.title || 'Đơn hàng đã tạo'} — ${code}</div>
         <pre>${items}</pre>
-        <a class="order-link" href="${data.order_url || '#'}" target="_blank">
-          Xem đơn hàng &rarr;
-        </a>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+          <a class="order-link" href="${data.order_url || '#'}" target="_blank">Xem đơn hàng &rarr;</a>
+          <button class="order-link" style="border:none;cursor:pointer" onclick="enterEditOrder('${code}')">Chỉnh sửa đơn</button>
+          <button class="order-link" style="border:none;cursor:pointer;background:#e55" onclick="cancelOrder('${code}')">Hủy đơn hàng</button>
+          <button class="order-link" style="border:none;cursor:pointer;background:#28a745" onclick="startNewOrder()">Tạo đơn mới</button>
+        </div>
       </div>
     `;
+  }
+
+  // ===== EDIT ORDER MODE =====
+  function startNewOrder() {
+    const session = getActiveSession();
+    if (!session) return;
+    invalidateOldCarts();
+    session.state = 'WAITING_IMAGE';
+    session.items = [];
+    session.salePct = 0;
+    saveSessions();
+    updateHint();
+    addMessage('ai', `Bắt đầu tạo đơn mới cho ${session.customer?.name || 'khách hàng'}. Vui lòng upload ảnh giỏ hàng kèm link sản phẩm.`);
+  }
+
+  async function enterEditOrder(orderCode) {
+    const session = getActiveSession();
+    if (!session) return;
+    showTyping();
+    try {
+      const res = await fetch(`${API_BASE}/api/get-order?order_code=${orderCode}`, { headers: getAuthHeaders() });
+      const data = await res.json();
+      removeTyping();
+      if (!data.success) {
+        addMessage('ai', `Không thể tải đơn hàng ${orderCode}: ${translateError(data.message)}`);
+        return;
+      }
+      const orderItems = (data.data.items || []).map(item => ({
+        ...item,
+        variations: (item.variations || []).map(v => ({ ...v })),
+        _original: { ...item, variations: (item.variations || []).map(v => ({ ...v })) },
+        _status: 'unchanged',
+      }));
+      session.editingOrder = {
+        orderCode,
+        items: orderItems,
+        deleteIds: [],
+        addItems: [],
+        updateItems: [],
+      };
+      session.state = 'EDITING_ORDER';
+      saveSessions();
+      updateHint();
+      ensureEditOrderMessage();
+    } catch (err) {
+      removeTyping();
+      addMessage('ai', `Lỗi kết nối: ${err.message}`);
+    }
+  }
+
+  async function cancelOrder(orderCode) {
+    if (!confirm(`Xác nhận hủy đơn hàng ${orderCode}?`)) return;
+    const session = getActiveSession();
+    if (!session) return;
+    showTyping();
+    try {
+      const res = await fetch(`${API_BASE}/api/cancel-order`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify({ order_code: orderCode }),
+      });
+      const data = await res.json();
+      removeTyping();
+      if (data.success) {
+        session.state = 'DONE';
+        session.items = [];
+        session.salePct = 0;
+        saveSessions();
+        updateHint();
+        addMessage('ai', `✅ Đã hủy đơn hàng ${orderCode}.\n\nBấm "Tạo đơn mới" để tiếp tục.`);
+      } else {
+        addMessage('ai', `❌ Không thể hủy: ${translateError(data.message || (data.errors || []).join(', '))}`);
+      }
+    } catch (err) {
+      removeTyping();
+      addMessage('ai', `Lỗi: ${err.message}`);
+    }
+  }
+
+  function buildInlineEditOrderHtml() {
+    const session = getActiveSession();
+    if (!session || !session.editingOrder) return '';
+    const editing = session.editingOrder;
+    const allItems = [...editing.items, ...editing.addItems.map(item => ({ ...item, _status: 'new' }))];
+    const cards = allItems.map((item, i) => {
+      const isOrig = i < editing.items.length;
+      const status = item._status || 'unchanged';
+      const opacity = status === 'deleted' ? 'opacity:0.4;' : '';
+      const badge = status === 'deleted' ? ' ❌' : status === 'modified' ? ' ✏️' : status === 'new' ? ' 🆕' : '';
+      const vars = (item.variations || []).map((v, vi) =>
+        `<span class="cart-field" ${isOrig && status !== 'deleted' ? `onclick="editOrderItemField(${i},'var',${vi})"` : ''}>
+          <span class="cart-field-label">${escapeHtml(v.name)}</span>
+          <span class="cart-field-value">${escapeHtml(v.value)}</span>
+        </span>`
+      ).join('');
+      const priceShow = item.price ? '$' + item.price : '';
+      const linkShow = item.link ? item.link.substring(0, 35) + '...' : '⚠️ chưa có link';
+      const thumbSrc = item.thumb || (item.image_path ? (item.image_path.startsWith('http') ? item.image_path : 'https://basso.vn' + item.image_path) : '');
+      const thumbHtml = thumbSrc ? `<img class="cart-card-thumb" src="${thumbSrc}" />` : '';
+      const shortName = item.name.length > 30 ? item.name.substring(0, 30) + '...' : item.name;
+      return `<div class="cart-card" style="${opacity}" id="editCard${i}">
+        <div class="cart-card-compact" onclick="toggleCardExpand(${i},'editCard')">
+          <span class="cart-card-num">${i+1}.${badge}</span>
+          ${thumbHtml}
+          <span class="cart-card-compact-name">${escapeHtml(shortName)}</span>
+          <span class="cart-card-compact-price">${priceShow}</span>
+          <span class="cart-card-compact-arrow">▼</span>
+        </div>
+        <div class="cart-card-details">
+          <div class="cart-card-fields" style="margin-top:0">
+            <span class="cart-field" ${isOrig && status !== 'deleted' ? `onclick="editOrderItemField(${i},'name')"` : ''} style="flex:1;min-width:0;margin-right:28px">
+              <span class="cart-field-label">Tên</span>
+              <span class="cart-field-value" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(item.name)}</span>
+            </span>
+          </div>
+          <div class="cart-card-fields">
+            <span class="cart-field" ${isOrig && status !== 'deleted' ? `onclick="editOrderItemField(${i},'quantity')"` : ''}>
+              <span class="cart-field-label">Qty</span>
+              <span class="cart-field-value">${item.quantity || 1}</span>
+            </span>
+            <span class="cart-field" ${isOrig && status !== 'deleted' ? `onclick="editOrderItemField(${i},'price')"` : ''}>
+              <span class="cart-field-label">Giá</span>
+              <span class="cart-field-value">${priceShow}</span>
+            </span>
+            <span class="cart-field" ${isOrig && status !== 'deleted' ? `onclick="editOrderItemField(${i},'link')"` : ''} style="flex:1;min-width:0">
+              <span class="cart-field-label">Link</span>
+              <span class="cart-field-value" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(linkShow)}</span>
+            </span>
+            ${vars}
+          </div>
+          ${status !== 'deleted' ? `<button class="cart-card-delete" onclick="markDeleteOrderItem(${i})" title="Xóa"><svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>` : `<button class="cart-card-delete" onclick="unmarkDeleteOrderItem(${i})" title="Hoàn tác" style="color:#28a745">↩</button>`}
+        </div>
+      </div>`;
+    }).join('');
+
+    return `
+      <div class="cart-panel" style="display:block;border:none;max-height:none;padding:8px 0;">
+        <div class="cart-header">
+          <span class="cart-title">Chỉnh sửa đơn ${editing.orderCode}</span>
+        </div>
+        <div class="cart-cards">${cards}</div>
+        <div class="cart-actions" style="justify-content:space-between">
+          <button class="cart-btn" style="background:#f0f0f0;color:#666" onclick="cancelEditOrderUI()">Hủy chỉnh sửa</button>
+          <button class="cart-btn cart-btn-order" onclick="submitOrderUpdate(getActiveSession())">Cập nhật đơn</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderEditOrder() {
+    const el = document.getElementById('inlineEditOrder');
+    if (el) el.innerHTML = buildInlineEditOrderHtml();
+  }
+
+  function ensureEditOrderMessage() {
+    const session = getActiveSession();
+    if (!session) return;
+    session.messages = session.messages.filter(m => !m.editOrderView);
+    session.messages.push({ role: 'ai', text: '', editOrderView: true, timestamp: Date.now() });
+    renderMessages();
+    saveSessions();
+  }
+
+  function editOrderItemField(idx, field, varIdx) {
+    const session = getActiveSession();
+    if (!session || !session.editingOrder) return;
+    const editing = session.editingOrder;
+    const isOrig = idx < editing.items.length;
+    const item = isOrig ? editing.items[idx] : editing.addItems[idx - editing.items.length];
+    let currentVal, label;
+    if (field === 'var') {
+      const v = item.variations[varIdx];
+      label = v.name; currentVal = v.value;
+    } else if (field === 'name') {
+      label = 'Tên'; currentVal = item.name;
+    } else if (field === 'quantity') {
+      label = 'Số lượng'; currentVal = item.quantity || 1;
+    } else if (field === 'price') {
+      label = 'Giá'; currentVal = item.price || 0;
+    } else if (field === 'link') {
+      label = 'Link'; currentVal = item.link || '';
+    }
+    openEditModal(`Sửa ${label} (#${idx+1})`, currentVal, (newVal) => {
+      if (field === 'var') item.variations[varIdx].value = newVal;
+      else if (field === 'name') item.name = newVal;
+      else if (field === 'quantity') item.quantity = parseInt(newVal) || 1;
+      else if (field === 'price') item.price = parseFloat(newVal) || 0;
+      else if (field === 'link') item.link = newVal;
+      if (isOrig) item._status = 'modified';
+      saveSessions();
+      renderEditOrder();
+    });
+  }
+
+  function markDeleteOrderItem(idx) {
+    const session = getActiveSession();
+    if (!session || !session.editingOrder) return;
+    const editing = session.editingOrder;
+    if (idx < editing.items.length) {
+      editing.items[idx]._status = 'deleted';
+    } else {
+      editing.addItems.splice(idx - editing.items.length, 1);
+    }
+    saveSessions();
+    renderEditOrder();
+  }
+
+  function unmarkDeleteOrderItem(idx) {
+    const session = getActiveSession();
+    if (!session || !session.editingOrder) return;
+    editing = session.editingOrder;
+    if (idx < editing.items.length) editing.items[idx]._status = 'unchanged';
+    saveSessions();
+    renderEditOrder();
+  }
+
+  function cancelEditOrderUI() {
+    const session = getActiveSession();
+    if (!session || !session.editingOrder) return;
+    const orderCode = session.editingOrder.orderCode;
+    session.state = 'DONE';
+    session.items = [];
+    session.salePct = 0;
+    delete session.editingOrder;
+    session.messages = session.messages.filter(m => !m.editOrderView);
+    saveSessions();
+    updateHint();
+    addMessage('ai', `Đã thoát chỉnh sửa đơn ${orderCode}.`);
+  }
+
+  async function submitOrderUpdate(session) {
+    const editing = session.editingOrder;
+    if (!editing) return;
+    const deleteIds = editing.items.filter(i => i._status === 'deleted').map(i => i.id);
+    const updateItems = editing.items.filter(i => i._status === 'modified').map(i => {
+      const upd = { id: i.id };
+      const orig = i._original;
+      if (i.name !== orig.name) upd.name = i.name;
+      if (i.quantity !== orig.quantity) upd.quantity = i.quantity;
+      if (i.price !== orig.price) upd.price = i.price;
+      if (i.link !== orig.link) upd.link = i.link;
+      if (JSON.stringify(i.variations) !== JSON.stringify(orig.variations)) {
+        upd.variations = i.variations || [];
+      }
+      return upd;
+    });
+    const addItems = editing.addItems.map(i => ({
+      name: i.name,
+      link: i.link || '',
+      quantity: i.quantity || 1,
+      price: i.price || 0,
+      variations: i.variations || [],
+      ...(i.image_id ? { image_id: i.image_id } : {}),
+    }));
+
+    if (deleteIds.length === 0 && updateItems.length === 0 && addItems.length === 0) {
+      addMessage('ai', 'Không có thay đổi nào để cập nhật.');
+      return;
+    }
+
+    try {
+      const body = { order_code: editing.orderCode };
+      if (deleteIds.length > 0) body.delete_item_ids = deleteIds;
+      if (updateItems.length > 0) body.update_items = updateItems;
+      if (addItems.length > 0) body.add_items = addItems;
+
+      const res = await fetch(`${API_BASE}/api/update-order`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      removeTyping();
+      if (data.success) {
+        const orderCode = editing.orderCode;
+        const summary = [
+          deleteIds.length > 0 ? `🗑️ Xóa ${deleteIds.length} SP` : '',
+          updateItems.length > 0 ? `✏️ Sửa ${updateItems.length} SP` : '',
+          addItems.length > 0 ? `➕ Thêm ${addItems.length} SP` : '',
+        ].filter(Boolean).join(', ');
+        session.state = 'DONE';
+        session.items = [];
+        session.salePct = 0;
+        delete session.editingOrder;
+        saveSessions();
+        // Gọi getOrderByCode để lấy danh sách SP chính xác từ Basso
+        let orderItems = [];
+        let orderId = data.data?.order?.id || '';
+        try {
+          const orderRes = await fetch(`${API_BASE}/api/get-order?order_code=${orderCode}`, { headers: getAuthHeaders() });
+          const orderData = await orderRes.json();
+          if (orderData.success) {
+            orderItems = orderData.data.items || [];
+            orderId = orderData.data.order?.id || orderId;
+          }
+        } catch {}
+        addMessage('ai', `✅ Đã cập nhật đơn ${orderCode}: ${summary}\n\nBấm "Tạo đơn mới" để tiếp tục.`, {
+          orderData: {
+            title: 'Đã cập nhật đơn',
+            orderCode,
+            items: orderItems,
+            order_url: `https://basso.vn/basso/customer_order/detail/${orderId}`,
+          }
+        });
+      } else {
+        addMessage('ai', `❌ Cập nhật thất bại: ${translateError(data.message || (data.errors || []).join(', '))}`);
+      }
+    } catch (err) {
+      removeTyping();
+      addMessage('ai', `Lỗi: ${err.message}`);
+    }
   }
 
   function addMessage(role, text, extra = {}) {
@@ -1035,15 +1421,10 @@
   });
 
   // ===== SEND =====
-  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-
   function handleKey(e) {
-    if (e.key === 'Enter' && !e.isComposing) {
-      if (isMobile) return; // Mobile: Enter = xuống dòng, gửi bằng nút
-      if (!e.shiftKey) {
-        e.preventDefault();
-        sendMessage();
-      }
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
+      e.preventDefault();
+      sendMessage();
     }
   }
 
@@ -1180,6 +1561,67 @@
       }
     }
 
+    // ===== ĐÃ XONG — CHỈ CHO THAO TÁC QUA BUTTON =====
+    if (session.state === 'DONE') {
+      removeTyping();
+      addMessage('ai', 'Vui lòng bấm "Tạo đơn mới" ở ô đơn hàng phía trên để tiếp tục, hoặc chọn "Chỉnh sửa đơn" / "Hủy đơn hàng".');
+      return;
+    }
+
+    // ===== CHỈNH SỬA ĐƠN HÀNG =====
+    if (session.state === 'EDITING_ORDER' && session.editingOrder) {
+      const editing = session.editingOrder;
+
+      // Upload ảnh → thêm SP mới vào đơn
+      if (file) {
+        const links = extractLinks(text);
+        const analyzeForm = new FormData();
+        analyzeForm.append('image', file);
+        analyzeForm.append('links', links.join('\n'));
+        const analyzeRes = await fetch(`${API_BASE}/api/analyze-image`, { method: 'POST', headers: getAuthHeaders(), body: analyzeForm });
+        const analyzeData = await analyzeRes.json();
+        if (!analyzeData.success) {
+          removeTyping();
+          addMessage('ai', 'Không thể phân tích ảnh. Vui lòng thử lại.');
+          return;
+        }
+        const newItems = (analyzeData.data.items || []).map(item => ({ ...item }));
+        try {
+          const extractForm = new FormData();
+          extractForm.append('image', file);
+          const extractRes = await fetch(`${API_BASE}/api/extract-product-images`, { method: 'POST', headers: getAuthHeaders(), body: extractForm });
+          const extractData = await extractRes.json();
+          if (extractData.success && extractData.data.products?.length > 0) {
+            const cropped = await cropProductImages(file, extractData.data.products);
+            await Promise.all(cropped.map(async (dataUrl, i) => {
+              if (i >= newItems.length) return;
+              newItems[i].thumb = dataUrl;
+              try {
+                const blob = await (await fetch(dataUrl)).blob();
+                const imgFile = new File([blob], `product_${i + 1}.jpg`, { type: 'image/jpeg' });
+                const uploadForm = new FormData();
+                uploadForm.append('file', imgFile);
+                const uploadRes = await fetch(`${API_BASE}/api/upload-image`, { method: 'POST', headers: getAuthHeaders(), body: uploadForm });
+                const uploadData = await uploadRes.json();
+                if (uploadData.success && uploadData.data.id) newItems[i].image_id = uploadData.data.id;
+              } catch (e) { console.error('[upload-image] error:', e.message); }
+            }));
+          }
+        } catch (e) { console.error('[extract-product-images] error:', e.message); }
+        editing.addItems.push(...newItems);
+        saveSessions();
+        removeTyping();
+        addMessage('ai', `Đã thêm ${newItems.length} SP mới.`);
+        renderEditOrder();
+        return;
+      }
+
+      // Text input khi đang edit → hướng dẫn dùng card UI
+      removeTyping();
+      addMessage('ai', 'Chỉnh sửa trực tiếp trên các thẻ sản phẩm phía trên. Upload ảnh + link để thêm SP mới.');
+      return;
+    }
+
     // ===== BƯỚC 1: Tìm khách hàng =====
     if (session.state === 'INIT') {
       const phone = extractPhone(text);
@@ -1215,175 +1657,9 @@
     // ===== BƯỚC 2: Thêm sản phẩm từ ảnh =====
     if (session.state === 'WAITING_IMAGE') {
 
-      // Lệnh giảm giá: "giảm 20%", "sale 20%", "off 20%", "bỏ giảm giá"
-      if (!file) {
-        const cancelSale = /bỏ\s*giảm\s*giá|bo\s*giam\s*gia|reset\s*sale/i.test(text) || /bỏ\s*sale(?!\s*#?\d)/i.test(text);
-        const saleMatch = text.match(/(?:giảm(?:\s*giá)?|giam(?:\s*gia)?|sale|off|discount)\s*(\d+(?:\.\d+)?)\s*%/i);
-        if (cancelSale) {
-          session.salePct = 0;
-          removeTyping();
-          addMessage('ai', `✅ Đã bỏ giảm giá. Giá gốc được áp dụng.\n\n` + renderCartSummary(session));
-          return;
-        }
-        if (saleMatch) {
-          session.salePct = parseFloat(saleMatch[1]);
-          removeTyping();
-          addMessage('ai', `✅ Đã áp dụng giảm giá ${session.salePct}% cho tất cả sản phẩm.\n\n` + renderCartSummary(session));
-          return;
-        }
-        // Bỏ sale item riêng lẻ: "bỏ sale #2", "miễn sale #2"
-        const noSaleMatch = text.match(/(?:bỏ\s*sale|bo\s*sale|miễn\s*sale|mien\s*sale)\s*#?(\d+)/i);
-        if (noSaleMatch) {
-          const idx = parseInt(noSaleMatch[1]) - 1;
-          if (idx < 0 || idx >= session.items.length) {
-            removeTyping();
-            addMessage('ai', `Không tìm thấy sản phẩm #${idx + 1}.`);
-            return;
-          }
-          session.items[idx].noSale = true;
-          delete session.items[idx].itemSalePct;
-          removeTyping();
-          addMessage('ai', `✅ Đã bỏ sale cho #${idx + 1}: ${session.items[idx].name}.\n\n` + renderCartSummary(session));
-          return;
-        }
-        // Áp sale riêng cho item: "sale #2 30%", "giảm #2 15%", "áp sale #2 25%"
-        const itemSaleMatch = text.match(/(?:sale|giảm(?:\s*giá)?|giam(?:\s*gia)?|áp\s*sale|ap\s*sale|off|discount)\s*#?(\d+)\s+(\d+(?:\.\d+)?)\s*%/i);
-        if (itemSaleMatch) {
-          const idx = parseInt(itemSaleMatch[1]) - 1;
-          const pct = parseFloat(itemSaleMatch[2]);
-          if (idx < 0 || idx >= session.items.length) {
-            removeTyping();
-            addMessage('ai', `Không tìm thấy sản phẩm #${idx + 1}.`);
-            return;
-          }
-          session.items[idx].itemSalePct = pct;
-          session.items[idx].noSale = false;
-          removeTyping();
-          addMessage('ai', `✅ Đã áp dụng sale ${pct}% riêng cho #${idx + 1}: ${session.items[idx].name}.\n\n` + renderCartSummary(session));
-          return;
-        }
-      }
-
-      // User gõ "tạo đơn" → tạo đơn luôn
-      if (!file && isTaoDon(text)) {
-        if (session.items.length === 0) {
-          removeTyping();
-          addMessage('ai', 'Chưa có sản phẩm nào. Vui lòng upload ảnh giỏ hàng trước.');
-          return;
-        }
-        await submitOrder(session);
-        return;
-      }
-
-
-      // User xem giỏ hàng
-      if (!file && isXemGio(text)) {
-        removeTyping();
-        addMessage('ai', renderCartSummary(session));
-        return;
-      }
-
-      // Xóa toàn bộ giỏ hàng
-      if (!file && /^(?:xóa\s*giỏ\s*hàng|xoa\s*gio\s*hang|xóa\s*toàn\s*bộ|xoa\s*toan\s*bo|xóa\s*hết|xoa\s*het|xóa\s*tất\s*cả|xoa\s*tat\s*ca|clear\s*bag|clear\s*cart|clear\s*all|reset\s*cart|reset\s*giỏ|làm\s*mới\s*giỏ)$/i.test(text.trim())) {
-        if (session.items.length === 0) {
-          removeTyping();
-          addMessage('ai', 'Giỏ hàng đang trống.');
-          return;
-        }
-        const count = session.items.length;
-        session.items = [];
-        session.salePct = 0;
-        saveSessions();
-        removeTyping();
-        addMessage('ai', `✅ Đã xóa toàn bộ ${count} sản phẩm khỏi giỏ hàng.`);
-        return;
-      }
-
-      // User sửa / xóa sản phẩm
-      const editCmd = !file ? parseEditCommand(text) : null;
-      if (editCmd) {
-        const n = session.items.length;
-        if (editCmd.action !== 'deleteMany' && (editCmd.index < 0 || editCmd.index >= n)) {
-          removeTyping();
-          addMessage('ai', `Không tìm thấy sản phẩm #${editCmd.index + 1}. Giỏ hàng hiện có ${n} sản phẩm.`);
-          return;
-        }
-
-        if (editCmd.action === 'deleteMany') {
-          const valid = [...new Set(editCmd.indices)].filter(i => i >= 0 && i < session.items.length).sort((a, b) => b - a);
-          if (!valid.length) {
-            removeTyping();
-            addMessage('ai', `Không tìm thấy sản phẩm nào hợp lệ để xóa.`);
-            return;
-          }
-          const names = valid.map(i => `#${i + 1} ${session.items[i].name}`).reverse();
-          valid.forEach(i => session.items.splice(i, 1));
-          removeTyping();
-          addMessage('ai', `Đã xóa ${names.length} sản phẩm: ${names.join(', ')}.\n\n` + renderCartSummary(session));
-          saveSessions();
-          return;
-        }
-
-        if (editCmd.action === 'delete') {
-          const deleted = session.items.splice(editCmd.index, 1)[0];
-          removeTyping();
-          addMessage('ai', `Đã xóa #${editCmd.index + 1}: ${deleted.name}.\n\n` + renderCartSummary(session));
-          return;
-        }
-
-        if (editCmd.action === 'edit') {
-          const item = session.items[editCmd.index];
-
-          // Sửa variation (size, color, fit, width, waist, length, ...)
-          if (editCmd.field === 'variation') {
-            item.variations = item.variations || [];
-            const existing = item.variations.find(v => v.name.toLowerCase() === editCmd.variationName.toLowerCase());
-            const oldVal = existing ? existing.value : '(chưa có)';
-            if (existing) {
-              existing.value = editCmd.value;
-            } else {
-              item.variations.push({ name: editCmd.variationName, value: editCmd.value });
-            }
-            removeTyping();
-            addMessage('ai', `✏️ Đã cập nhật #${editCmd.index + 1} ${editCmd.variationName}: "${oldVal}" → "${editCmd.value}".\n\n` + renderCartSummary(session));
-            return;
-          }
-
-          const oldVal = item[editCmd.field];
-
-          if (editCmd.field === 'quantity') {
-            const qty = parseInt(editCmd.value);
-            if (isNaN(qty) || qty < 1) {
-              removeTyping();
-              addMessage('ai', 'Số lượng không hợp lệ. Nhập số nguyên dương (ví dụ: sửa #2 qty: 3).');
-              return;
-            }
-            item.quantity = qty;
-          } else if (editCmd.field === 'price') {
-            const parsed = parsePriceInput(editCmd.value);
-            if (parsed.price === null) {
-              removeTyping();
-              addMessage('ai', 'Giá không hợp lệ. Ví dụ: sửa #2 giá: 150000 hoặc sửa #2 giá: $99.');
-              return;
-            }
-            item.price = parsed.price;
-            if (parsed.currency) item.currency = parsed.currency;
-          } else {
-            item[editCmd.field] = editCmd.value;
-          }
-
-          const newVal = editCmd.field === 'price' ? formatPrice(item) : item[editCmd.field];
-          removeTyping();
-          addMessage('ai', `✏️ Đã cập nhật #${editCmd.index + 1} ${editCmd.field}: "${oldVal}" → "${newVal}".\n\n` + renderCartSummary(session));
-          return;
-        }
-      }
-
       // User gửi link bổ sung — kích hoạt khi có ít nhất 1 URL và còn item thiếu link
-      const pendingLinks = extractLinks(text);
+      const pendingLinks = !file ? extractLinks(text) : [];
       if (!file && pendingLinks.length > 0 && session.items.some(i => !i.link)) {
-        console.log('[LINK UPDATE] links nhận được:', pendingLinks);
-        console.log('[LINK UPDATE] items trước khi update:', JSON.stringify(session.items.map(i => ({name: i.name, link: i.link}))));
         let updated = 0;
         let linkIdx = 0;
         for (const item of session.items) {
@@ -1392,9 +1668,10 @@
             updated++;
           }
         }
-        console.log('[LINK UPDATE] items sau khi update:', JSON.stringify(session.items.map(i => ({name: i.name, link: i.link}))));
+        saveSessions();
         removeTyping();
-        addMessage('ai', `Đã cập nhật ${updated} link.\n\n` + renderCartSummary(session));
+        addMessage('ai', `Đã cập nhật ${updated} link.`);
+        renderCart();
         return;
       }
 
@@ -1428,6 +1705,7 @@
             // Tự động upload từng ảnh crop lên Basso và gán image_id
             await Promise.all(cropped.map(async (dataUrl, i) => {
               if (i >= newItems.length) return;
+              newItems[i].thumb = dataUrl;
               try {
                 const blob = await (await fetch(dataUrl)).blob();
                 const imgFile = new File([blob], `product_${i + 1}.jpg`, { type: 'image/jpeg' });
@@ -1439,39 +1717,24 @@
                   newItems[i].image_id = uploadData.data.id;
                   newItems[i].image_path = uploadData.data.path;
                 }
-              } catch (e) { console.error('[upload-image] error:', e.message); }
+              } catch (e) { /* silent fail per item */ }
             }));
           }
-        } catch (e) { console.error('[extract-product-images] error:', e.message); }
+        } catch (e) { /* silent fail */ }
         session.items.push(...newItems);
 
         removeTyping();
-
-        // Hiển thị items vừa thêm
-        const newItemsText = newItems.map((item, i) => {
-          const vars = (item.variations || []).map(v => `${v.name}: ${v.value}`).join(', ');
-          const linkStatus = item.link ? item.link : '⚠️ chưa có link';
-          const imgStatus = item.image_id ? '🖼️ ảnh OK' : '📷 chưa có ảnh';
-          return `${i + 1}. ${item.name}\n   Qty: ${item.quantity} | ${formatPrice(item)}${vars ? '\n   ' + vars : ''}\n   ${imgStatus}\n   ${linkStatus}`;
-        }).join('\n\n');
-
-        const totalCount = session.items.length;
-        const totals = calcCartTotal(session.items, session.salePct || 0);
-        const totalLine = Object.keys(totals).length > 0 ? `\n💰 Tổng đơn: ${formatTotal(totals)}` : '';
-        addMessage('ai',
-          `${progressLabel ? progressLabel + ' ' : ''}Đã thêm ${newItems.length} sản phẩm:\n\n${newItemsText}\n\n─────────────────\nTổng cộng: ${totalCount} sản phẩm${totalLine}\n\nGửi thêm ảnh hoặc gõ "tạo đơn" để hoàn tất.`
-        );
+        addMessage('ai', `${progressLabel ? progressLabel + ' ' : ''}Đã thêm ${newItems.length} sản phẩm.`);
+        saveSessions();
+        ensureCartMessage();
         return;
       }
 
-      // Không match lệnh nào → hướng dẫn
+      // Không phải ảnh, không phải link → hướng dẫn
       removeTyping();
-      const hasItems = session.items.length > 0;
-      addMessage('ai', 'Bé Mon không hiểu lệnh này. Bạn có thể gõ "help" để xem hướng dẫn chi tiết.');
+      addMessage('ai', 'Vui lòng upload ảnh giỏ hàng kèm link sản phẩm. Chỉnh sửa trực tiếp trên giỏ hàng bên dưới.');
       return;
     }
-
-
 
   }
 
@@ -1535,16 +1798,16 @@
       brand: c.brand || 'shipus',
       website: extractWebsiteFromItems(session.items),
       items: JSON.stringify(session.items.map(item => {
-        const salePct = item.noSale ? 0 : (session.salePct || 0);
-        const priceAfterSale = salePct > 0
-          ? Math.round(item.price * (1 - salePct / 100) * 100) / 100
+        const pct = getItemSalePct(item, session.salePct || 0);
+        const priceAfterSale = pct > 0
+          ? Math.round(item.price * (1 - pct / 100) * 100) / 100
           : item.price || 0;
         return {
           name: item.name,
           link: item.link || '',
           quantity: item.quantity || 1,
           price_origin: item.price || 0,
-          price_discount_rate: salePct,
+          price_discount_rate: pct,
           price: priceAfterSale,
           term_id: item.term_id || 5,
           variations: item.variations || [],
@@ -1563,12 +1826,13 @@
     removeTyping();
 
     if (orderData.success) {
+      invalidateOldCarts();
       const completedItems = [...session.items];
-      session.state = 'WAITING_IMAGE';
+      session.state = 'DONE';
       session.items = [];
       session.salePct = 0;
       updateHint();
-      addMessage('ai', `Đã tạo đơn hàng thành công!\n\nCó thể tiếp tục upload ảnh giỏ hàng để tạo đơn mới cho ${session.customer.name}.`, {
+      addMessage('ai', 'Đã tạo đơn hàng thành công!\n\nBấm "Tạo đơn mới" để tiếp tục.', {
         orderData: {
           orderCode: orderData.data.orderCode,
           items: completedItems,
@@ -1577,7 +1841,7 @@
       });
     } else {
       const errMsg = orderData.message || (orderData.errors || []).join(', ');
-      addMessage('ai', `Tạo đơn thất bại: ${errMsg}`);
+      addMessage('ai', `Tạo đơn thất bại: ${translateError(errMsg)}`);
     }
   }
 
@@ -1700,8 +1964,261 @@
     const totals = calcCartTotal(session.items, salePct);
     const totalLine = Object.keys(totals).length > 0 ? `\n💰 Tổng${salePct > 0 ? ` (sau -${salePct}%)` : ''}: ${formatTotal(totals)}` : '';
     const saleHint = salePct > 0 ? `\n🏷️ Đang áp dụng giảm giá ${salePct}% toàn đơn` : '';
-    const editHint = `\n\n─────────────────\n✏️  sửa #N tên/qty/giá/link: <giá trị>\n✏️  sửa #N size/color/fit/width/...: <giá trị>\n🗑️  xóa #N\n💸  giảm N% | bỏ giảm giá | sale #N M% | bỏ sale #N`;
+    const editHint = `\n\n─────────────────\n✏️  sửa N tên/qty/giá/link: <giá trị>\n✏️  sửa N size/color/fit/width/...: <giá trị>\n🗑️  xóa N\n💸  giảm N% | bỏ giảm giá | sale #N M% | bỏ sale #N`;
     return `📦 Giỏ hàng (${session.items.length} sản phẩm):${saleHint}\n\n${lines}${warning}${totalLine}${editHint}`;
+  }
+
+  // ===== INTERACTIVE CART =====
+  function buildInlineCartHtml() {
+    const session = getActiveSession();
+    if (!session || session.items.length === 0) return '<div class="cart-panel" style="display:block;border:none;padding:8px 0;">Giỏ hàng trống.</div>';
+    const totals = calcCartTotal(session.items, session.salePct || 0);
+    const totalStr = Object.keys(totals).length > 0 ? formatTotal(totals) : '';
+    const cards = session.items.map((item, i) => renderCartCard(item, i, session)).join('');
+    return `
+      <div class="cart-panel" style="display:block;border:none;max-height:none;padding:8px 0;">
+        <div class="cart-header">
+          <span class="cart-title">Giỏ hàng (${session.items.length} sản phẩm)</span>
+          <span class="cart-total">${totalStr}</span>
+        </div>
+        <div class="cart-cards">${cards}</div>
+        <div class="cart-actions" style="justify-content:space-between">
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="cart-btn" style="background:#f0eaff;color:#7c5cbf" onclick="applySaleUI()">Giảm giá ${session.salePct ? session.salePct + '%' : ''}</button>
+            ${session.salePct > 0 ? `<button class="cart-btn" style="background:#fde8e8;color:#e55;font-size:12px" onclick="removeSaleUI()">Bỏ giảm giá</button>` : ''}
+          </div>
+          <div style="display:flex;gap:10px">
+            <button class="cart-btn cart-btn-clear" onclick="clearCartUI()">Xóa giỏ hàng</button>
+            <button class="cart-btn cart-btn-order" onclick="submitOrder(getActiveSession())">Tạo đơn</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderCart() {
+    const el = document.getElementById('inlineCart');
+    if (el) {
+      el.innerHTML = buildInlineCartHtml();
+    } else {
+      // Nếu không tìm thấy inlineCart, re-render toàn bộ messages
+      renderMessages();
+    }
+  }
+
+  function invalidateOldCarts() {
+    const session = getActiveSession();
+    if (!session) return;
+    session.messages = session.messages.filter(m => !m.cartView);
+  }
+
+  function ensureCartMessage() {
+    const session = getActiveSession();
+    if (!session) return;
+    // Luôn tạo cart message mới ở cuối
+    session.messages.push({ role: 'ai', text: '', cartView: true, timestamp: Date.now() });
+    renderMessages();
+    saveSessions();
+  }
+
+  function renderCartCard(item, i, session) {
+    const vars = (item.variations || []).map((v, vi) =>
+      `<span class="cart-field" onclick="editCartField(${i},'var',${vi})">
+        <span class="cart-field-label">${escapeHtml(v.name)}</span>
+        <span class="cart-field-value">${escapeHtml(v.value)}</span>
+      </span>`
+    ).join('');
+    const pct = getItemSalePct(item, session.salePct || 0);
+    const ep = effectivePrice(item, session.salePct || 0);
+    const priceShow = pct > 0 ? `<s>${formatPrice(item)}</s> ${formatPrice({...item, price: ep})} (-${pct}%)` : formatPrice(item);
+    const linkShow = item.link ? item.link.substring(0, 40) + (item.link.length > 40 ? '...' : '') : '⚠️ chưa có link';
+    const thumbSrc = item.thumb || (item.image_path ? (item.image_path.startsWith('http') ? item.image_path : 'https://basso.vn' + item.image_path) : '');
+      const thumbHtml = thumbSrc ? `<img class="cart-card-thumb" src="${thumbSrc}" />` : '';
+    const shortName = item.name.length > 30 ? item.name.substring(0, 30) + '...' : item.name;
+    return `<div class="cart-card" id="cartCard${i}">
+      <div class="cart-card-compact" onclick="toggleCardExpand(${i})">
+        <span class="cart-card-num">${i+1}.</span>
+        ${thumbHtml}
+        <span class="cart-card-compact-name">${escapeHtml(shortName)}</span>
+        <span class="cart-card-compact-price">${priceShow}</span>
+        <span class="cart-card-compact-arrow">▼</span>
+      </div>
+      <div class="cart-card-details">
+        <div class="cart-card-fields" style="margin-top:0">
+          <span class="cart-field" onclick="editCartField(${i},'name')" style="flex:1;min-width:0;margin-right:28px">
+            <span class="cart-field-label">Tên</span>
+            <span class="cart-field-value" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(item.name)}</span>
+          </span>
+        </div>
+        <div class="cart-card-fields">
+          <span class="cart-field" onclick="editCartField(${i},'quantity')">
+            <span class="cart-field-label">Qty</span>
+            <span class="cart-field-value">${item.quantity || 1}</span>
+          </span>
+          <span class="cart-field" onclick="editCartField(${i},'price')">
+            <span class="cart-field-label">Giá</span>
+            <span class="cart-field-value">${priceShow}</span>
+          </span>
+          <span class="cart-field" onclick="editCartField(${i},'itemSale')" style="color:${item.itemSalePct ? '#e55' : '#999'}">
+            <span class="cart-field-label">Sale</span>
+            <span class="cart-field-value">${item.noSale ? 'Miễn' : item.itemSalePct ? item.itemSalePct + '%' : '—'}</span>
+          </span>
+          ${(session.salePct > 0 && !item.noSale && !item.itemSalePct) ? `<span class="cart-field" onclick="toggleNoSale(${i})" style="color:#e55;font-size:11px;cursor:pointer"><span class="cart-field-value">Miễn sale</span></span>` : ''}
+          ${item.noSale ? `<span class="cart-field" onclick="toggleNoSale(${i})" style="color:#28a745;font-size:11px;cursor:pointer"><span class="cart-field-value">Áp sale lại</span></span>` : ''}
+          <span class="cart-field" onclick="editCartField(${i},'link')" style="flex:1;min-width:0">
+            <span class="cart-field-label">Link</span>
+            <span class="cart-field-value" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(linkShow)}</span>
+          </span>
+          ${vars}
+        </div>
+        <button class="cart-card-delete" onclick="deleteCartItem(${i})" title="Xóa"><svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>
+      </div>
+    </div>`;
+  }
+
+  let _editModalCallback = null;
+
+  function editCartField(idx, field, varIdx) {
+    const session = getActiveSession();
+    if (!session || !session.items[idx]) return;
+    const item = session.items[idx];
+    let currentVal, label;
+    if (field === 'var') {
+      const v = item.variations[varIdx];
+      label = v.name;
+      currentVal = v.value;
+    } else if (field === 'name') {
+      label = 'Tên sản phẩm'; currentVal = item.name;
+    } else if (field === 'quantity') {
+      label = 'Số lượng'; currentVal = item.quantity || 1;
+    } else if (field === 'price') {
+      label = 'Giá'; currentVal = item.price || 0;
+    } else if (field === 'itemSale') {
+      label = 'Giảm giá riêng (%)'; currentVal = item.itemSalePct || 0;
+    } else if (field === 'link') {
+      label = 'Link sản phẩm'; currentVal = item.link || '';
+    }
+    openEditModal(`Sửa ${label} (#${idx+1})`, currentVal, (newVal) => {
+      if (newVal === String(currentVal)) return;
+      if (field === 'var') {
+        item.variations[varIdx].value = newVal;
+      } else if (field === 'name') {
+        item.name = newVal;
+      } else if (field === 'quantity') {
+        item.quantity = parseInt(newVal) || 1;
+      } else if (field === 'price') {
+        item.price = parseFloat(newVal) || 0;
+      } else if (field === 'itemSale') {
+        const pct = parseFloat(newVal) || 0;
+        item.itemSalePct = pct > 0 ? pct : undefined;
+        item.noSale = false;
+      } else if (field === 'link') {
+        item.link = newVal;
+      }
+      saveSessions();
+      renderCart();
+    });
+  }
+
+  function openEditModal(title, value, callback) {
+    _editModalCallback = callback;
+    document.getElementById('editModalTitle').textContent = title;
+    const input = document.getElementById('editModalInput');
+    input.value = value;
+    document.getElementById('editModal').classList.add('show');
+    setTimeout(() => { input.focus(); input.select(); }, 100);
+  }
+
+  function closeEditModal() {
+    document.getElementById('editModal').classList.remove('show');
+    _editModalCallback = null;
+  }
+
+  function saveEditModal() {
+    const val = document.getElementById('editModalInput').value.trim();
+    if (_editModalCallback && val !== '') _editModalCallback(val);
+    closeEditModal();
+  }
+
+  // Enter to save, Escape to cancel
+  document.getElementById('editModalInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); saveEditModal(); }
+    if (e.key === 'Escape') closeEditModal();
+  });
+
+  function deleteCartItem(idx) {
+    const session = getActiveSession();
+    if (!session) return;
+    session.items.splice(idx, 1);
+    saveSessions();
+    renderCart();
+  }
+
+  var _confirmCallback = null;
+
+  function showConfirm(title, text, btnText, callback) {
+    _confirmCallback = callback;
+    document.getElementById('confirmModalTitle').textContent = title;
+    document.getElementById('confirmModalText').textContent = text;
+    document.getElementById('confirmModalBtn').textContent = btnText;
+    document.getElementById('confirmModal').classList.add('show');
+  }
+
+  function closeConfirmModal() {
+    document.getElementById('confirmModal').classList.remove('show');
+    _confirmCallback = null;
+  }
+
+  function doConfirmModal() {
+    if (_confirmCallback) _confirmCallback();
+    closeConfirmModal();
+  }
+
+  function toggleCardExpand(idx, prefix) {
+    const id = (prefix || 'cartCard') + idx;
+    const card = document.getElementById(id);
+    if (card) card.classList.toggle('expanded');
+  }
+
+  function toggleNoSale(idx) {
+    const session = getActiveSession();
+    if (!session || !session.items[idx]) return;
+    session.items[idx].noSale = !session.items[idx].noSale;
+    if (session.items[idx].noSale) delete session.items[idx].itemSalePct;
+    saveSessions();
+    renderCart();
+  }
+
+  function applySaleUI() {
+    const session = getActiveSession();
+    if (!session) return;
+    openEditModal('Giảm giá toàn đơn (%)', session.salePct || 0, (val) => {
+      const pct = parseFloat(val) || 0;
+      session.salePct = pct;
+      saveSessions();
+      renderCart();
+    });
+  }
+
+  function removeSaleUI() {
+    const session = getActiveSession();
+    if (!session) return;
+    session.salePct = 0;
+    saveSessions();
+    renderCart();
+  }
+
+  function clearCartUI() {
+    const session = getActiveSession();
+    if (!session || session.items.length === 0) return;
+    showConfirm('Xóa giỏ hàng', `Bạn có chắc muốn xóa toàn bộ ${session.items.length} sản phẩm khỏi giỏ hàng?`, 'Xóa', () => {
+      invalidateOldCarts();
+      session.items = [];
+      session.salePct = 0;
+      saveSessions();
+      renderMessages();
+      addMessage('ai', 'Đã xóa toàn bộ giỏ hàng.');
+    });
   }
 
   // ===== UTILS =====
@@ -1732,7 +2249,7 @@
   function logout() {
     localStorage.removeItem('ai_chat_user');
     sessionStorage.removeItem('ai_chat_user');
-    window.location.replace('login.html');
+    window.location.href = 'login.html';
   }
 
   function formatPrice(item) {
@@ -1806,54 +2323,65 @@
     return user && user.token ? { 'Authorization': `Bearer ${user.token}` } : {};
   }
 
+  function translateError(msg) {
+    if (!msg) return 'Lỗi không xác định';
+    const map = {
+      'Product link is required': 'Sản phẩm thiếu link',
+      'Not exist user with this id': 'Khách hàng không tồn tại',
+      'Unauthorized': 'Phiên đăng nhập hết hạn, vui lòng đăng nhập lại',
+      'Invalid or expired partner access token': 'Token hết hạn, vui lòng đăng nhập lại',
+      'Unexpected end of JSON input': 'Server không phản hồi, vui lòng thử lại',
+      'update_items: không có field hợp lệ để cập nhật': 'Không có thay đổi hợp lệ để cập nhật',
+    };
+    let result = msg;
+    for (const [en, vi] of Object.entries(map)) {
+      result = result.replace(new RegExp(en.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), vi);
+    }
+    return result;
+  }
+
   function escapeHtml(str) {
     return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
-
-  // ===== PULL TO REFRESH (PWA) =====
-  (function() {
-    let startY = 0;
-    let pulling = false;
-    const threshold = 150;
-    const deadZone = 30;
-    const resistance = 0.4;
-    const ptr = document.getElementById('ptrIndicator');
-
-    document.addEventListener('touchstart', function(e) {
-      if (window.scrollY === 0) {
-        startY = e.touches[0].clientY;
-        pulling = true;
-      }
-    }, { passive: true });
-
-    document.addEventListener('touchmove', function(e) {
-      if (!pulling) return;
-      const rawDy = e.touches[0].clientY - startY;
-      if (rawDy < deadZone) { ptr.style.height = '0'; return; }
-      const dy = Math.min((rawDy - deadZone) * resistance, 200);
-      ptr.style.height = dy + 'px';
-      ptr.textContent = dy > threshold * resistance ? 'Thả để refresh' : 'Kéo xuống để refresh';
-    }, { passive: true });
-
-    document.addEventListener('touchend', function() {
-      if (!pulling) return;
-      const h = parseInt(ptr.style.height) || 0;
-      if (h > threshold * resistance) {
-        ptr.textContent = 'Đang tải lại...';
-        ptr.style.height = '40px';
-        setTimeout(() => location.reload(), 300);
-      } else {
-        ptr.style.height = '0';
-      }
-      pulling = false;
-    });
-  })();
-
 </script>
+
+<!-- Edit Modal -->
+<div class="edit-modal-overlay" id="editModal">
+  <div class="edit-modal">
+    <div class="edit-modal-title" id="editModalTitle"></div>
+    <input class="edit-modal-input" id="editModalInput" autocomplete="off" />
+    <div class="edit-modal-btns">
+      <button class="edit-modal-btn edit-modal-btn-cancel" onclick="closeEditModal()">Hủy</button>
+      <button class="edit-modal-btn edit-modal-btn-save" onclick="saveEditModal()">Lưu</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Modal -->
+<div class="edit-modal-overlay" id="confirmModal">
+  <div class="edit-modal">
+    <div class="edit-modal-title" id="confirmModalTitle"></div>
+    <div class="confirm-modal-text" id="confirmModalText"></div>
+    <div class="edit-modal-btns">
+      <button class="edit-modal-btn edit-modal-btn-cancel" onclick="closeConfirmModal()">Không</button>
+      <button class="edit-modal-btn edit-modal-btn-danger" id="confirmModalBtn" onclick="doConfirmModal()">Xóa</button>
+    </div>
+  </div>
+</div>
+
 <script>
+  // Set exact viewport height for all platforms
+  function setAppHeight() {
+    document.body.style.height = window.innerHeight + 'px';
+  }
+  setAppHeight();
+  window.addEventListener('resize', setAppHeight);
+
+  // Service worker
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(() => {});
   }
 </script>
+
 </body>
 </html>
