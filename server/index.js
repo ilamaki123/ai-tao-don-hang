@@ -198,7 +198,7 @@ const tokenUserMap = new Map();
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 const redis = new Redis(REDIS_URL);
 const SIXTY_DAYS_MS = 60 * 24 * 60 * 60 * 1000;
-const SESSION_TTL = 60 * 24 * 60 * 60; // 60 days in seconds
+// No TTL — sessions persist until manually deleted. Only messages > 60 days are cleaned.
 
 redis.on('connect', () => console.log('[redis] Connected to', REDIS_URL));
 redis.on('error', (err) => console.error('[redis] Error:', err.message));
@@ -229,7 +229,7 @@ async function loadUserSessions(userId) {
 
 async function saveUserSessions(userId, sessions) {
   try {
-    await redis.set(sessionKey(userId), JSON.stringify(sessions), 'EX', SESSION_TTL);
+    await redis.set(sessionKey(userId), JSON.stringify(sessions));
   } catch (e) {
     console.error('[redis] saveUserSessions error:', e.message);
   }
