@@ -1798,11 +1798,14 @@
     }
   }
 
+  var _orderSubmitting = false;
   async function submitOrder(session) {
+    if (_orderSubmitting) return;
     if (!session || session.items.length === 0) {
       addMessage('ai', 'Giỏ hàng trống. Vui lòng thêm sản phẩm trước.');
       return;
     }
+    _orderSubmitting = true;
     showTyping();
     try {
     const c = session.customer;
@@ -1840,11 +1843,15 @@
       })),
     };
 
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
     const orderRes = await fetch(`${API_BASE}/api/create-order`, {
       method: 'POST',
       headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify(orderBody),
+      signal: controller.signal,
     });
+    clearTimeout(timeout);
     const orderData = await orderRes.json();
     removeTyping();
 
@@ -1869,7 +1876,9 @@
     saveSessions();
     } catch (err) {
       removeTyping();
-      addMessage('ai', `Lỗi tạo đơn: ${err.message}`);
+      addMessage('ai', `Lỗi tạo đơn: ${translateError(err.message)}`);
+    } finally {
+      _orderSubmitting = false;
     }
   }
 
