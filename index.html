@@ -803,12 +803,14 @@
   async function syncSessionsToServer() {
     if (!sessionUser?.token) return;
     try {
-      await fetch(`${API_BASE}/api/sessions`, {
+      const res = await fetch(`${API_BASE}/api/sessions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({ sessions: sanitizeForServer(sessions) }),
       });
-    } catch {}
+      const data = await res.json();
+      console.log('[sync-to-server]', res.status, data.success ? 'OK' : data.message);
+    } catch (e) { console.error('[sync-to-server] error:', e.message); }
   }
 
   async function syncSessionsFromServer() {
@@ -816,6 +818,7 @@
     try {
       const res = await fetch(`${API_BASE}/api/sessions`, { headers: getAuthHeaders() });
       const data = await res.json();
+      console.log('[sync-from-server]', res.status, data.success ? `${(data.data||[]).length} sessions` : data.message);
       if (!data.success || !Array.isArray(data.data)) return;
       const serverSessions = data.data;
       if (serverSessions.length === 0 && sessions.length > 0) {
