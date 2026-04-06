@@ -6,8 +6,8 @@
   <meta name="theme-color" content="#00354E" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <link rel="manifest" href="/manifest.json" />
-  <link rel="apple-touch-icon" href="/icon-192.png" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
   <title>AI Chat - Tạo đơn hàng</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -2409,7 +2409,9 @@
 
   // Service worker
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
+    const base = new URL('./', window.location.href);
+    const swUrl = new URL('sw.js', base.href);
+    navigator.serviceWorker.register(swUrl.href, { scope: base.href }).catch(() => {});
   }
 </script>
 
