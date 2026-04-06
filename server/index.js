@@ -238,6 +238,9 @@ function cleanExpiredMessages(sessions) {
 app.use(cors());
 app.use(express.json());
 
+// Serve static files (PWA: manifest, sw.js, icons) from project root
+app.use(express.static(path.join(__dirname, '..')));
+
 // Helper: build Basso headers với auth token từ client
 function bassoHeaders(req) {
   const auth = req.headers['authorization'] || '';
