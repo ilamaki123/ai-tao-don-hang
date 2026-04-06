@@ -968,7 +968,7 @@
       const data = await res.json();
       removeTyping();
       if (!data.success) {
-        addMessage('ai', `Không thể tải đơn hàng ${orderCode}: ${data.message || 'Lỗi không xác định'}`);
+        addMessage('ai', `Không thể tải đơn hàng ${orderCode}: ${translateError(data.message)}`);
         return;
       }
       const orderItems = (data.data.items || []).map(item => ({
@@ -1015,7 +1015,7 @@
         updateHint();
         addMessage('ai', `✅ Đã hủy đơn hàng ${orderCode}.\n\nBấm "Tạo đơn mới" để tiếp tục.`);
       } else {
-        addMessage('ai', `❌ Không thể hủy: ${data.message || (data.errors || []).join(', ')}`);
+        addMessage('ai', `❌ Không thể hủy: ${translateError(data.message || (data.errors || []).join(', '))}`);
       }
     } catch (err) {
       removeTyping();
@@ -1249,7 +1249,7 @@
           }
         });
       } else {
-        addMessage('ai', `❌ Cập nhật thất bại: ${data.message || (data.errors || []).join(', ')}`);
+        addMessage('ai', `❌ Cập nhật thất bại: ${translateError(data.message || (data.errors || []).join(', '))}`);
       }
     } catch (err) {
       removeTyping();
@@ -1767,7 +1767,7 @@
       });
     } else {
       const errMsg = orderData.message || (orderData.errors || []).join(', ');
-      addMessage('ai', `Tạo đơn thất bại: ${errMsg}`);
+      addMessage('ai', `Tạo đơn thất bại: ${translateError(errMsg)}`);
     }
   }
 
@@ -2246,6 +2246,23 @@
   function getAuthHeaders() {
     const user = JSON.parse(localStorage.getItem('ai_chat_user') || sessionStorage.getItem('ai_chat_user') || 'null');
     return user && user.token ? { 'Authorization': `Bearer ${user.token}` } : {};
+  }
+
+  function translateError(msg) {
+    if (!msg) return 'Lỗi không xác định';
+    const map = {
+      'Product link is required': 'Sản phẩm thiếu link',
+      'Not exist user with this id': 'Khách hàng không tồn tại',
+      'Unauthorized': 'Phiên đăng nhập hết hạn, vui lòng đăng nhập lại',
+      'Invalid or expired partner access token': 'Token hết hạn, vui lòng đăng nhập lại',
+      'Unexpected end of JSON input': 'Server không phản hồi, vui lòng thử lại',
+      'update_items: không có field hợp lệ để cập nhật': 'Không có thay đổi hợp lệ để cập nhật',
+    };
+    let result = msg;
+    for (const [en, vi] of Object.entries(map)) {
+      result = result.replace(new RegExp(en.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), vi);
+    }
+    return result;
   }
 
   function escapeHtml(str) {
