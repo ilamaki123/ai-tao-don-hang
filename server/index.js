@@ -238,6 +238,13 @@ function cleanExpiredMessages(sessions) {
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
+// Strip /b/<id> prefix so routes match /api/*, /health, etc.
+app.use((req, res, next) => {
+  const m = req.path.match(/^\/b\/[^/]+(\/.*)/);
+  if (m) req.url = m[1];
+  next();
+});
+
 // Serve static files (PWA: manifest, sw.js, icons) from project root
 app.use(express.static(path.join(__dirname, '..')));
 
