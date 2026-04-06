@@ -327,8 +327,14 @@
 </div>
 
 <script>
-  const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-    ? 'http://localhost:3000' : 'https://ai.basso.vn';
+  const API_BASE = (function () {
+    const origin = window.location.origin;
+    const m = (window.location.pathname || '').match(/^\/b\/([^/]+)/);
+    if (m) return origin + '/b/' + m[1];
+    const h = window.location.hostname;
+    if (h === 'localhost' || h === '127.0.0.1') return 'http://localhost:3000';
+    return origin;
+  })();
 
   // ===== CHECK SESSION =====
   const saved = localStorage.getItem('ai_chat_user') || sessionStorage.getItem('ai_chat_user');
