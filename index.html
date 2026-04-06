@@ -1724,16 +1724,16 @@
       brand: c.brand || 'shipus',
       website: extractWebsiteFromItems(session.items),
       items: JSON.stringify(session.items.map(item => {
-        const salePct = item.noSale ? 0 : (session.salePct || 0);
-        const priceAfterSale = salePct > 0
-          ? Math.round(item.price * (1 - salePct / 100) * 100) / 100
+        const pct = getItemSalePct(item, session.salePct || 0);
+        const priceAfterSale = pct > 0
+          ? Math.round(item.price * (1 - pct / 100) * 100) / 100
           : item.price || 0;
         return {
           name: item.name,
           link: item.link || '',
           quantity: item.quantity || 1,
           price_origin: item.price || 0,
-          price_discount_rate: salePct,
+          price_discount_rate: pct,
           price: priceAfterSale,
           term_id: item.term_id || 5,
           variations: item.variations || [],
