@@ -689,9 +689,17 @@ app.use((req, res) => {
 
 // Global error handler — catch request aborted, JSON parse errors, etc.
 app.use((err, req, res, next) => {
-  if (err.type === 'request.aborted') return;
-  console.error('[error]', err.message);
+  if (err.type === 'request.aborted' || err.code === 'ECONNRESET') return;
+  console.error('[error]', req.method, req.url, err.message);
   if (!res.headersSent) res.status(500).json({ success: false, message: err.message });
+});
+
+// Prevent process crash on unhandled errors
+process.on('uncaughtException', (err) => {
+  console.error('[uncaughtException]', err.message);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('[unhandledRejection]', reason?.message || reason);
 });
 
 // ===== START =====
