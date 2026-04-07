@@ -188,7 +188,17 @@ const tokenUserMap = new Map();
 // ===== SESSION STORAGE (Redis) =====
 const REDIS_HOST = process.env.REDIS_HOST || 'localhost';
 const REDIS_PORT = parseInt(process.env.REDIS_PORT) || 6379;
-const redis = new Redis({ host: REDIS_HOST, port: REDIS_PORT });
+const redis = new Redis({
+  host: REDIS_HOST,
+  port: REDIS_PORT,
+  connectTimeout: 2000,
+  enableOfflineQueue: false,
+  maxRetriesPerRequest: 1,
+  retryStrategy: (times) => {
+    if (times >= 3) return null;
+    return Math.min(200 * times, 1000);
+  },
+});
 const SIXTY_DAYS_MS = 60 * 24 * 60 * 60 * 1000;
 // No TTL — sessions persist until manually deleted. Only messages > 60 days are cleaned.
 
