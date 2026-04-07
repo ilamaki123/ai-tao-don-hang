@@ -1,13 +1,4 @@
 require('dotenv').config();
-if (!globalThis.fetch) {
-  const { fetch, FormData, Blob, Headers, Request, Response } = require('undici');
-  globalThis.fetch = fetch;
-  globalThis.FormData = FormData;
-  globalThis.Blob = Blob;
-  globalThis.Headers = Headers;
-  globalThis.Request = Request;
-  globalThis.Response = Response;
-}
 const express = require('express');
 const cors = require('cors');
 const Redis = require('ioredis');
@@ -454,7 +445,7 @@ app.post('/api/analyze-image', upload.single('image'), async (req, res) => {
       : `- price: LUÔN LUÔN là ĐƠN GIÁ (giá cho 1 sản phẩm). Nếu ảnh hiển thị tổng giá (ví dụ qty=5, hiển thị $165) thì chia ngược: price = 165/5 = 33. Nếu ảnh hiển thị đơn giá (ví dụ $33/item hoặc $33 each) thì giữ nguyên. Kiểm tra: quantity × price phải bằng tổng giá hiển thị trong ảnh.`;
 
     const response = await anthropic.messages.create({
-      model: 'claude-opus-4-6',
+      model: 'claude-sonnet-4-20250514',
       max_tokens: 2048,
       messages: [
         {
@@ -525,7 +516,7 @@ app.post('/api/extract-product-images', upload.single('image'), async (req, res)
     const imageBase64 = req.file.buffer.toString('base64');
     const mimeType = req.file.mimetype;
     const response = await anthropic.messages.create({
-      model: 'claude-opus-4-6',
+      model: 'claude-sonnet-4-20250514',
       max_tokens: 1024,
       messages: [{
         role: 'user',
@@ -595,9 +586,7 @@ app.post('/api/upload-image', upload.single('file'), async (req, res) => {
   }
 
   try {
-    // Use undici File (or Blob with name) for Node 16 compatibility
-    const { File: UFile } = require('undici');
-    const file = new UFile([req.file.buffer], req.file.originalname, { type: req.file.mimetype });
+    const file = new File([req.file.buffer], req.file.originalname, { type: req.file.mimetype });
     const formData = new FormData();
     formData.append('file', file);
 
