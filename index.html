@@ -804,7 +804,7 @@
     if (!sessionUser?.token) return;
     try {
       const res = await fetch(`${API_BASE}/api/sessions`, {
-        method: 'POST',
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({ sessions: sanitizeForServer(sessions) }),
       });

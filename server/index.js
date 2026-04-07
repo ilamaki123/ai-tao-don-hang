@@ -333,20 +333,22 @@ app.get('/api/sessions', async (req, res) => {
   }
 });
 
-app.post('/api/sessions', async (req, res) => {
+async function handleSaveSessions(req, res) {
   try {
     const user = resolveUser(req);
     if (!user) return res.status(401).json({ success: false, message: 'Unauthorized' });
     const { sessions } = req.body;
     if (!Array.isArray(sessions)) return res.status(400).json({ success: false, message: 'sessions must be array' });
     await saveUserSessions(user.id, sessions);
-    console.log('[sessions] POST user:', user.id, 'count:', sessions.length);
+    console.log('[sessions] SAVE user:', user.id, 'count:', sessions.length);
     res.json({ success: true });
   } catch (err) {
-    console.error('[sessions] POST error:', err.message);
+    console.error('[sessions] SAVE error:', err.message);
     res.status(500).json({ success: false, message: err.message });
   }
-});
+}
+app.post('/api/sessions', handleSaveSessions);
+app.put('/api/sessions', handleSaveSessions);
 
 app.delete('/api/sessions/:id', async (req, res) => {
   try {
