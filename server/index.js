@@ -685,6 +685,13 @@ app.use((req, res) => {
   res.status(404).json({ error: 'Route not found', method: req.method, url: req.url, originalUrl: req.originalUrl });
 });
 
+// Global error handler — catch request aborted, JSON parse errors, etc.
+app.use((err, req, res, next) => {
+  if (err.type === 'request.aborted') return;
+  console.error('[error]', err.message);
+  if (!res.headersSent) res.status(500).json({ success: false, message: err.message });
+});
+
 // ===== START =====
 if (require.main === module) {
   const PORT = process.env.PORT || 3000;
