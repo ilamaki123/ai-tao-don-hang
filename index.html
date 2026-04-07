@@ -1596,10 +1596,14 @@
       }
     }
 
-    // ===== ĐÃ XONG — CHỈ CHO THAO TÁC QUA BUTTON =====
+    // ===== ĐÃ XONG =====
     if (session.state === 'DONE') {
+      if (!file && /^(?:tạo\s*đơn\s*mới|tao\s*don\s*moi|new\s*order|đơn\s*mới|don\s*moi)$/i.test(text.trim())) {
+        startNewOrder();
+        return;
+      }
       removeTyping();
-      addMessage('ai', 'Vui lòng bấm "Tạo đơn mới" ở ô đơn hàng phía trên để tiếp tục, hoặc chọn "Chỉnh sửa đơn" / "Hủy đơn hàng".');
+      addMessage('ai', 'Gõ "tạo đơn mới" hoặc bấm nút "Tạo đơn mới" ở ô đơn hàng phía trên để tiếp tục.');
       return;
     }
 
