@@ -690,6 +690,12 @@ app.post('/api/cancel-order', async (req, res) => {
   } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
+// ===== DEBUG: catch all unmatched routes =====
+app.use((req, res) => {
+  console.log('[404]', req.method, req.url, req.originalUrl);
+  res.status(404).json({ error: 'Route not found', method: req.method, url: req.url, originalUrl: req.originalUrl });
+});
+
 // ===== START =====
 if (require.main === module) {
   const PORT = process.env.PORT || 3000;
