@@ -598,9 +598,9 @@ app.post('/api/upload-image', upload.single('file'), async (req, res) => {
   }
 
   try {
-    const file = new File([req.file.buffer], req.file.originalname, { type: req.file.mimetype });
+    const blob = new Blob([req.file.buffer], { type: req.file.mimetype });
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('file', blob, req.file.originalname);
 
     const response = await fetch(`${BASSO_URL}/partner/uploadImage`, {
       method: 'POST',
