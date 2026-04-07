@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const Redis = require('ioredis');
+const mysql = require('mysql2/promise');
 const multer = require('multer');
 const Anthropic = require('@anthropic-ai/sdk');
 const fs = require('fs');
@@ -185,25 +185,45 @@ console.log('Mock mode:', IS_MOCK);
 // token → user info map (in-memory, refreshed on login)
 const tokenUserMap = new Map();
 
-// ===== SESSION STORAGE (Redis) =====
-const REDIS_HOST = process.env.REDIS_HOST || 'localhost';
-const REDIS_PORT = parseInt(process.env.REDIS_PORT) || 6379;
-const redis = new Redis({
-  host: REDIS_HOST,
-  port: REDIS_PORT,
-  connectTimeout: 2000,
-  enableOfflineQueue: false,
-  maxRetriesPerRequest: 1,
-  retryStrategy: (times) => {
-    if (times >= 3) return null;
-    return Math.min(200 * times, 1000);
-  },
-});
+// ===== SESSION STORAGE (MySQL) =====
 const SIXTY_DAYS_MS = 60 * 24 * 60 * 60 * 1000;
-// No TTL — sessions persist until manually deleted. Only messages > 60 days are cleaned.
+let dbPool = null;
 
-redis.on('connect', () => console.log('[redis] Connected to', REDIS_HOST + ':' + REDIS_PORT));
-redis.on('error', (err) => console.error('[redis] Error:', err.message));
+async function getDb() {
+  if (!dbPool) {
+    dbPool = mysql.createPool({
+      host: process.env.MYSQL_HOST || 'localhost',
+      port: parseInt(process.env.MYSQL_PORT) || 3306,
+      user: process.env.MYSQL_USER || 'root',
+      password: process.env.MYSQL_PASSWORD || '',
+      database: process.env.MYSQL_DATABASE || 'basso_platform',
+      waitForConnections: true,
+      connectionLimit: 5,
+      charset: 'utf8mb4',
+    });
+    // Auto-create table if not exists
+    await dbPool.execute(`
+      CREATE TABLE IF NOT EXISTS user_sessions (
+        id BIGINT PRIMARY KEY,
+        user_id INT NOT NULL,
+        title VARCHAR(255) DEFAULT '',
+        date VARCHAR(50) DEFAULT '',
+        state VARCHAR(50) DEFAULT 'INIT',
+        customer_id INT DEFAULT NULL,
+        customer_json LONGTEXT DEFAULT NULL,
+        items_json LONGTEXT DEFAULT NULL,
+        messages_json LONGTEXT DEFAULT NULL,
+        sale_pct FLOAT DEFAULT 0,
+        editing_order_json LONGTEXT DEFAULT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_user_id (user_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+    console.log('[mysql] Connected to', process.env.MYSQL_HOST || 'localhost');
+  }
+  return dbPool;
+}
 
 function resolveUser(req) {
   const token = (req.headers['authorization'] || '').replace('Bearer ', '').trim();
@@ -213,27 +233,77 @@ function resolveUser(req) {
   return null;
 }
 
-function sessionKey(userId) {
-  return `sessions:${userId}`;
-}
-
 async function loadUserSessions(userId) {
   try {
-    const raw = await redis.get(sessionKey(userId));
-    if (!raw) return [];
-    const data = JSON.parse(raw);
-    return Array.isArray(data) ? data : [];
+    const db = await getDb();
+    const [rows] = await db.execute('SELECT * FROM user_sessions WHERE user_id = ? ORDER BY updated_at DESC', [userId]);
+    return rows.map(row => {
+      const session = {
+        id: Number(row.id),
+        title: row.title || '',
+        date: row.date || '',
+        state: row.state || 'INIT',
+        customer: row.customer_json ? JSON.parse(row.customer_json) : null,
+        items: row.items_json ? JSON.parse(row.items_json) : [],
+        messages: row.messages_json ? JSON.parse(row.messages_json) : [],
+        salePct: row.sale_pct || 0,
+        editingOrder: row.editing_order_json ? JSON.parse(row.editing_order_json) : undefined,
+        cartImages: [],
+      };
+      return session;
+    });
   } catch (e) {
-    console.error('[redis] loadUserSessions error:', e.message);
+    console.error('[mysql] loadUserSessions error:', e.message);
     return [];
   }
 }
 
 async function saveUserSessions(userId, sessions) {
   try {
-    await redis.set(sessionKey(userId), JSON.stringify(sessions));
+    const db = await getDb();
+    for (const s of sessions) {
+      const customerId = s.customer?.id || null;
+      await db.execute(`
+        INSERT INTO user_sessions (id, user_id, title, date, state, customer_id, customer_json, items_json, messages_json, sale_pct, editing_order_json)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+          title=VALUES(title), date=VALUES(date), state=VALUES(state),
+          customer_id=VALUES(customer_id), customer_json=VALUES(customer_json),
+          items_json=VALUES(items_json), messages_json=VALUES(messages_json),
+          sale_pct=VALUES(sale_pct), editing_order_json=VALUES(editing_order_json)
+      `, [
+        s.id,
+        userId,
+        s.title || '',
+        s.date || '',
+        s.state || 'INIT',
+        customerId,
+        s.customer ? JSON.stringify(s.customer) : null,
+        JSON.stringify(s.items || []),
+        JSON.stringify(s.messages || []),
+        s.salePct || 0,
+        s.editingOrder ? JSON.stringify(s.editingOrder) : null,
+      ]);
+    }
+    // Delete sessions not in the list (user deleted them)
+    if (sessions.length > 0) {
+      const ids = sessions.map(s => s.id);
+      const placeholders = ids.map(() => '?').join(',');
+      await db.execute(`DELETE FROM user_sessions WHERE user_id = ? AND id NOT IN (${placeholders})`, [userId, ...ids]);
+    } else {
+      await db.execute('DELETE FROM user_sessions WHERE user_id = ?', [userId]);
+    }
   } catch (e) {
-    console.error('[redis] saveUserSessions error:', e.message);
+    console.error('[mysql] saveUserSessions error:', e.message);
+  }
+}
+
+async function deleteUserSession(userId, sessionId) {
+  try {
+    const db = await getDb();
+    await db.execute('DELETE FROM user_sessions WHERE user_id = ? AND id = ?', [userId, sessionId]);
+  } catch (e) {
+    console.error('[mysql] deleteUserSession error:', e.message);
   }
 }
 
@@ -365,9 +435,7 @@ app.delete('/api/sessions/:id', async (req, res) => {
     const user = resolveUser(req);
     if (!user) return res.status(401).json({ success: false, message: 'Unauthorized' });
     const sessionId = parseInt(req.params.id);
-    const sessions = await loadUserSessions(user.id);
-    const filtered = sessions.filter(s => s.id !== sessionId);
-    await saveUserSessions(user.id, filtered);
+    await deleteUserSession(user.id, sessionId);
     console.log('[sessions] DELETE user:', user.id, 'sessionId:', sessionId);
     res.json({ success: true });
   } catch (err) {
