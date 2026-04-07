@@ -1264,26 +1264,44 @@
     const editing = session.editingOrder;
     if (!editing) return;
     const deleteIds = editing.items.filter(i => i._status === 'deleted').map(i => i.id);
-    const updateItems = editing.items.filter(i => i._status === 'modified').map(i => {
+    const updateItems = [];
+    const addItems = [...editing.addItems.map(i => ({
+      name: i.name,
+      link: i.link || '',
+      quantity: 1,
+      price: i.price || 0,
+      variations: i.variations || [],
+      ...(i.image_id ? { image_id: i.image_id } : {}),
+    }))];
+
+    // Process modified items
+    editing.items.filter(i => i._status === 'modified').forEach(i => {
       const upd = { id: i.id };
       const orig = i._original;
       if (i.name !== orig.name) upd.name = i.name;
-      if (i.quantity !== orig.quantity) upd.quantity = i.quantity;
       if (i.price !== orig.price) upd.price = i.price;
       if (i.link !== orig.link) upd.link = i.link;
       if (JSON.stringify(i.variations) !== JSON.stringify(orig.variations)) {
         upd.variations = i.variations || [];
       }
-      return upd;
+      // Qty tăng → clone thêm items thay vì sửa qty
+      const qtyDiff = (i.quantity || 1) - (orig.quantity || 1);
+      if (qtyDiff > 0) {
+        for (let n = 0; n < qtyDiff; n++) {
+          addItems.push({
+            name: i.name,
+            link: i.link || '',
+            quantity: 1,
+            price: i.price || 0,
+            variations: i.variations || [],
+            ...(i.image_id ? { image_id: i.image_id } : {}),
+            ...(i.image_path ? { image_path: i.image_path } : {}),
+          });
+        }
+      }
+      // Chỉ gửi update nếu có field khác ngoài qty thay đổi
+      if (Object.keys(upd).length > 1) updateItems.push(upd);
     });
-    const addItems = editing.addItems.map(i => ({
-      name: i.name,
-      link: i.link || '',
-      quantity: i.quantity || 1,
-      price: i.price || 0,
-      variations: i.variations || [],
-      ...(i.image_id ? { image_id: i.image_id } : {}),
-    }));
 
     if (deleteIds.length === 0 && updateItems.length === 0 && addItems.length === 0) {
       addMessage('ai', 'Không có thay đổi nào để cập nhật.');
