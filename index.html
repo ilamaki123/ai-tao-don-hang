@@ -592,13 +592,13 @@
 
     @media (max-width: 768px) {
       .cart-card-compact {
-        display: flex; align-items: center; gap: 8px; cursor: pointer;
+        display: flex; align-items: center; gap: 6px; cursor: pointer; overflow: hidden;
       }
       .cart-card-compact-name {
         flex: 1; font-size: 13px; font-weight: 500; color: #333;
         overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
       }
-      .cart-card-compact-price { font-size: 13px; font-weight: 600; color: #7c5cbf; white-space: nowrap; }
+      .cart-card-compact-price { font-size: 12px; font-weight: 600; color: #7c5cbf; max-width: 120px; text-align: right; }
       .cart-card-compact-arrow { font-size: 12px; color: #aaa; transition: transform 0.2s; }
       .cart-card.expanded .cart-card-compact-arrow { transform: rotate(180deg); }
       .cart-card-details { display: none; }
