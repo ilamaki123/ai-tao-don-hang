@@ -823,20 +823,12 @@
       console.log('[sync-from-server]', res.status, data.success ? `${(data.data||[]).length} sessions` : data.message);
       if (!data.success || !Array.isArray(data.data)) return;
       const serverSessions = data.data;
-      if (serverSessions.length === 0 && sessions.length > 0) {
-        syncSessionsToServer();
-        return;
-      }
-      if (serverSessions.length > 0) {
-        const serverIds = new Set(serverSessions.map(s => s.id));
-        const localOnly = sessions.filter(s => !serverIds.has(s.id));
-        sessions = [...serverSessions, ...localOnly].map(s => ({ ...s, cartImages: s.cartImages || [] }));
-        renderHistory();
-        if (sessions.length && !activeSessionId) selectSession(sessions[0].id);
-        else if (activeSessionId) renderMessages();
-        try { localStorage.setItem(LS_SESSIONS_KEY, JSON.stringify(sanitizeForServer(sessions))); } catch {}
-        if (localOnly.length > 0) syncSessionsToServer();
-      }
+      // Server is source of truth — always use server data
+      sessions = serverSessions.map(s => ({ ...s, cartImages: s.cartImages || [] }));
+      renderHistory();
+      if (sessions.length && !activeSessionId) selectSession(sessions[0].id);
+      else if (activeSessionId) renderMessages();
+      try { localStorage.setItem(LS_SESSIONS_KEY, JSON.stringify(sanitizeForServer(sessions))); } catch {}
     } catch {}
   }
 
