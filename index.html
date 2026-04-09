@@ -2068,7 +2068,8 @@
   function ensureCartMessage() {
     const session = getActiveSession();
     if (!session) return;
-    // Luôn tạo cart message mới ở cuối
+    // Xóa cart messages cũ trước khi tạo mới
+    invalidateOldCarts();
     session.messages.push({ role: 'ai', text: '', cartView: true, timestamp: Date.now() });
     renderMessages();
     saveSessions();
