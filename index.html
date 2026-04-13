@@ -138,7 +138,58 @@
     .topbar {
       display: flex;
       justify-content: flex-end;
+      align-items: center;
       padding: 14px 20px;
+      gap: 10px;
+    }
+
+    .topbar-search {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      background: #f5f3fa;
+      border: 1px solid #e0d8f0;
+      border-radius: 8px;
+      padding: 4px 10px;
+      max-width: 400px;
+      position: relative;
+    }
+
+    .topbar-search input {
+      border: none;
+      outline: none;
+      background: transparent;
+      font-size: 13px;
+      color: #333;
+      width: 100%;
+      padding: 4px 0;
+    }
+
+    .topbar-search input::placeholder { color: #bbb; }
+
+    .topbar-search-count {
+      font-size: 11px;
+      color: #999;
+      white-space: nowrap;
+      margin-left: 4px;
+    }
+
+    .topbar-search-clear {
+      background: none;
+      border: none;
+      color: #aaa;
+      font-size: 16px;
+      cursor: pointer;
+      padding: 0 2px;
+      line-height: 1;
+    }
+
+    .topbar-search-clear:hover { color: #666; }
+
+    .msg-highlight {
+      background: #fff3cd !important;
+      border: 2px solid #ffc107 !important;
+      border-radius: 16px;
     }
 
     .btn-logout {
@@ -699,6 +750,11 @@
   <!-- Topbar -->
   <div class="topbar">
     <button class="btn-hamburger" onclick="toggleSidebar()">&#9776;</button>
+    <div class="topbar-search">
+      <input type="text" id="msgSearch" placeholder="Tìm tin nhắn..." oninput="searchMessages()" />
+      <span class="topbar-search-count" id="msgSearchCount"></span>
+      <button class="topbar-search-clear" id="msgSearchClear" onclick="clearMsgSearch()" style="display:none">&times;</button>
+    </div>
     <button class="btn-logout" onclick="logout()">&#8594; Logout</button>
   </div>
 
@@ -2408,6 +2464,53 @@
       result = result.replace(new RegExp(en.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), vi);
     }
     return result;
+  }
+
+  // ===== SEARCH MESSAGES IN CURRENT SESSION =====
+  function searchMessages() {
+    const q = (document.getElementById('msgSearch').value || '').trim().toLowerCase();
+    const clearBtn = document.getElementById('msgSearchClear');
+    const countEl = document.getElementById('msgSearchCount');
+
+    // Remove old highlights
+    document.querySelectorAll('.msg-highlight').forEach(el => el.classList.remove('msg-highlight'));
+
+    if (!q) {
+      clearBtn.style.display = 'none';
+      countEl.textContent = '';
+      return;
+    }
+    clearBtn.style.display = '';
+
+    const session = getActiveSession();
+    if (!session || !session.messages) { countEl.textContent = ''; return; }
+
+    // Find matching message indices
+    const matches = [];
+    session.messages.forEach((m, i) => {
+      if (m.text && m.text.toLowerCase().includes(q)) matches.push(i);
+    });
+
+    countEl.textContent = matches.length > 0 ? matches.length + ' kết quả' : 'Không tìm thấy';
+
+    // Highlight matching messages in DOM
+    const msgList = document.getElementById('messageList');
+    const msgEls = msgList.querySelectorAll('.message');
+    matches.forEach(idx => {
+      if (msgEls[idx]) msgEls[idx].classList.add('msg-highlight');
+    });
+
+    // Scroll to first match
+    if (matches.length > 0 && msgEls[matches[0]]) {
+      msgEls[matches[0]].scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }
+
+  function clearMsgSearch() {
+    document.getElementById('msgSearch').value = '';
+    document.getElementById('msgSearchClear').style.display = 'none';
+    document.getElementById('msgSearchCount').textContent = '';
+    document.querySelectorAll('.msg-highlight').forEach(el => el.classList.remove('msg-highlight'));
   }
 
   function escapeHtml(str) {
