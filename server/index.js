@@ -537,17 +537,22 @@ app.post('/api/analyze-image', upload.single('image'), async (req, res) => {
             },
             {
               type: 'text',
-              text: `Phân tích ảnh này. Ảnh có thể là giỏ hàng (cart/bag) hoặc trang chi tiết sản phẩm (product detail page).
-
-Nếu là GIỎ HÀNG: liệt kê TẤT CẢ sản phẩm theo thứ tự từ trên xuống dưới.
-Nếu là TRANG SẢN PHẨM: chỉ lấy sản phẩm CHÍNH đang được chọn/highlight (có viền xanh, đỏ, hoặc đậm hơn). KHÔNG lấy sản phẩm gợi ý, variant khác, hoặc "customers also bought".
+              text: `Phân tích ảnh này. Ảnh có thể là:
+1) GIỎ HÀNG (cart/bag): liệt kê TẤT CẢ sản phẩm theo thứ tự từ trên xuống dưới.
+2) TRANG SẢN PHẨM (product detail): chỉ lấy sản phẩm CHÍNH đang được chọn/highlight (có viền xanh, đỏ, hoặc đậm hơn). KHÔNG lấy sản phẩm gợi ý, variant khác, hoặc "customers also bought".
+3) ẢNH SẢN PHẨM ĐƠN LẺ (chỉ có hình + tên, không có giá/size rõ ràng): tạo 1 sản phẩm với tên nhận diện được, để price=0, quantity=1.
 
 Với mỗi sản phẩm trích xuất:
-- name: tên thương hiệu + tên sản phẩm
-- quantity: số lượng (số nguyên)
+- name: tên thương hiệu + tên sản phẩm (bắt buộc, luôn phải có)
+- quantity: số lượng (số nguyên, mặc định 1 nếu không thấy)
 ${priceRule}
 - currency: ký hiệu tiền tệ nhìn thấy trong ảnh (ví dụ: "$", "€", "£", "₩", "¥", "đ", "VND") — nếu không thấy để trống ""
-- variations: mảng TẤT CẢ thuộc tính sản phẩm hiển thị (Size, Fit, Color, Waist, Length, Width, Type, Style, v.v.). Mỗi thuộc tính là 1 object {name, value}. Ví dụ "S Tall | Black" → [{name:"Size",value:"S"},{name:"Fit",value:"Tall"},{name:"Color",value:"Black"}]. Ví dụ "29W X 30L" → [{name:"Waist",value:"29W"},{name:"Length",value:"30L"}]. Width thường xuất hiện cùng Size dạng "8 Medium" hoặc chữ đơn N(Narrow)/B(Medium-women)/W(Wide)/M(Medium) → [{name:"Size",value:"8"},{name:"Width",value:"Medium"}].
+- variations: mảng thuộc tính sản phẩm. LUÔN LUÔN bao gồm Size và Color dù có thấy hay không:
+  + Nếu thấy giá trị → điền giá trị (ví dụ {name:"Size",value:"M"}, {name:"Color",value:"Black"})
+  + Nếu KHÔNG thấy giá trị → điền trống (ví dụ {name:"Size",value:""}, {name:"Color",value:""})
+  + Thêm các thuộc tính khác nếu có (Fit, Waist, Length, Width, Type, Style, v.v.)
+  Ví dụ "S Tall | Black" → [{name:"Size",value:"S"},{name:"Fit",value:"Tall"},{name:"Color",value:"Black"}]
+  Ví dụ "29W X 30L" → [{name:"Waist",value:"29W"},{name:"Length",value:"30L"},{name:"Size",value:""},{name:"Color",value:""}]
 
 Trả về JSON (chỉ JSON, không giải thích):
 {
@@ -558,8 +563,8 @@ Trả về JSON (chỉ JSON, không giải thích):
       "price": 0,
       "currency": "$",
       "variations": [
-        {"name": "Size", "value": "..."},
-        {"name": "Color", "value": "..."}
+        {"name": "Size", "value": ""},
+        {"name": "Color", "value": ""}
       ]
     }
   ]
