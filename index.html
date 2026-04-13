@@ -1750,6 +1750,13 @@
       // User gửi link bổ sung — kích hoạt khi có ít nhất 1 URL và còn item thiếu link
       const pendingLinks = !file ? extractLinks(text) : [];
       if (!file && pendingLinks.length > 0 && session.items.some(i => !i.link)) {
+        // Validate domain — tất cả link trong 1 đơn phải cùng domain
+        const domainCheck = validateLinkDomain(pendingLinks, session);
+        if (!domainCheck.valid) {
+          removeTyping();
+          addMessage('ai', `Không thể thêm link này vì domain không trùng với đơn hàng hiện tại (${domainCheck.cartDomain}). Vui lòng gửi link từ ${domainCheck.cartDomain} hoặc xóa link cũ trước.`);
+          return;
+        }
         let updated = 0;
         let linkIdx = 0;
         for (const item of session.items) {
@@ -1769,6 +1776,16 @@
       // User gửi ảnh + links
       if (file) {
         const links = extractLinks(text);
+
+        // Validate domain — tất cả link trong 1 đơn phải cùng domain
+        if (links.length > 0) {
+          const domainCheck = validateLinkDomain(links, session);
+          if (!domainCheck.valid) {
+            removeTyping();
+            addMessage('ai', `Không thể thêm link này vì domain không trùng với đơn hàng hiện tại (${domainCheck.cartDomain}). Vui lòng gửi link từ ${domainCheck.cartDomain} hoặc xóa link cũ trước.`);
+            return;
+          }
+        }
 
         // 2a: Claude Vision phân tích ảnh + map links
         const analyzeForm = new FormData();
@@ -1964,6 +1981,26 @@
   function extractLinks(text) {
     if (!text) return [];
     return text.split('\n').map(l => l.trim()).filter(l => l.startsWith('http'));
+  }
+
+  function getDomainFromUrl(url) {
+    try { return new URL(url).hostname.toLowerCase().replace(/^www\./, ''); } catch { return ''; }
+  }
+
+  function getCartDomain(session) {
+    if (!session || !session.items) return '';
+    const itemWithLink = session.items.find(i => i.link);
+    return itemWithLink ? getDomainFromUrl(itemWithLink.link) : '';
+  }
+
+  function validateLinkDomain(links, session) {
+    const cartDomain = getCartDomain(session);
+    if (!cartDomain || links.length === 0) return { valid: true, links };
+    const invalid = links.filter(l => getDomainFromUrl(l) !== cartDomain);
+    if (invalid.length > 0) {
+      return { valid: false, cartDomain, invalidLinks: invalid };
+    }
+    return { valid: true, links };
   }
 
   function isTaoDon(text) {
@@ -2227,6 +2264,14 @@
         item.itemSalePct = pct > 0 ? pct : undefined;
         item.noSale = false;
       } else if (field === 'link') {
+        // Validate domain
+        const session = getActiveSession();
+        const cartDomain = getCartDomain(session);
+        const newDomain = getDomainFromUrl(newVal);
+        if (cartDomain && newDomain && newDomain !== cartDomain) {
+          addMessage('ai', `Không thể thêm link này vì domain (${newDomain}) không trùng với đơn hàng hiện tại (${cartDomain}).`);
+          return;
+        }
         item.link = newVal;
       }
       saveSessions();
