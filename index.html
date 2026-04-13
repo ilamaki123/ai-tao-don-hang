@@ -2385,11 +2385,20 @@
 
   function translateError(msg) {
     if (!msg) return 'Lỗi không xác định';
+    // Auto-logout khi token hết hạn
+    if (/unauthorized|expired.*token|invalid.*token/i.test(msg)) {
+      addMessage('ai', 'Phiên đăng nhập đã hết hạn. Đang chuyển về trang đăng nhập...');
+      setTimeout(() => {
+        localStorage.removeItem('ai_chat_user');
+        sessionStorage.removeItem('ai_chat_user');
+        window.location.replace('login.html');
+      }, 2000);
+    }
     const map = {
       'Product link is required': 'Sản phẩm thiếu link',
       'Not exist user with this id': 'Khách hàng không tồn tại',
-      'Unauthorized': 'Phiên đăng nhập hết hạn, vui lòng đăng nhập lại',
-      'Invalid or expired partner access token': 'Token hết hạn, vui lòng đăng nhập lại',
+      'Unauthorized': 'Phiên đăng nhập hết hạn',
+      'Invalid or expired partner access token': 'Token hết hạn',
       'Unexpected end of JSON input': 'Server không phản hồi, vui lòng thử lại',
       'update_items: không có field hợp lệ để cập nhật': 'Không có thay đổi hợp lệ để cập nhật',
     };
