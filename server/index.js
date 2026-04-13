@@ -269,6 +269,19 @@ function cleanExpiredMessages(sessions) {
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
+// Request logger — log mọi API call
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const ms = Date.now() - start;
+    const status = res.statusCode;
+    if (status >= 400 || ms > 10000) {
+      console.log(`[${status >= 400 ? 'ERROR' : 'SLOW'}] ${req.method} ${req.originalUrl || req.url} ${status} ${ms}ms`);
+    }
+  });
+  next();
+});
+
 // Strip /b/<id> prefix so routes match /api/*, /health, etc.
 app.use((req, res, next) => {
   const m = req.url.match(/^\/b\/[^/]+(\/.*)/);
@@ -573,6 +586,7 @@ Coordinates are percentages (0-100) of image dimensions. Order top to bottom. In
     if (!jsonMatch) return res.status(500).json({ success: false, message: 'Cannot parse' });
     res.json({ success: true, data: JSON.parse(jsonMatch[0]) });
   } catch (err) {
+    console.error('[extract-product-images] error:', err.message);
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -610,6 +624,7 @@ app.get('/api/find-customer', async (req, res) => {
     const data = await response.json();
     res.json(data);
   } catch (err) {
+    console.error('[find-customer] error:', err.message);
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -663,6 +678,7 @@ app.post('/api/create-order', async (req, res) => {
     console.log('[create-order] Basso response:', JSON.stringify(data));
     res.json(data);
   } catch (err) {
+    console.error('[create-order] error:', err.message);
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -682,7 +698,7 @@ app.get('/api/get-order', async (req, res) => {
     const data = await response.json();
     console.log('[get-order] Basso response:', JSON.stringify(data).substring(0, 500));
     res.json(data);
-  } catch (err) { res.status(500).json({ success: false, message: err.message }); }
+  } catch (err) { console.error('[api] error:', req.url, err.message); res.status(500).json({ success: false, message: err.message }); }
 });
 
 // ===== PROXY: CẬP NHẬT ĐƠN HÀNG =====
@@ -696,7 +712,7 @@ app.post('/api/update-order', async (req, res) => {
     const data = await response.json();
     console.log('[update-order] Basso response:', JSON.stringify(data).substring(0, 500));
     res.json(data);
-  } catch (err) { res.status(500).json({ success: false, message: err.message }); }
+  } catch (err) { console.error('[api] error:', req.url, err.message); res.status(500).json({ success: false, message: err.message }); }
 });
 
 // ===== PROXY: HỦY ĐƠN HÀNG =====
@@ -711,7 +727,7 @@ app.post('/api/cancel-order', async (req, res) => {
     const data = await response.json();
     console.log('[cancel-order] Basso response:', JSON.stringify(data).substring(0, 500));
     res.json(data);
-  } catch (err) { res.status(500).json({ success: false, message: err.message }); }
+  } catch (err) { console.error('[api] error:', req.url, err.message); res.status(500).json({ success: false, message: err.message }); }
 });
 
 // ===== DEBUG: catch all unmatched routes =====
