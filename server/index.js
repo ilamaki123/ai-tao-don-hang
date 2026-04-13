@@ -537,7 +537,10 @@ app.post('/api/analyze-image', upload.single('image'), async (req, res) => {
             },
             {
               type: 'text',
-              text: `Phân tích ảnh giỏ hàng này. Liệt kê TẤT CẢ sản phẩm theo thứ tự từ trên xuống dưới.
+              text: `Phân tích ảnh này. Ảnh có thể là giỏ hàng (cart/bag) hoặc trang chi tiết sản phẩm (product detail page).
+
+Nếu là GIỎ HÀNG: liệt kê TẤT CẢ sản phẩm theo thứ tự từ trên xuống dưới.
+Nếu là TRANG SẢN PHẨM: chỉ lấy sản phẩm CHÍNH đang được chọn/highlight (có viền xanh, đỏ, hoặc đậm hơn). KHÔNG lấy sản phẩm gợi ý, variant khác, hoặc "customers also bought".
 
 Với mỗi sản phẩm trích xuất:
 - name: tên thương hiệu + tên sản phẩm
