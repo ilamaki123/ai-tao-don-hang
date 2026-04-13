@@ -1703,8 +1703,9 @@
         }
         saveSessions();
         removeTyping();
+        invalidateOldCarts();
         addMessage('ai', `Đã cập nhật ${updated} link.`);
-        renderCart();
+        ensureCartMessage();
         return;
       }
 
