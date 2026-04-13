@@ -2232,19 +2232,30 @@
 
   let _editModalCallback = null;
 
+  var _variantItemIdx = null;
   function addCartVariation(idx) {
+    _variantItemIdx = idx;
+    document.getElementById('variantName').value = '';
+    document.getElementById('variantValue').value = '';
+    document.getElementById('variantModal').classList.add('show');
+    setTimeout(() => document.getElementById('variantName').focus(), 100);
+  }
+  function closeVariantModal() {
+    document.getElementById('variantModal').classList.remove('show');
+    _variantItemIdx = null;
+  }
+  function saveVariantModal() {
+    const name = document.getElementById('variantName').value.trim();
+    const value = document.getElementById('variantValue').value.trim();
+    if (!name) return;
     const session = getActiveSession();
-    if (!session || !session.items[idx]) return;
-    openEditModal('Tên thuộc tính (vd: Size, Color, Fit...)', '', (varName) => {
-      if (!varName.trim()) return;
-      openEditModal(`Giá trị ${varName}`, '', (varValue) => {
-        const item = session.items[idx];
-        if (!item.variations) item.variations = [];
-        item.variations.push({ name: varName.trim(), value: varValue.trim() });
-        saveSessions();
-        renderCart();
-      });
-    });
+    if (!session || _variantItemIdx === null || !session.items[_variantItemIdx]) return;
+    const item = session.items[_variantItemIdx];
+    if (!item.variations) item.variations = [];
+    item.variations.push({ name, value });
+    saveSessions();
+    closeVariantModal();
+    renderCart();
   }
 
   function editCartField(idx, field, varIdx) {
@@ -2590,6 +2601,21 @@
     <div class="edit-modal-btns">
       <button class="edit-modal-btn edit-modal-btn-cancel" onclick="closeEditModal()">Hủy</button>
       <button class="edit-modal-btn edit-modal-btn-save" onclick="saveEditModal()">Lưu</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Variant Modal -->
+<div class="edit-modal-overlay" id="variantModal">
+  <div class="edit-modal">
+    <div class="edit-modal-title">Thêm thuộc tính</div>
+    <div style="display:flex;gap:8px;margin-bottom:16px">
+      <input class="edit-modal-input" id="variantName" placeholder="Tên (vd: Size, Color...)" style="flex:1" />
+      <input class="edit-modal-input" id="variantValue" placeholder="Giá trị (vd: M, Red...)" style="flex:1" />
+    </div>
+    <div class="edit-modal-btns">
+      <button class="edit-modal-btn edit-modal-btn-cancel" onclick="closeVariantModal()">Hủy</button>
+      <button class="edit-modal-btn edit-modal-btn-save" onclick="saveVariantModal()">Lưu</button>
     </div>
   </div>
 </div>
