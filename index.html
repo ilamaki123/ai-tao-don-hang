@@ -1682,7 +1682,7 @@
       updateHint();
 
       addMessage('ai',
-        `Tìm thấy khách hàng:\n👤 ${c.name}\n📞 ${c.phone}\n📍 ${c.address}, ${c.district}, ${c.city}${c.brand ? '\n🏷️ Brand: ' + c.brand : ''}\n\nVui lòng upload ảnh giỏ hàng kèm link sản phẩm (mỗi link 1 dòng, theo thứ tự từ trên xuống).`
+        `Tìm thấy khách hàng:\n👤 ${c.name}\n📞 ${c.phone}\n📍 ${c.address}, ${c.district}, ${c.city}${c.brand ? '\n🏷️ Brand: ' + c.brand.charAt(0).toUpperCase() + c.brand.slice(1) : ''}\n\nVui lòng upload ảnh giỏ hàng kèm link sản phẩm (mỗi link 1 dòng, theo thứ tự từ trên xuống).`
       );
       return;
     }
