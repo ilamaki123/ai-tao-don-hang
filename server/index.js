@@ -11,100 +11,11 @@ const app = express();
 const upload = multer({ storage: multer.memoryStorage() });
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-// ===== PRICE RULES =====
-const RULES_FILE = path.join(__dirname, 'data', 'price-rules.json');
-const HARDCODED_DEFAULTS = ['tommy.com', 'tommyhilfiger.com', 'usa.tommy.com'];
-const GITHUB_TOKEN = process.env.GITHUB_TOKEN || '';
-const GIST_ID = process.env.GIST_ID || '';
-const GIST_FILENAME = 'price-rules.json';
-
-let rulesCache = null; // in-memory cache — loaded once on startup, 0ms on every request
-
-async function loadRulesFromGist() {
-  if (!GITHUB_TOKEN || !GIST_ID) return null;
-  try {
-    const res = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
-      headers: { 'Authorization': `Bearer ${GITHUB_TOKEN}`, 'Accept': 'application/vnd.github.v3+json' },
-    });
-    const data = await res.json();
-    const content = data.files?.[GIST_FILENAME]?.content;
-    if (content) return JSON.parse(content);
-  } catch (e) {
-    console.error('[price-rules] Gist load error:', e.message);
-  }
-  return null;
-}
-
-async function saveRulesToGist(rules) {
-  if (!GITHUB_TOKEN || !GIST_ID) return;
-  try {
-    await fetch(`https://api.github.com/gists/${GIST_ID}`, {
-      method: 'PATCH',
-      headers: {
-        'Authorization': `Bearer ${GITHUB_TOKEN}`,
-        'Accept': 'application/vnd.github.v3+json',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ files: { [GIST_FILENAME]: { content: JSON.stringify(rules, null, 2) } } }),
-    });
-  } catch (e) {
-    console.error('[price-rules] Gist save error:', e.message);
-  }
-}
-
-function loadRules() {
-  // Always return from in-memory cache (0ms) — populated by initRules() on startup
-  if (rulesCache) return rulesCache;
-  // Fallback if cache not ready yet
-  try {
-    const f = JSON.parse(fs.readFileSync(RULES_FILE, 'utf8'));
-    if (Array.isArray(f.totalPriceDomains)) return f;
-  } catch {}
-  const fromEnv = process.env.TOTAL_PRICE_DOMAINS;
-  if (fromEnv) return { totalPriceDomains: fromEnv.split(',').map(d => d.trim()).filter(Boolean) };
-  return { totalPriceDomains: [...HARDCODED_DEFAULTS] };
-}
-
-async function saveRules(rules) {
-  rulesCache = rules;
-  // Save to local file (backup)
-  try {
-    const dir = path.dirname(RULES_FILE);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(RULES_FILE, JSON.stringify(rules, null, 2));
-  } catch (e) {
-    console.error('[price-rules] File save error:', e.message);
-  }
-  // Save to Gist async (don't block response)
-  saveRulesToGist(rules);
-  console.log(`[price-rules] Saved: [${rules.totalPriceDomains.join(', ')}]`);
-}
-
-async function initRules() {
-  // 1. Try GitHub Gist (cloud, persistent)
-  const fromGist = await loadRulesFromGist();
-  if (fromGist) {
-    rulesCache = fromGist;
-    console.log(`[price-rules] Loaded from Gist: [${fromGist.totalPriceDomains.join(', ')}]`);
-    return;
-  }
-  // 2. Try local file
-  try {
-    const f = JSON.parse(fs.readFileSync(RULES_FILE, 'utf8'));
-    if (Array.isArray(f.totalPriceDomains)) {
-      rulesCache = f;
-      console.log(`[price-rules] Loaded from file: [${rulesCache.totalPriceDomains.join(', ')}]`);
-      return;
-    }
-  } catch {}
-  // 3. Env var or hardcoded defaults
-  rulesCache = loadRules();
-  console.log(`[price-rules] Loaded defaults: [${rulesCache.totalPriceDomains.join(', ')}]`);
-}
-
-// ===== HELP CONTENT =====
-const HELP_GIST_FILENAME = 'help-content.md';
+// ===== PRICE RULES + HELP (MySQL) =====
+let rulesCache = null;
 let helpCache = null;
+
+const DEFAULT_RULES = ['usa.tommy.com','calvinklein.us','6pm.com','adidas.com','ashford.com','belk.com','carters.com','clarks.com','coach.com','colehaan.com','converse.com','crocs.com','dsw.com','ebay.com','jomashop.com','kiehls.com','nike.com','us.puma.com','pumagolf.com','ralphlauren.com','saksfifthavenue.com','shop.samsonite.com','sephora.com','skechers.com','swarovski.com','levi.com','ulta.com','walmart.com','wilson.com','zappos.com','zara.com','victoriassecret.com','lacoste.com'];
 
 const DEFAULT_HELP = `📖 **Hướng dẫn sử dụng**
 
@@ -124,35 +35,61 @@ const DEFAULT_HELP = `📖 **Hướng dẫn sử dụng**
 • **bỏ sale #N** — bỏ giảm giá sản phẩm
 • **bỏ giảm giá** — bỏ giảm giá cả đơn`;
 
-async function loadHelpFromGist() {
-  if (!GITHUB_TOKEN || !GIST_ID) return null;
+async function initConfigTables() {
   try {
-    const res = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
-      headers: { 'Authorization': `Bearer ${GITHUB_TOKEN}`, 'Accept': 'application/vnd.github.v3+json' },
-    });
-    const data = await res.json();
-    const content = data.files?.[HELP_GIST_FILENAME]?.content;
-    if (content) return content;
+    const db = await getDb();
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS app_config (
+        config_key VARCHAR(100) PRIMARY KEY,
+        config_value LONGTEXT,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+    // Seed defaults if empty
+    const [rows] = await db.execute("SELECT config_key FROM app_config WHERE config_key IN ('price_rules','help_content')");
+    const keys = rows.map(r => r.config_key);
+    if (!keys.includes('price_rules')) {
+      await db.execute("INSERT INTO app_config (config_key, config_value) VALUES ('price_rules', ?)", [JSON.stringify(DEFAULT_RULES)]);
+    }
+    if (!keys.includes('help_content')) {
+      await db.execute("INSERT INTO app_config (config_key, config_value) VALUES ('help_content', ?)", [DEFAULT_HELP]);
+    }
+    console.log('[config] MySQL tables ready');
   } catch (e) {
-    console.error('[help] Gist load error:', e.message);
+    console.error('[config] Init error:', e.message);
   }
-  return null;
 }
 
-async function saveHelpToGist(content) {
-  if (!GITHUB_TOKEN || !GIST_ID) return;
+function loadRules() {
+  if (rulesCache) return rulesCache;
+  return { totalPriceDomains: [...DEFAULT_RULES] };
+}
+
+async function initRules() {
   try {
-    await fetch(`https://api.github.com/gists/${GIST_ID}`, {
-      method: 'PATCH',
-      headers: {
-        'Authorization': `Bearer ${GITHUB_TOKEN}`,
-        'Accept': 'application/vnd.github.v3+json',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ files: { [HELP_GIST_FILENAME]: { content } } }),
-    });
+    const db = await getDb();
+    const [rows] = await db.execute("SELECT config_value FROM app_config WHERE config_key = 'price_rules'");
+    if (rows.length > 0) {
+      const domains = JSON.parse(rows[0].config_value);
+      rulesCache = { totalPriceDomains: Array.isArray(domains) ? domains : DEFAULT_RULES };
+    } else {
+      rulesCache = { totalPriceDomains: [...DEFAULT_RULES] };
+    }
+    console.log(`[price-rules] Loaded: [${rulesCache.totalPriceDomains.join(', ')}]`);
   } catch (e) {
-    console.error('[help] Gist save error:', e.message);
+    console.error('[price-rules] Load error:', e.message);
+    rulesCache = { totalPriceDomains: [...DEFAULT_RULES] };
+  }
+}
+
+async function saveRules(rules) {
+  rulesCache = rules;
+  try {
+    const db = await getDb();
+    await db.execute("UPDATE app_config SET config_value = ? WHERE config_key = 'price_rules'", [JSON.stringify(rules.totalPriceDomains)]);
+    console.log(`[price-rules] Saved: [${rules.totalPriceDomains.join(', ')}]`);
+  } catch (e) {
+    console.error('[price-rules] Save error:', e.message);
   }
 }
 
@@ -160,21 +97,31 @@ function getHelp() {
   return helpCache || DEFAULT_HELP;
 }
 
-async function saveHelp(content) {
-  helpCache = content;
-  saveHelpToGist(content);
-  console.log('[help] Saved help content');
+async function initHelp() {
+  try {
+    const db = await getDb();
+    const [rows] = await db.execute("SELECT config_value FROM app_config WHERE config_key = 'help_content'");
+    if (rows.length > 0 && rows[0].config_value) {
+      helpCache = rows[0].config_value;
+    } else {
+      helpCache = DEFAULT_HELP;
+    }
+    console.log('[help] Loaded from MySQL');
+  } catch (e) {
+    console.error('[help] Load error:', e.message);
+    helpCache = DEFAULT_HELP;
+  }
 }
 
-async function initHelp() {
-  const fromGist = await loadHelpFromGist();
-  if (fromGist) {
-    helpCache = fromGist;
-    console.log('[help] Loaded from Gist');
-    return;
+async function saveHelp(content) {
+  helpCache = content;
+  try {
+    const db = await getDb();
+    await db.execute("UPDATE app_config SET config_value = ? WHERE config_key = 'help_content'", [content]);
+    console.log('[help] Saved to MySQL');
+  } catch (e) {
+    console.error('[help] Save error:', e.message);
   }
-  helpCache = DEFAULT_HELP;
-  console.log('[help] Using defaults');
 }
 
 const BASSO_KEY = process.env.BASSO_API_KEY || '';
@@ -793,8 +740,10 @@ if (require.main === module) {
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
-    initRules();
-    initHelp();
+    initConfigTables().then(() => {
+      initRules();
+      initHelp();
+    });
   });
 }
 
