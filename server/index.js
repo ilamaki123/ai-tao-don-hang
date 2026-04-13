@@ -602,14 +602,14 @@ app.post('/api/extract-product-images', upload.single('image'), async (req, res)
         role: 'user',
         content: [
           { type: 'image', source: { type: 'base64', media_type: mimeType, data: imageBase64 } },
-          { type: 'text', text: `This is a shopping cart screenshot. For each product row, find the bounding box of ONLY the product photo (clothing/item thumbnail image, NOT text, price, buttons).
+          { type: 'text', text: `This is a shopping cart/bag screenshot from an online store. For each product listed, find the bounding box of the product image/thumbnail/photo. This could be any type of product: clothing, shoes, cosmetics, skincare, electronics, food, accessories, etc. Look for the visual product image (jar, bottle, box, clothing item, device, etc.), NOT icons, buttons, badges, or text.
 Return JSON only:
 {
   "products": [
     {"index": 0, "xPct": 5.0, "yPct": 2.0, "widthPct": 15.0, "heightPct": 20.0}
   ]
 }
-Coordinates are percentages (0-100) of image dimensions. Order top to bottom.` }
+Coordinates are percentages (0-100) of image dimensions. Order top to bottom. Include ALL product images visible.` }
         ]
       }]
     });
