@@ -565,23 +565,35 @@ app.post('/api/extract-product-images', upload.single('image'), async (req, res)
         role: 'user',
         content: [
           { type: 'image', source: { type: 'base64', media_type: mimeType, data: imageBase64 } },
-          { type: 'text', text: `This is a shopping cart/bag screenshot from an online store. For each product listed, find the bounding box of the product image/thumbnail/photo. This could be any type of product: clothing, shoes, cosmetics, skincare, electronics, food, accessories, etc. Look for the visual product image (jar, bottle, box, clothing item, device, etc.), NOT icons, buttons, badges, or text.
-Return JSON only:
-{
-  "products": [
-    {"index": 0, "xPct": 5.0, "yPct": 2.0, "widthPct": 15.0, "heightPct": 20.0}
-  ]
-}
-Coordinates are percentages (0-100) of image dimensions. Order top to bottom. Include ALL product images visible.` }
+          { type: 'text', text: `This is a shopping cart/bag screenshot. Find EVERY product image/thumbnail visible (jar, bottle, box, clothing, shoe, device, etc.). Ignore icons, buttons, badges, logos, text, and checkout buttons.
+
+Coordinates are percentages (0-100) of the FULL uploaded image — (0,0) is the absolute top-left pixel of the file (which may include phone status bar, browser URL bar, or store header), (100,100) is the absolute bottom-right pixel.
+
+Return JSON ONLY (no markdown, no explanation). Realistic example:
+{"products":[{"index":0,"xPct":7.5,"yPct":32.4,"widthPct":22.0,"heightPct":14.5},{"index":1,"xPct":7.5,"yPct":49.8,"widthPct":22.0,"heightPct":14.5}]}
+
+You MUST return actual non-zero coordinates matching what you see. Order top to bottom. Include ALL product thumbnails.` }
         ]
       }]
     });
-    const text = response.content[0].text.trim();
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) return res.status(500).json({ success: false, message: 'Cannot parse' });
-    res.json({ success: true, data: JSON.parse(jsonMatch[0]) });
+    const rawText = (response.content || []).map(c => c.text || '').join('\n').trim();
+    console.log('[extract-product-images] raw:', rawText.slice(0, 2000));
+    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      console.error('[extract-product-images] no JSON in response');
+      return res.status(500).json({ success: false, message: 'Cannot parse', debug: rawText.slice(0, 500) });
+    }
+    let parsed;
+    try {
+      parsed = JSON.parse(jsonMatch[0]);
+    } catch (parseErr) {
+      console.error('[extract-product-images] parse error:', parseErr.message, 'candidate:', jsonMatch[0].slice(0, 500));
+      return res.status(500).json({ success: false, message: 'JSON invalid', debug: jsonMatch[0].slice(0, 500) });
+    }
+    console.log('[extract-product-images] products:', JSON.stringify(parsed.products || []));
+    res.json({ success: true, data: parsed });
   } catch (err) {
-    console.error('[extract-product-images] error:', err.message);
+    console.error('[extract-product-images] error:', err.message, err.stack);
     res.status(500).json({ success: false, message: err.message });
   }
 });

@@ -2025,12 +2025,19 @@
       const img = new Image();
       const url = URL.createObjectURL(file);
       img.onload = () => {
+        const PAD = 0.18; // 18% padding on each side to tolerate Claude coord drift
         const results = products.map(p => {
           const canvas = document.createElement('canvas');
-          const x = (p.xPct / 100) * img.naturalWidth;
-          const y = (p.yPct / 100) * img.naturalHeight;
-          const w = (p.widthPct / 100) * img.naturalWidth;
-          const h = (p.heightPct / 100) * img.naturalHeight;
+          const rawX = (p.xPct / 100) * img.naturalWidth;
+          const rawY = (p.yPct / 100) * img.naturalHeight;
+          const rawW = (p.widthPct / 100) * img.naturalWidth;
+          const rawH = (p.heightPct / 100) * img.naturalHeight;
+          const padX = rawW * PAD;
+          const padY = rawH * PAD;
+          const x = Math.max(0, rawX - padX);
+          const y = Math.max(0, rawY - padY);
+          const w = Math.min(img.naturalWidth - x, rawW + padX * 2);
+          const h = Math.min(img.naturalHeight - y, rawH + padY * 2);
           canvas.width = Math.max(w, 1);
           canvas.height = Math.max(h, 1);
           canvas.getContext('2d').drawImage(img, x, y, w, h, 0, 0, canvas.width, canvas.height);
