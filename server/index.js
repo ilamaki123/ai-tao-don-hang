@@ -497,62 +497,57 @@ app.post('/api/analyze-image', upload.single('image'), async (req, res) => {
             },
             {
               type: 'text',
-              text: `Phân tích ảnh này. Ảnh có thể là:
-1) GIỎ HÀNG (cart/bag): liệt kê TẤT CẢ sản phẩm theo thứ tự từ trên xuống dưới.
-2) TRANG SẢN PHẨM (product detail): chỉ lấy sản phẩm CHÍNH đang được chọn/highlight (có viền xanh, đỏ, hoặc đậm hơn). KHÔNG lấy sản phẩm gợi ý, variant khác, hoặc "customers also bought".
-3) ẢNH SẢN PHẨM ĐƠN LẺ (chỉ có hình + tên, không có giá/size rõ ràng): tạo 1 sản phẩm với tên nhận diện được, để price=0, quantity=1.
+              text: `Trích xuất thông tin sản phẩm từ ảnh và trả về JSON THUẦN (không markdown, không code fence, không giải thích).
 
-Với mỗi sản phẩm trích xuất:
-- name: tên thương hiệu + tên sản phẩm (bắt buộc, luôn phải có)
-- quantity: số lượng (số nguyên, mặc định 1 nếu không thấy)
+Ảnh có thể là:
+- Giỏ hàng: lấy TẤT CẢ sản phẩm từ trên xuống dưới.
+- Trang chi tiết sản phẩm: chỉ lấy sản phẩm chính đang được chọn (viền xanh/đỏ/đậm). Bỏ qua "gợi ý", "customers also bought".
+- Ảnh sản phẩm đơn lẻ (chỉ hình + tên, không giá): tạo 1 sản phẩm với price=0, quantity=1.
+
+Mỗi sản phẩm gồm:
+- name: thương hiệu + tên sản phẩm
+- quantity: số nguyên, mặc định 1
 ${priceRule}
-- currency: ký hiệu tiền tệ nhìn thấy trong ảnh (ví dụ: "$", "€", "£", "₩", "¥", "đ", "VND") — nếu không thấy để trống ""
-- variations: mảng thuộc tính sản phẩm. LUÔN LUÔN bao gồm Size và Color dù có thấy hay không:
-  + Nếu thấy giá trị → điền giá trị (ví dụ {name:"Size",value:"M"}, {name:"Color",value:"Black"})
-  + Nếu KHÔNG thấy giá trị → điền trống (ví dụ {name:"Size",value:""}, {name:"Color",value:""})
-  + Thêm các thuộc tính khác nếu có (Fit, Waist, Length, Width, Type, Style, v.v.)
-  Ví dụ "S Tall | Black" → [{name:"Size",value:"S"},{name:"Fit",value:"Tall"},{name:"Color",value:"Black"}]
-  Ví dụ "29W X 30L" → [{name:"Waist",value:"29W"},{name:"Length",value:"30L"},{name:"Size",value:""},{name:"Color",value:""}]
+- currency: ký hiệu tiền ("$", "€", "£", "₩", "¥", "đ", "VND"), không thấy để ""
+- variations: mảng, LUÔN có Size và Color (value="" nếu không thấy). Thêm thuộc tính khác nếu có (Fit, Waist, Length, Width, Type, Style).
 
-Trả về JSON (chỉ JSON, không giải thích):
-{
-  "items": [
-    {
-      "name": "Tên thương hiệu - Tên sản phẩm",
-      "quantity": 1,
-      "price": 0,
-      "currency": "$",
-      "variations": [
-        {"name": "Size", "value": ""},
-        {"name": "Color", "value": ""}
-      ]
-    }
-  ]
-}`,
+Nếu ảnh không chứa sản phẩm nào, trả về {"items":[]}.
+
+Định dạng trả về duy nhất:
+{"items":[{"name":"","quantity":1,"price":0,"currency":"","variations":[{"name":"Size","value":""},{"name":"Color","value":""}]}]}`,
             },
           ],
         },
       ],
     });
 
-    const text = response.content[0].text.trim();
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    const rawText = (response.content || []).map(c => c.text || '').join('\n').trim();
+    console.log('[analyze-image] raw response:', rawText.slice(0, 2000));
+    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      return res.status(500).json({ success: false, message: 'Không thể trích xuất thông tin từ ảnh' });
+      console.error('[analyze-image] no JSON in response. Full text:', rawText);
+      return res.status(500).json({ success: false, message: 'Không thể trích xuất thông tin từ ảnh', debug: rawText.slice(0, 500) });
     }
 
-    const extracted = JSON.parse(jsonMatch[0]);
+    let extracted;
+    try {
+      extracted = JSON.parse(jsonMatch[0]);
+    } catch (parseErr) {
+      console.error('[analyze-image] JSON parse failed:', parseErr.message);
+      console.error('[analyze-image] JSON candidate:', jsonMatch[0].slice(0, 2000));
+      return res.status(500).json({ success: false, message: 'JSON không hợp lệ: ' + parseErr.message, debug: jsonMatch[0].slice(0, 500) });
+    }
 
-    // Map links theo thứ tự sản phẩm
     const items = (extracted.items || []).map((item, i) => ({
       ...item,
       link: links[i] || '',
     }));
+    console.log('[analyze-image] extracted', items.length, 'items');
 
     res.json({ success: true, data: { items } });
 
   } catch (err) {
-    console.error('analyze-image error:', err.message);
+    console.error('[analyze-image] error:', err.message, err.stack);
     res.status(500).json({ success: false, message: err.message });
   }
 });

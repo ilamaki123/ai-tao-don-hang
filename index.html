@@ -137,21 +137,22 @@
     /* Header */
     .topbar {
       display: flex;
-      justify-content: flex-end;
+      justify-content: space-between;
       align-items: center;
       padding: 14px 20px;
       gap: 10px;
     }
 
     .topbar-search {
-      flex: 1;
       display: flex;
       align-items: center;
       background: #f5f3fa;
       border: 1px solid #e0d8f0;
       border-radius: 8px;
       padding: 4px 10px;
+      width: 100%;
       max-width: 400px;
+      margin: 0 auto;
       position: relative;
     }
 
@@ -1062,10 +1063,19 @@
     }
   }
 
+  function getWebsiteName(url) {
+    const d = getDomainFromUrl(url);
+    if (!d) return '';
+    const base = d.split('.')[0];
+    return base.charAt(0).toUpperCase() + base.slice(1);
+  }
+
   function renderOrderCard(data) {
-    const items = (data.items || []).map(i =>
-      `  • ${i.name} x${i.quantity || 1}${i.price ? ' — ' + formatPrice(i) : ''}`
-    ).join('\n');
+    const items = (data.items || []).map((i, idx) => {
+      const site = getWebsiteName(i.link);
+      const siteTag = site ? ` [${site}]` : '';
+      return `${idx + 1}. ${i.name} x${i.quantity || 1}${i.price ? ' — ' + formatPrice(i) : ''}${siteTag}`;
+    }).join('\n');
     const code = data.orderCode || '';
     return `
       <div class="order-card">
