@@ -2025,7 +2025,7 @@
       const img = new Image();
       const url = URL.createObjectURL(file);
       img.onload = () => {
-        const PAD = 0.18; // 18% padding on each side to tolerate Claude coord drift
+        const PAD = 0.08; // 8% padding — prompt now returns tighter bbox via CoT
         const results = products.map(p => {
           const canvas = document.createElement('canvas');
           const rawX = (p.xPct / 100) * img.naturalWidth;

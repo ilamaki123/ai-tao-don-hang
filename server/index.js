@@ -559,39 +559,72 @@ app.post('/api/extract-product-images', upload.single('image'), async (req, res)
     const imageBase64 = req.file.buffer.toString('base64');
     const mimeType = req.file.mimetype;
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1024,
+      model: 'claude-opus-4-6',
+      max_tokens: 2048,
       messages: [{
         role: 'user',
         content: [
           { type: 'image', source: { type: 'base64', media_type: mimeType, data: imageBase64 } },
-          { type: 'text', text: `This is a shopping cart/bag screenshot. Find EVERY product image/thumbnail visible (jar, bottle, box, clothing, shoe, device, etc.). Ignore icons, buttons, badges, logos, text, and checkout buttons.
+          { type: 'text', text: `You are analyzing a shopping cart/bag screenshot to locate every product thumbnail image so we can crop them.
 
-Coordinates are percentages (0-100) of the FULL uploaded image — (0,0) is the absolute top-left pixel of the file (which may include phone status bar, browser URL bar, or store header), (100,100) is the absolute bottom-right pixel.
+A "product thumbnail" is the small photo of the actual item (jar, bottle, box, clothing, shoe, device, cosmetic). It is usually a square or rectangle next to the product name/price. DO NOT treat these as product thumbnails: app icons, store logos, checkout buttons, payment method icons (Apple Pay/PayPal/Venmo), bottom nav icons, banner ads, trust badges, quantity controls, delete buttons.
 
-Return JSON ONLY (no markdown, no explanation). Realistic example:
-{"products":[{"index":0,"xPct":7.5,"yPct":32.4,"widthPct":22.0,"heightPct":14.5},{"index":1,"xPct":7.5,"yPct":49.8,"widthPct":22.0,"heightPct":14.5}]}
+COORDINATE SYSTEM — READ CAREFULLY:
+- Use x1,y1,x2,y2 where (x1,y1) is the top-left corner and (x2,y2) is the bottom-right corner of the TIGHT bounding box around the product thumbnail only (not including text, price, or qty next to it).
+- All values are percentages (0-100) of the FULL uploaded image file.
+- (0,0) is the absolute top-left pixel of the file, including any phone status bar, browser URL bar, store header, nav tabs, or banner ads at top.
+- (100,100) is the absolute bottom-right pixel, including any footer nav, payment buttons, or ads at bottom.
+- 0 < x1 < x2 <= 100 and 0 < y1 < y2 <= 100 always.
 
-You MUST return actual non-zero coordinates matching what you see. Order top to bottom. Include ALL product thumbnails.` }
+STEP 1 — Describe the layout inside <thinking> tags:
+- Mention what is at the very top of the image (status bar? browser bar? store header?).
+- Mention what is at the very bottom (checkout button? payment row? footer nav?).
+- Estimate roughly which % of the image height those occupy (e.g. "header ends around y=18%, checkout starts around y=80%").
+- List each product you see, with rough vertical position (e.g. "Product 1 — Drunk Elephant Protini jar — roughly y=30% to y=44%, left column x=7% to x=30%").
+
+STEP 2 — Output the final JSON inside <json> tags. No markdown. Example:
+<json>
+{"products":[{"index":0,"x1":7.5,"y1":30.2,"x2":29.8,"y2":44.6},{"index":1,"x1":7.5,"y1":47.1,"x2":29.8,"y2":61.5}]}
+</json>
+
+Order products top to bottom. Include EVERY product thumbnail. Coordinates must reflect the ACTUAL position you see, not a template.` }
         ]
       }]
     });
     const rawText = (response.content || []).map(c => c.text || '').join('\n').trim();
     console.log('[extract-product-images] raw:', rawText.slice(0, 2000));
-    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
+
+    const jsonTagMatch = rawText.match(/<json>([\s\S]*?)<\/json>/i);
+    const jsonCandidate = jsonTagMatch ? jsonTagMatch[1].trim() : (rawText.match(/\{[\s\S]*\}/) || [''])[0];
+    if (!jsonCandidate) {
       console.error('[extract-product-images] no JSON in response');
       return res.status(500).json({ success: false, message: 'Cannot parse', debug: rawText.slice(0, 500) });
     }
+
     let parsed;
     try {
-      parsed = JSON.parse(jsonMatch[0]);
+      parsed = JSON.parse(jsonCandidate);
     } catch (parseErr) {
-      console.error('[extract-product-images] parse error:', parseErr.message, 'candidate:', jsonMatch[0].slice(0, 500));
-      return res.status(500).json({ success: false, message: 'JSON invalid', debug: jsonMatch[0].slice(0, 500) });
+      console.error('[extract-product-images] parse error:', parseErr.message, 'candidate:', jsonCandidate.slice(0, 500));
+      return res.status(500).json({ success: false, message: 'JSON invalid', debug: jsonCandidate.slice(0, 500) });
     }
-    console.log('[extract-product-images] products:', JSON.stringify(parsed.products || []));
-    res.json({ success: true, data: parsed });
+
+    // Normalize: accept either x1/y1/x2/y2 OR xPct/yPct/widthPct/heightPct
+    const rawProducts = Array.isArray(parsed.products) ? parsed.products : [];
+    const normalized = rawProducts.map((p, i) => {
+      if (typeof p.x1 === 'number' && typeof p.x2 === 'number') {
+        return {
+          index: p.index ?? i,
+          xPct: p.x1,
+          yPct: p.y1,
+          widthPct: Math.max(0, p.x2 - p.x1),
+          heightPct: Math.max(0, p.y2 - p.y1),
+        };
+      }
+      return { index: p.index ?? i, xPct: p.xPct || 0, yPct: p.yPct || 0, widthPct: p.widthPct || 0, heightPct: p.heightPct || 0 };
+    });
+    console.log('[extract-product-images] products:', JSON.stringify(normalized));
+    res.json({ success: true, data: { products: normalized } });
   } catch (err) {
     console.error('[extract-product-images] error:', err.message, err.stack);
     res.status(500).json({ success: false, message: err.message });
