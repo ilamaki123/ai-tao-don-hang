@@ -569,25 +569,34 @@ app.post('/api/extract-product-images', upload.single('image'), async (req, res)
 
 A "product thumbnail" is the small photo of the actual item (jar, bottle, box, clothing, shoe, device, cosmetic). It is usually a square or rectangle next to the product name/price. DO NOT treat these as product thumbnails: app icons, store logos, checkout buttons, payment method icons (Apple Pay/PayPal/Venmo), bottom nav icons, banner ads, trust badges, quantity controls, delete buttons.
 
-COORDINATE SYSTEM — READ CAREFULLY:
-- Use x1,y1,x2,y2 where (x1,y1) is the top-left corner and (x2,y2) is the bottom-right corner of the TIGHT bounding box around the product thumbnail only (not including text, price, or qty next to it).
-- All values are percentages (0-100) of the FULL uploaded image file.
-- (0,0) is the absolute top-left pixel of the file, including any phone status bar, browser URL bar, store header, nav tabs, or banner ads at top.
-- (100,100) is the absolute bottom-right pixel, including any footer nav, payment buttons, or ads at bottom.
-- 0 < x1 < x2 <= 100 and 0 < y1 < y2 <= 100 always.
+STRATEGY — measure the CART LIST region first, then locate products INSIDE it:
 
-STEP 1 — Describe the layout inside <thinking> tags:
-- Mention what is at the very top of the image (status bar? browser bar? store header?).
-- Mention what is at the very bottom (checkout button? payment row? footer nav?).
-- Estimate roughly which % of the image height those occupy (e.g. "header ends around y=18%, checkout starts around y=80%").
-- List each product you see, with rough vertical position (e.g. "Product 1 — Drunk Elephant Protini jar — roughly y=30% to y=44%, left column x=7% to x=30%").
+The image usually contains chrome (phone status bar, browser URL bar, store header, banner, Checkout button, payment row, bottom nav) above and below the actual cart list. You will report coordinates in TWO coordinate systems:
 
-STEP 2 — Output the final JSON inside <json> tags. No markdown. Example:
+1) contentBounds — percentages of the FULL image (0-100):
+   - topPct = y where the cart list region begins (just below the store header / "Get It Shipped" banner / shipping notice — wherever the FIRST product row actually starts).
+   - bottomPct = y where the cart list region ends (just above the Estimated Total / Checkout button — wherever the LAST product row actually ends).
+   - leftPct / rightPct = x boundaries of the cart list column.
+
+2) products[] — percentages RELATIVE to the contentBounds rectangle (0-100 of contentBounds width/height, NOT of the full image).
+   - Each product is {x1,y1,x2,y2} = tight bbox around the product thumbnail image only (NOT including text, price, qty, delete, or "Move to Loves" buttons next to it).
+   - (0,0) means top-left of contentBounds region; (100,100) means bottom-right of contentBounds region.
+   - So if a product thumbnail is at the very left edge of the cart list and vertically centered, it might be around {x1:5,y1:40,x2:30,y2:60}.
+
+This two-level approach is much more accurate because you only need to estimate "where is this thumbnail inside the cart list" — a simple, near-linear mapping.
+
+STEP 1 — Reason inside <thinking> tags:
+- Describe what is above the cart list (status bar, browser bar, Sephora header, "Get It Shipped" banner, free shipping notice).
+- Describe what is below the cart list (Estimated Total, Checkout button, Apple Pay / PayPal / Venmo row, Home/Shop/Offers bottom nav).
+- Estimate contentBounds.topPct and bottomPct based on those landmarks.
+- For each product, estimate its position INSIDE the cart list region (relative 0-100).
+
+STEP 2 — Output final JSON inside <json> tags. No markdown. Example:
 <json>
-{"products":[{"index":0,"x1":7.5,"y1":30.2,"x2":29.8,"y2":44.6},{"index":1,"x1":7.5,"y1":47.1,"x2":29.8,"y2":61.5}]}
+{"contentBounds":{"topPct":18.5,"bottomPct":78.2,"leftPct":2.0,"rightPct":98.0},"products":[{"index":0,"x1":5.0,"y1":8.0,"x2":28.0,"y2":32.0},{"index":1,"x1":5.0,"y1":40.0,"x2":28.0,"y2":64.0}]}
 </json>
 
-Order products top to bottom. Include EVERY product thumbnail. Coordinates must reflect the ACTUAL position you see, not a template.` }
+Order products top to bottom. Include EVERY product thumbnail. Coordinates must reflect the ACTUAL layout, not a template.` }
         ]
       }]
     });
@@ -609,21 +618,38 @@ Order products top to bottom. Include EVERY product thumbnail. Coordinates must 
       return res.status(500).json({ success: false, message: 'JSON invalid', debug: jsonCandidate.slice(0, 500) });
     }
 
-    // Normalize: accept either x1/y1/x2/y2 OR xPct/yPct/widthPct/heightPct
+    // Normalize: convert relative-to-contentBounds coords → absolute full-image xPct/yPct/widthPct/heightPct
     const rawProducts = Array.isArray(parsed.products) ? parsed.products : [];
+    const cb = parsed.contentBounds || { topPct: 0, bottomPct: 100, leftPct: 0, rightPct: 100 };
+    const cbTop = typeof cb.topPct === 'number' ? cb.topPct : 0;
+    const cbBottom = typeof cb.bottomPct === 'number' ? cb.bottomPct : 100;
+    const cbLeft = typeof cb.leftPct === 'number' ? cb.leftPct : 0;
+    const cbRight = typeof cb.rightPct === 'number' ? cb.rightPct : 100;
+    const cbW = Math.max(0.01, cbRight - cbLeft);
+    const cbH = Math.max(0.01, cbBottom - cbTop);
+
     const normalized = rawProducts.map((p, i) => {
-      if (typeof p.x1 === 'number' && typeof p.x2 === 'number') {
-        return {
-          index: p.index ?? i,
-          xPct: p.x1,
-          yPct: p.y1,
-          widthPct: Math.max(0, p.x2 - p.x1),
-          heightPct: Math.max(0, p.y2 - p.y1),
-        };
-      }
-      return { index: p.index ?? i, xPct: p.xPct || 0, yPct: p.yPct || 0, widthPct: p.widthPct || 0, heightPct: p.heightPct || 0 };
+      const relX1 = typeof p.x1 === 'number' ? p.x1 : (p.xPct || 0);
+      const relY1 = typeof p.y1 === 'number' ? p.y1 : (p.yPct || 0);
+      const relX2 = typeof p.x2 === 'number' ? p.x2 : ((p.xPct || 0) + (p.widthPct || 0));
+      const relY2 = typeof p.y2 === 'number' ? p.y2 : ((p.yPct || 0) + (p.heightPct || 0));
+
+      // Map relative (0-100 of contentBounds) → absolute (0-100 of full image)
+      const absX1 = cbLeft + (relX1 / 100) * cbW;
+      const absY1 = cbTop + (relY1 / 100) * cbH;
+      const absX2 = cbLeft + (relX2 / 100) * cbW;
+      const absY2 = cbTop + (relY2 / 100) * cbH;
+
+      return {
+        index: p.index ?? i,
+        xPct: absX1,
+        yPct: absY1,
+        widthPct: Math.max(0, absX2 - absX1),
+        heightPct: Math.max(0, absY2 - absY1),
+      };
     });
-    console.log('[extract-product-images] products:', JSON.stringify(normalized));
+    console.log('[extract-product-images] contentBounds:', JSON.stringify(cb));
+    console.log('[extract-product-images] products (absolute):', JSON.stringify(normalized));
     res.json({ success: true, data: { products: normalized } });
   } catch (err) {
     console.error('[extract-product-images] error:', err.message, err.stack);
