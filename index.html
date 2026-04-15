@@ -1066,7 +1066,19 @@
   function getWebsiteName(url) {
     const d = getDomainFromUrl(url);
     if (!d) return '';
-    const base = d.split('.')[0];
+    let parts = d.split('.');
+    if (parts.length >= 3) {
+      const last = parts[parts.length - 1];
+      const sec = parts[parts.length - 2];
+      if (last.length === 2 && ['com', 'co', 'net', 'org', 'gov', 'edu', 'ac'].includes(sec)) {
+        parts = parts.slice(0, -2);
+      } else {
+        parts = parts.slice(0, -1);
+      }
+    } else {
+      parts = parts.slice(0, -1);
+    }
+    const base = parts[parts.length - 1] || d;
     return base.charAt(0).toUpperCase() + base.slice(1);
   }
 
