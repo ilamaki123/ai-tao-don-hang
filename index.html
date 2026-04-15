@@ -1137,18 +1137,27 @@
         addMessage('ai', `Không thể tải đơn hàng ${orderCode}: ${translateError(data.message)}`);
         return;
       }
-      const orderItems = (data.data.items || []).map(item => ({
-        ...item,
-        variations: (item.variations || []).map(v => ({ ...v })),
-        _original: { ...item, variations: (item.variations || []).map(v => ({ ...v })) },
-        _status: 'unchanged',
-      }));
+      const orderItems = (data.data.items || []).map(item => {
+        const priceOrigin = parseFloat(item.price_origin ?? item.price ?? 0) || 0;
+        const rate = parseFloat(item.price_discount_rate ?? 0) || 0;
+        const normalized = {
+          ...item,
+          variations: (item.variations || []).map(v => ({ ...v })),
+          price: priceOrigin,
+          itemSalePct: rate > 0 ? rate : undefined,
+          noSale: false,
+        };
+        normalized._original = { ...normalized, variations: normalized.variations.map(v => ({ ...v })) };
+        normalized._status = 'unchanged';
+        return normalized;
+      });
       session.editingOrder = {
         orderCode,
         items: orderItems,
         deleteIds: [],
         addItems: [],
         updateItems: [],
+        salePct: 0,
       };
       session.state = 'EDITING_ORDER';
       saveSessions();
@@ -1193,6 +1202,7 @@
     const session = getActiveSession();
     if (!session || !session.editingOrder) return '';
     const editing = session.editingOrder;
+    const salePct = editing.salePct || 0;
     const allItems = [...editing.items, ...editing.addItems.map(item => ({ ...item, _status: 'new' }))];
     const cards = allItems.map((item, i) => {
       const isOrig = i < editing.items.length;
@@ -1205,11 +1215,16 @@
           <span class="cart-field-value">${escapeHtml(v.value)}</span>
         </span>`
       ).join('');
-      const priceShow = item.price ? '$' + item.price : '';
+      const pct = getItemSalePct(item, salePct);
+      const ep = effectivePrice(item, salePct);
+      const priceShow = item.price
+        ? (pct > 0 ? `<s>${formatPrice(item)}</s> ${formatPrice({...item, price: ep})} (-${pct}%)` : formatPrice(item))
+        : '';
       const linkShow = item.link ? item.link.substring(0, 35) + '...' : '⚠️ chưa có link';
       const thumbSrc = item.thumb || (item.image_path ? (item.image_path.startsWith('http') ? item.image_path : 'https://basso.vn' + item.image_path) : '');
       const thumbHtml = thumbSrc ? `<img class="cart-card-thumb" src="${thumbSrc}" />` : '';
       const shortName = item.name.length > 30 ? item.name.substring(0, 30) + '...' : item.name;
+      const canEdit = status !== 'deleted';
       return `<div class="cart-card" style="${opacity}" id="editCard${i}">
         <div class="cart-card-compact" onclick="toggleCardExpand(${i},'editCard')">
           <span class="cart-card-num">${i+1}.${badge}</span>
@@ -1222,21 +1237,27 @@
           <div class="cart-card-fields" style="margin-top:0">
             <span class="cart-card-num hide-mobile">${i+1}.${badge}</span>
             ${thumbHtml ? `<span class="hide-mobile">${thumbHtml}</span>` : ''}
-            <span class="cart-field" ${isOrig && status !== 'deleted' ? `onclick="editOrderItemField(${i},'name')"` : ''} style="flex:1;min-width:0;margin-right:28px">
+            <span class="cart-field" ${canEdit ? `onclick="editOrderItemField(${i},'name')"` : ''} style="flex:1;min-width:0;margin-right:28px">
               <span class="cart-field-label">Tên</span>
               <span class="cart-field-value" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(item.name)}</span>
             </span>
           </div>
           <div class="cart-card-fields">
-            <span class="cart-field" ${isOrig && status !== 'deleted' ? `onclick="editOrderItemField(${i},'quantity')"` : ''}>
+            <span class="cart-field" ${canEdit ? `onclick="editOrderItemField(${i},'quantity')"` : ''}>
               <span class="cart-field-label">Qty</span>
               <span class="cart-field-value">${item.quantity || 1}</span>
             </span>
-            <span class="cart-field" ${isOrig && status !== 'deleted' ? `onclick="editOrderItemField(${i},'price')"` : ''}>
+            <span class="cart-field" ${canEdit ? `onclick="editOrderItemField(${i},'price')"` : ''}>
               <span class="cart-field-label">Giá</span>
               <span class="cart-field-value">${priceShow}</span>
             </span>
-            <span class="cart-field" ${isOrig && status !== 'deleted' ? `onclick="editOrderItemField(${i},'link')"` : ''} style="flex:1;min-width:0">
+            <span class="cart-field" ${canEdit ? `onclick="editOrderItemField(${i},'itemSale')"` : ''} style="color:${item.itemSalePct ? '#e55' : '#999'}">
+              <span class="cart-field-label">Sale</span>
+              <span class="cart-field-value">${item.noSale ? 'Miễn' : item.itemSalePct ? item.itemSalePct + '%' : '—'}</span>
+            </span>
+            ${(salePct > 0 && canEdit && !item.noSale && !item.itemSalePct) ? `<span class="cart-field" onclick="toggleEditNoSale(${i})" style="color:#e55;font-size:11px;cursor:pointer"><span class="cart-field-value">Miễn sale</span></span>` : ''}
+            ${(item.noSale && canEdit) ? `<span class="cart-field" onclick="toggleEditNoSale(${i})" style="color:#28a745;font-size:11px;cursor:pointer"><span class="cart-field-value">Áp sale lại</span></span>` : ''}
+            <span class="cart-field" ${canEdit ? `onclick="editOrderItemField(${i},'link')"` : ''} style="flex:1;min-width:0">
               <span class="cart-field-label">Link</span>
               <span class="cart-field-value" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(linkShow)}</span>
             </span>
@@ -1254,8 +1275,14 @@
         </div>
         <div class="cart-cards">${cards}</div>
         <div class="cart-actions" style="justify-content:space-between">
-          <button class="cart-btn" style="background:#f0f0f0;color:#666" onclick="cancelEditOrderUI()">Hủy chỉnh sửa</button>
-          <button class="cart-btn cart-btn-order" onclick="submitOrderUpdate(getActiveSession())">Cập nhật đơn</button>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="cart-btn" style="background:#f0eaff;color:#7c5cbf" onclick="applyEditSaleUI()">Giảm giá ${salePct ? salePct + '%' : ''}</button>
+            ${salePct > 0 ? `<button class="cart-btn" style="background:#fde8e8;color:#e55;font-size:12px" onclick="removeEditSaleUI()">Bỏ giảm giá</button>` : ''}
+          </div>
+          <div style="display:flex;gap:10px">
+            <button class="cart-btn" style="background:#f0f0f0;color:#666" onclick="cancelEditOrderUI()">Hủy chỉnh sửa</button>
+            <button class="cart-btn cart-btn-order" onclick="submitOrderUpdate(getActiveSession())">Cập nhật đơn</button>
+          </div>
         </div>
       </div>
     `;
@@ -1291,6 +1318,8 @@
       label = 'Số lượng'; currentVal = item.quantity || 1;
     } else if (field === 'price') {
       label = 'Giá'; currentVal = item.price || 0;
+    } else if (field === 'itemSale') {
+      label = 'Giảm giá riêng (%)'; currentVal = item.itemSalePct || 0;
     } else if (field === 'link') {
       label = 'Link'; currentVal = item.link || '';
     }
@@ -1299,11 +1328,54 @@
       else if (field === 'name') item.name = newVal;
       else if (field === 'quantity') item.quantity = parseInt(newVal) || 1;
       else if (field === 'price') item.price = parseFloat(newVal) || 0;
+      else if (field === 'itemSale') {
+        const pct = parseFloat(newVal) || 0;
+        item.itemSalePct = pct > 0 ? pct : undefined;
+        item.noSale = false;
+      }
       else if (field === 'link') item.link = newVal;
       if (isOrig) item._status = 'modified';
       saveSessions();
       renderEditOrder();
     });
+  }
+
+  function applyEditSaleUI() {
+    const session = getActiveSession();
+    if (!session || !session.editingOrder) return;
+    openEditModal('Giảm giá toàn đơn (%)', session.editingOrder.salePct || 0, (val) => {
+      const pct = Math.max(0, Math.min(100, parseFloat(val) || 0));
+      session.editingOrder.salePct = pct;
+      session.editingOrder.items.forEach(i => {
+        if (i._status !== 'deleted') i._status = 'modified';
+      });
+      saveSessions();
+      renderEditOrder();
+    });
+  }
+
+  function removeEditSaleUI() {
+    const session = getActiveSession();
+    if (!session || !session.editingOrder) return;
+    session.editingOrder.salePct = 0;
+    session.editingOrder.items.forEach(i => {
+      i.noSale = false;
+      if (i._status !== 'deleted') i._status = 'modified';
+    });
+    saveSessions();
+    renderEditOrder();
+  }
+
+  function toggleEditNoSale(idx) {
+    const session = getActiveSession();
+    if (!session || !session.editingOrder) return;
+    const editing = session.editingOrder;
+    const isOrig = idx < editing.items.length;
+    const item = isOrig ? editing.items[idx] : editing.addItems[idx - editing.items.length];
+    item.noSale = !item.noSale;
+    if (isOrig) item._status = 'modified';
+    saveSessions();
+    renderEditOrder();
   }
 
   function markDeleteOrderItem(idx) {
@@ -1345,23 +1417,31 @@
   async function submitOrderUpdate(session) {
     const editing = session.editingOrder;
     if (!editing) return;
+    const salePct = editing.salePct || 0;
     const deleteIds = editing.items.filter(i => i._status === 'deleted').map(i => i.id);
     const updateItems = [];
-    const addItems = [...editing.addItems.map(i => ({
-      name: i.name,
-      link: i.link || '',
-      quantity: 1,
-      price: i.price || 0,
-      variations: i.variations || [],
-      ...(i.image_id ? { image_id: i.image_id } : {}),
-    }))];
+    const addItems = [...editing.addItems.map(i => {
+      const pct = getItemSalePct(i, salePct);
+      return {
+        name: i.name,
+        link: i.link || '',
+        quantity: 1,
+        price: i.price || 0,
+        price_discount_rate: pct,
+        variations: i.variations || [],
+        ...(i.image_id ? { image_id: i.image_id } : {}),
+      };
+    })];
 
     // Process modified items
     editing.items.filter(i => i._status === 'modified').forEach(i => {
       const upd = { id: i.id };
       const orig = i._original;
+      const newPct = getItemSalePct(i, salePct);
+      const origPct = orig.itemSalePct || 0;
       if (i.name !== orig.name) upd.name = i.name;
       if (i.price !== orig.price) upd.price = i.price;
+      if (newPct !== origPct) upd.price_discount_rate = newPct;
       if (i.link !== orig.link) upd.link = i.link;
       if (JSON.stringify(i.variations) !== JSON.stringify(orig.variations)) {
         upd.variations = i.variations || [];
@@ -1375,6 +1455,7 @@
             link: i.link || '',
             quantity: 1,
             price: i.price || 0,
+            price_discount_rate: newPct,
             variations: i.variations || [],
             ...(i.image_id ? { image_id: i.image_id } : {}),
             ...(i.image_path ? { image_path: i.image_path } : {}),
