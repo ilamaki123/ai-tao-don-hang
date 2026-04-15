@@ -632,7 +632,7 @@ Use REAL numbers from the image, not the example values. Include EVERY product t
       const avgSpacing = validPairs.length > 0
         ? validPairs.reduce((a, b) => a + b, 0) / validPairs.length
         : tw * 1.2;
-      thumbHeight = avgSpacing * 0.85; // 85% of spacing — leaves small gap between rows
+      thumbHeight = avgSpacing * 0.65; // real carts: thumb is ~60-70% of center spacing (rest is gap + row padding)
     } else {
       // Single product fallback: square-ish box
       thumbHeight = Math.min(tw * 1.3, 30);
