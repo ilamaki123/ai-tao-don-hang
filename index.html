@@ -1420,14 +1420,20 @@
     const salePct = editing.salePct || 0;
     const deleteIds = editing.items.filter(i => i._status === 'deleted').map(i => i.id);
     const updateItems = [];
+    const computeAfterSale = (base, pct) => pct > 0
+      ? Math.round((base || 0) * (1 - pct / 100) * 100) / 100
+      : (base || 0);
+
     const addItems = [...editing.addItems.map(i => {
       const pct = getItemSalePct(i, salePct);
+      const base = i.price || 0;
       return {
         name: i.name,
         link: i.link || '',
         quantity: 1,
-        price: i.price || 0,
+        price_origin: base,
         price_discount_rate: pct,
+        price: computeAfterSale(base, pct),
         variations: i.variations || [],
         ...(i.image_id ? { image_id: i.image_id } : {}),
       };
@@ -1439,9 +1445,14 @@
       const orig = i._original;
       const newPct = getItemSalePct(i, salePct);
       const origPct = orig.itemSalePct || 0;
+      const priceChanged = i.price !== orig.price;
+      const pctChanged = newPct !== origPct;
       if (i.name !== orig.name) upd.name = i.name;
-      if (i.price !== orig.price) upd.price = i.price;
-      if (newPct !== origPct) upd.price_discount_rate = newPct;
+      if (priceChanged || pctChanged) {
+        upd.price_origin = i.price || 0;
+        upd.price_discount_rate = newPct;
+        upd.price = computeAfterSale(i.price || 0, newPct);
+      }
       if (i.link !== orig.link) upd.link = i.link;
       if (JSON.stringify(i.variations) !== JSON.stringify(orig.variations)) {
         upd.variations = i.variations || [];
@@ -1449,13 +1460,15 @@
       // Qty tăng → clone thêm items thay vì sửa qty
       const qtyDiff = (i.quantity || 1) - (orig.quantity || 1);
       if (qtyDiff > 0) {
+        const base = i.price || 0;
         for (let n = 0; n < qtyDiff; n++) {
           addItems.push({
             name: i.name,
             link: i.link || '',
             quantity: 1,
-            price: i.price || 0,
+            price_origin: base,
             price_discount_rate: newPct,
+            price: computeAfterSale(base, newPct),
             variations: i.variations || [],
             ...(i.image_id ? { image_id: i.image_id } : {}),
             ...(i.image_path ? { image_path: i.image_path } : {}),
