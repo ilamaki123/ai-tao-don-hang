@@ -2032,7 +2032,7 @@
       const img = new Image();
       const url = URL.createObjectURL(file);
       img.onload = () => {
-        const PAD = 0.20; // 20% padding to tolerate Claude's ~5-7% coordinate drift
+        const PAD = 0.10; // 10% padding — height is now derived from spacing, less drift expected
         const results = products.map(p => {
           const canvas = document.createElement('canvas');
           const rawX = (p.xPct / 100) * img.naturalWidth;
