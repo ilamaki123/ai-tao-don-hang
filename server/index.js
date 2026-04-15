@@ -567,24 +567,26 @@ app.post('/api/extract-product-images', upload.single('image'), async (req, res)
           { type: 'image', source: { type: 'base64', media_type: mimeType, data: imageBase64 } },
           { type: 'text', text: `Locate every product thumbnail in this shopping cart screenshot.
 
-A "product thumbnail" = the photo of the actual item (jar, bottle, box, clothing, shoe, device). NOT: app icons, store logos, checkout buttons, payment icons (Apple Pay/PayPal/Venmo), nav icons, badges, qty/delete buttons.
+A "product thumbnail" = the photo of the actual item (jar, bottle, box, clothing, shoe, device, or model wearing the item). NOT: app icons, store logos, checkout buttons, payment icons (Apple Pay/PayPal/Klarna/Venmo), nav icons, badges, qty/delete buttons, edit/save links.
 
-KEY INSIGHT: in almost every cart, all product thumbnails share the SAME width, SAME height, and SAME x-position (left column). Only the y-position differs. So you only need to estimate the shared dimensions ONCE, then give the vertical center y of each product.
+KEY INSIGHT: In almost every cart, all product thumbnails sit in the SAME column (usually the left side), so they share the SAME x-center and SAME width. But the HEIGHT can differ because some products use square thumbnails (cosmetics, electronics) while others use tall full-body model shots (clothing). So estimate x-center and width ONCE, then give the EXACT top y and bottom y of EACH product's thumbnail individually.
 
-All values are PERCENTAGES (0-100) of the FULL uploaded image (including any phone status bar, browser bar, header, footer, payment row).
+All values are PERCENTAGES (0-100) of the FULL uploaded image (including phone status bar, browser bar, store header, footer, payment row — everything in the file).
 
 Fields:
 - thumbXCenter: x-coordinate of the center of the thumbnail column (where every product photo is horizontally centered)
 - thumbWidth: width of one thumbnail
-- thumbHeight: height of one thumbnail
-- products[].yCenter: the vertical center y of each product's thumbnail (top to bottom order)
+- products[].yTop: y of the TOP edge of this product's thumbnail
+- products[].yBottom: y of the BOTTOM edge of this product's thumbnail
+
+For clothing thumbnails showing a model from head to legs, yTop = top of the head, yBottom = bottom of the legs/feet visible in that thumbnail. For square product photos (jar/box/device), yTop and yBottom are the top and bottom of the photo box.
 
 Output ONLY this JSON inside <json> tags, no other text:
 <json>
-{"thumbXCenter":18,"thumbWidth":22,"thumbHeight":14,"products":[{"index":0,"yCenter":37},{"index":1,"yCenter":59}]}
+{"thumbXCenter":18,"thumbWidth":22,"products":[{"index":0,"yTop":17,"yBottom":32},{"index":1,"yTop":38,"yBottom":53},{"index":2,"yTop":60,"yBottom":75}]}
 </json>
 
-Use real numbers from the image. Include EVERY product thumbnail in top-to-bottom order.` }
+Use REAL numbers from the image, not the example values. Include EVERY product thumbnail in top-to-bottom order.` }
         ]
       }]
     });
@@ -606,23 +608,23 @@ Use real numbers from the image. Include EVERY product thumbnail in top-to-botto
       return res.status(500).json({ success: false, message: 'JSON invalid', debug: jsonCandidate.slice(0, 500) });
     }
 
-    // Normalize: shared-dimension format (thumbXCenter + thumbWidth + thumbHeight + products[].yCenter)
+    // Normalize: hybrid format (shared thumbXCenter + thumbWidth, per-product yTop + yBottom)
     const rawProducts = Array.isArray(parsed.products) ? parsed.products : [];
     const tw = typeof parsed.thumbWidth === 'number' ? parsed.thumbWidth : 20;
-    const th = typeof parsed.thumbHeight === 'number' ? parsed.thumbHeight : 14;
     const tx = typeof parsed.thumbXCenter === 'number' ? parsed.thumbXCenter : (tw / 2 + 5);
 
     const normalized = rawProducts.map((p, i) => {
-      const yc = typeof p.yCenter === 'number' ? p.yCenter : 50;
+      const yTop = typeof p.yTop === 'number' ? p.yTop : (typeof p.yCenter === 'number' ? p.yCenter - 7 : 0);
+      const yBottom = typeof p.yBottom === 'number' ? p.yBottom : (typeof p.yCenter === 'number' ? p.yCenter + 7 : 0);
       return {
         index: p.index ?? i,
         xPct: Math.max(0, tx - tw / 2),
-        yPct: Math.max(0, yc - th / 2),
+        yPct: Math.max(0, yTop),
         widthPct: tw,
-        heightPct: th,
+        heightPct: Math.max(0, yBottom - yTop),
       };
     });
-    console.log('[extract-product-images] shared:', JSON.stringify({ thumbXCenter: tx, thumbWidth: tw, thumbHeight: th }));
+    console.log('[extract-product-images] shared:', JSON.stringify({ thumbXCenter: tx, thumbWidth: tw }));
     console.log('[extract-product-images] products (absolute):', JSON.stringify(normalized));
     res.json({ success: true, data: { products: normalized } });
   } catch (err) {
