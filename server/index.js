@@ -559,7 +559,7 @@ app.post('/api/extract-product-images', upload.single('image'), async (req, res)
     const imageBase64 = req.file.buffer.toString('base64');
     const mimeType = req.file.mimetype;
     const response = await anthropic.messages.create({
-      model: 'claude-opus-4-6',
+      model: 'claude-sonnet-4-6',
       max_tokens: 2048,
       messages: [{
         role: 'user',
