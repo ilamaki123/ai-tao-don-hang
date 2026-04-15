@@ -509,7 +509,7 @@ Mỗi sản phẩm gồm:
 - quantity: số nguyên, mặc định 1
 ${priceRule}
 - currency: ký hiệu tiền ("$", "€", "£", "₩", "¥", "đ", "VND"), không thấy để ""
-- variations: mảng, LUÔN có Size và Color (value="" nếu không thấy). Thêm thuộc tính khác nếu có (Fit, Waist, Length, Width, Type, Style).
+- variations: mảng các thuộc tính NGƯỜI MUA ĐÃ CHỌN (size selector, color swatch, hoặc dòng "Size: M", "Color: Black"). LUÔN có Size và Color trong mảng (value="" nếu không thấy lựa chọn cụ thể). KHÔNG được tự bịa thuộc tính từ tên/mô tả/đặc điểm sản phẩm (ví dụ KHÔNG suy "Surface: Carbon" từ tên paddle, KHÔNG đoán "Color: Blue" từ màu trong ảnh sản phẩm). Chỉ lấy khi có giá trị rõ ràng được hiển thị như một lựa chọn variant.
 
 Nếu ảnh không chứa sản phẩm nào, trả về {"items":[]}.
 
