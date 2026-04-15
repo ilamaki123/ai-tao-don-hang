@@ -560,43 +560,27 @@ app.post('/api/extract-product-images', upload.single('image'), async (req, res)
     const mimeType = req.file.mimetype;
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 2048,
+      max_tokens: 600,
       messages: [{
         role: 'user',
         content: [
           { type: 'image', source: { type: 'base64', media_type: mimeType, data: imageBase64 } },
-          { type: 'text', text: `You are analyzing a shopping cart/bag screenshot to locate every product thumbnail image so we can crop them.
+          { type: 'text', text: `Locate every product thumbnail image in this shopping cart screenshot.
 
-A "product thumbnail" is the small photo of the actual item (jar, bottle, box, clothing, shoe, device, cosmetic). It is usually a square or rectangle next to the product name/price. DO NOT treat these as product thumbnails: app icons, store logos, checkout buttons, payment method icons (Apple Pay/PayPal/Venmo), bottom nav icons, banner ads, trust badges, quantity controls, delete buttons.
+A "product thumbnail" = the photo of the actual item (jar, bottle, box, clothing, shoe, device). NOT: app icons, store logos, checkout buttons, payment icons (Apple Pay/PayPal/Venmo), nav icons, badges, qty/delete buttons.
 
-STRATEGY — measure the CART LIST region first, then locate products INSIDE it:
+Use TWO-LEVEL coordinates:
 
-The image usually contains chrome (phone status bar, browser URL bar, store header, banner, Checkout button, payment row, bottom nav) above and below the actual cart list. You will report coordinates in TWO coordinate systems:
+1) contentBounds (percent of FULL image, 0-100): the rectangle of the cart list region, EXCLUDING chrome above (status bar, browser bar, store header, banners, shipping notice) and below (Estimated Total, Checkout, payment row, bottom nav).
 
-1) contentBounds — percentages of the FULL image (0-100):
-   - topPct = y where the cart list region begins (just below the store header / "Get It Shipped" banner / shipping notice — wherever the FIRST product row actually starts).
-   - bottomPct = y where the cart list region ends (just above the Estimated Total / Checkout button — wherever the LAST product row actually ends).
-   - leftPct / rightPct = x boundaries of the cart list column.
+2) products[] coords are RELATIVE to contentBounds (0-100 of its width/height, NOT the full image). x1,y1 = top-left corner, x2,y2 = bottom-right of TIGHT bbox around just the thumbnail.
 
-2) products[] — percentages RELATIVE to the contentBounds rectangle (0-100 of contentBounds width/height, NOT of the full image).
-   - Each product is {x1,y1,x2,y2} = tight bbox around the product thumbnail image only (NOT including text, price, qty, delete, or "Move to Loves" buttons next to it).
-   - (0,0) means top-left of contentBounds region; (100,100) means bottom-right of contentBounds region.
-   - So if a product thumbnail is at the very left edge of the cart list and vertically centered, it might be around {x1:5,y1:40,x2:30,y2:60}.
-
-This two-level approach is much more accurate because you only need to estimate "where is this thumbnail inside the cart list" — a simple, near-linear mapping.
-
-STEP 1 — Reason inside <thinking> tags:
-- Describe what is above the cart list (status bar, browser bar, Sephora header, "Get It Shipped" banner, free shipping notice).
-- Describe what is below the cart list (Estimated Total, Checkout button, Apple Pay / PayPal / Venmo row, Home/Shop/Offers bottom nav).
-- Estimate contentBounds.topPct and bottomPct based on those landmarks.
-- For each product, estimate its position INSIDE the cart list region (relative 0-100).
-
-STEP 2 — Output final JSON inside <json> tags. No markdown. Example:
+Output ONLY this JSON inside <json> tags, no other text:
 <json>
-{"contentBounds":{"topPct":18.5,"bottomPct":78.2,"leftPct":2.0,"rightPct":98.0},"products":[{"index":0,"x1":5.0,"y1":8.0,"x2":28.0,"y2":32.0},{"index":1,"x1":5.0,"y1":40.0,"x2":28.0,"y2":64.0}]}
+{"contentBounds":{"topPct":28,"bottomPct":74,"leftPct":4,"rightPct":96},"products":[{"index":0,"x1":5,"y1":4,"x2":26,"y2":30},{"index":1,"x1":5,"y1":56,"x2":26,"y2":82}]}
 </json>
 
-Order products top to bottom. Include EVERY product thumbnail. Coordinates must reflect the ACTUAL layout, not a template.` }
+Use real coordinates from the image, not the example values. Order top to bottom. Include EVERY product thumbnail.` }
         ]
       }]
     });
