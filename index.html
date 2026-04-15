@@ -2717,7 +2717,30 @@
   if ('serviceWorker' in navigator) {
     const base = new URL('./', window.location.href);
     const swUrl = new URL('sw.js', base.href);
-    navigator.serviceWorker.register(swUrl.href, { scope: base.href }).catch(() => {});
+    navigator.serviceWorker.register(swUrl.href, { scope: base.href, updateViaCache: 'none' })
+      .then((reg) => {
+        // Check for SW updates on every page load
+        reg.update().catch(() => {});
+        // When a new SW takes control, reload once so the user gets the fresh HTML/JS
+        let reloaded = false;
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          if (reloaded) return;
+          reloaded = true;
+          window.location.reload();
+        });
+        // If a new SW is waiting, tell it to activate immediately
+        if (reg.waiting) reg.waiting.postMessage('SKIP_WAITING');
+        reg.addEventListener('updatefound', () => {
+          const sw = reg.installing;
+          if (!sw) return;
+          sw.addEventListener('statechange', () => {
+            if (sw.state === 'installed' && navigator.serviceWorker.controller) {
+              sw.postMessage('SKIP_WAITING');
+            }
+          });
+        });
+      })
+      .catch(() => {});
   }
 </script>
 
