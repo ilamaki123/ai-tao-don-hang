@@ -1818,12 +1818,15 @@
           extractForm.append('image', file);
           const extractRes = await fetch(`${API_BASE}/api/extract-product-images`, { method: 'POST', headers: getAuthHeaders(), body: extractForm });
           const extractData = await extractRes.json();
+          console.log('[extract] response:', extractData);
           if (extractData.success && extractData.data.products?.length > 0) {
+            console.log('[extract] cropping', extractData.data.products.length, 'products');
             const cropped = await cropProductImages(file, extractData.data.products);
-            // Tự động upload từng ảnh crop lên Basso và gán image_id
+            console.log('[extract] cropped', cropped.length, 'thumbnails, sizes:', cropped.map(d => d.length));
             await Promise.all(cropped.map(async (dataUrl, i) => {
               if (i >= newItems.length) return;
               newItems[i].thumb = dataUrl;
+              console.log(`[extract] item ${i} thumb assigned, length:`, dataUrl.length);
               try {
                 const blob = await (await fetch(dataUrl)).blob();
                 const imgFile = new File([blob], `product_${i + 1}.jpg`, { type: 'image/jpeg' });
@@ -1831,14 +1834,17 @@
                 uploadForm.append('file', imgFile);
                 const uploadRes = await fetch(`${API_BASE}/api/upload-image`, { method: 'POST', headers: getAuthHeaders(), body: uploadForm });
                 const uploadData = await uploadRes.json();
+                console.log(`[extract] item ${i} upload response:`, uploadData);
                 if (uploadData.success && uploadData.data.id) {
                   newItems[i].image_id = uploadData.data.id;
                   newItems[i].image_path = uploadData.data.path;
                 }
-              } catch (e) { /* silent fail per item */ }
+              } catch (e) { console.error(`[extract] item ${i} upload error:`, e); }
             }));
+          } else {
+            console.warn('[extract] no products or extract failed:', extractData);
           }
-        } catch (e) { /* silent fail */ }
+        } catch (e) { console.error('[extract] error:', e); }
         session.items.push(...newItems);
 
         removeTyping();
