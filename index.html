@@ -2032,7 +2032,7 @@
       const img = new Image();
       const url = URL.createObjectURL(file);
       img.onload = () => {
-        const PAD = 0.12; // 12% padding to tolerate per-product yTop/yBottom drift
+        const PAD = 0.20; // 20% padding to tolerate Claude's ~5-7% coordinate drift
         const results = products.map(p => {
           const canvas = document.createElement('canvas');
           const rawX = (p.xPct / 100) * img.naturalWidth;
