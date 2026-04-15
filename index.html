@@ -1688,12 +1688,13 @@
         }
         const newItems = (analyzeData.data.items || []).map(item => ({ ...item }));
         try {
+          const extractSrcFile = await preCropMobileChrome(file);
           const extractForm = new FormData();
-          extractForm.append('image', file);
+          extractForm.append('image', extractSrcFile);
           const extractRes = await fetch(`${API_BASE}/api/extract-product-images`, { method: 'POST', headers: getAuthHeaders(), body: extractForm });
           const extractData = await extractRes.json();
           if (extractData.success && extractData.data.products?.length > 0) {
-            const cropped = await cropProductImages(file, extractData.data.products);
+            const cropped = await cropProductImages(extractSrcFile, extractData.data.products);
             await Promise.all(cropped.map(async (dataUrl, i) => {
               if (i >= newItems.length) return;
               newItems[i].thumb = dataUrl;
@@ -1815,14 +1816,15 @@
         session.cartImages.push(file);
         const newItems = (analyzeData.data.items || []).map(item => ({ ...item }));
         try {
+          const extractSrcFile = await preCropMobileChrome(file);
           const extractForm = new FormData();
-          extractForm.append('image', file);
+          extractForm.append('image', extractSrcFile);
           const extractRes = await fetch(`${API_BASE}/api/extract-product-images`, { method: 'POST', headers: getAuthHeaders(), body: extractForm });
           const extractData = await extractRes.json();
           console.log('[extract] response:', extractData);
           if (extractData.success && extractData.data.products?.length > 0) {
             console.log('[extract] cropping', extractData.data.products.length, 'products');
-            const cropped = await cropProductImages(file, extractData.data.products);
+            const cropped = await cropProductImages(extractSrcFile, extractData.data.products);
             console.log('[extract] cropped', cropped.length, 'thumbnails, sizes:', cropped.map(d => d.length));
             await Promise.all(cropped.map(async (dataUrl, i) => {
               if (i >= newItems.length) return;
@@ -2026,6 +2028,41 @@
     return n.includes('tạođơn') || n.includes('taodon') || n.includes('tạo đơn');
   }
 
+
+  // Remove mobile chrome (status bar, browser bar, bottom nav, payment row) before sending to Claude
+  // Mobile portrait screenshots (aspect ratio > 1.6) get top 5% + bottom 8% trimmed.
+  async function preCropMobileChrome(file) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        const ratio = img.naturalHeight / img.naturalWidth;
+        if (ratio <= 1.6) {
+          URL.revokeObjectURL(url);
+          console.log('[preCrop] not mobile (ratio=' + ratio.toFixed(2) + '), keeping original');
+          resolve(file);
+          return;
+        }
+        const topCropPct = 0.05;
+        const bottomCropPct = 0.08;
+        const cropY = Math.floor(img.naturalHeight * topCropPct);
+        const cropH = Math.floor(img.naturalHeight * (1 - topCropPct - bottomCropPct));
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = cropH;
+        canvas.getContext('2d').drawImage(img, 0, cropY, img.naturalWidth, cropH, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob((blob) => {
+          URL.revokeObjectURL(url);
+          if (!blob) { resolve(file); return; }
+          const newFile = new File([blob], file.name || 'cart.jpg', { type: 'image/jpeg' });
+          console.log(`[preCrop] mobile detected (ratio=${ratio.toFixed(2)}), trimmed ${Math.round((topCropPct + bottomCropPct) * 100)}% chrome, new size: ${canvas.width}x${canvas.height}`);
+          resolve(newFile);
+        }, 'image/jpeg', 0.92);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+      img.src = url;
+    });
+  }
 
   async function cropProductImages(file, products) {
     return new Promise((resolve) => {
