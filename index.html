@@ -1063,6 +1063,14 @@
     }
   }
 
+  function formatBrand(brand) {
+    if (!brand) return '';
+    const special = { 'shipus': 'ShipUS' };
+    const key = brand.toLowerCase();
+    if (special[key]) return special[key];
+    return brand.charAt(0).toUpperCase() + brand.slice(1);
+  }
+
   function getWebsiteName(url) {
     const d = getDomainFromUrl(url);
     if (!d) return '';
@@ -1763,7 +1771,7 @@
       updateHint();
 
       addMessage('ai',
-        `Tìm thấy khách hàng:\n👤 ${c.name}\n📞 ${c.phone}\n📍 ${c.address}, ${c.district}, ${c.city}${c.brand ? '\n🏷️ Brand: ' + c.brand.charAt(0).toUpperCase() + c.brand.slice(1) : ''}\n\nVui lòng upload ảnh giỏ hàng kèm link sản phẩm (mỗi link 1 dòng, theo thứ tự từ trên xuống).`
+        `Tìm thấy khách hàng:\n👤 ${c.name}\n📞 ${c.phone}\n📍 ${c.address}, ${c.district}, ${c.city}${c.brand ? '\n🏷️ Brand: ' + formatBrand(c.brand) : ''}\n\nVui lòng upload ảnh giỏ hàng kèm link sản phẩm (mỗi link 1 dòng, theo thứ tự từ trên xuống).`
       );
       return;
     }
