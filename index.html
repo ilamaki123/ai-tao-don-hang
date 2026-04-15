@@ -1072,14 +1072,15 @@
 
   function renderOrderCard(data) {
     const items = (data.items || []).map((i, idx) => {
-      const site = getWebsiteName(i.link);
-      const siteTag = site ? ` [${site}]` : '';
-      return `${idx + 1}. ${i.name} x${i.quantity || 1}${i.price ? ' — ' + formatPrice(i) : ''}${siteTag}`;
+      return `${idx + 1}. ${i.name} x${i.quantity || 1}${i.price ? ' — ' + formatPrice(i) : ''}`;
     }).join('\n');
     const code = data.orderCode || '';
+    const firstLink = (data.items || []).find(i => i.link)?.link || '';
+    const site = getWebsiteName(firstLink);
+    const siteSuffix = site ? ` — ${site}` : '';
     return `
       <div class="order-card">
-        <div class="order-title">${data.title || 'Đơn hàng đã tạo'} — ${code}</div>
+        <div class="order-title">${data.title || 'Đơn hàng đã tạo'} — ${code}${siteSuffix}</div>
         <pre>${items}</pre>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
           <a class="order-link" href="${data.order_url || '#'}" target="_blank">Xem đơn hàng &rarr;</a>
