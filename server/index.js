@@ -565,22 +565,26 @@ app.post('/api/extract-product-images', upload.single('image'), async (req, res)
         role: 'user',
         content: [
           { type: 'image', source: { type: 'base64', media_type: mimeType, data: imageBase64 } },
-          { type: 'text', text: `Locate every product thumbnail image in this shopping cart screenshot.
+          { type: 'text', text: `Locate every product thumbnail in this shopping cart screenshot.
 
 A "product thumbnail" = the photo of the actual item (jar, bottle, box, clothing, shoe, device). NOT: app icons, store logos, checkout buttons, payment icons (Apple Pay/PayPal/Venmo), nav icons, badges, qty/delete buttons.
 
-Use TWO-LEVEL coordinates:
+KEY INSIGHT: in almost every cart, all product thumbnails share the SAME width, SAME height, and SAME x-position (left column). Only the y-position differs. So you only need to estimate the shared dimensions ONCE, then give the vertical center y of each product.
 
-1) contentBounds (percent of FULL image, 0-100): the rectangle of the cart list region, EXCLUDING chrome above (status bar, browser bar, store header, banners, shipping notice) and below (Estimated Total, Checkout, payment row, bottom nav).
+All values are PERCENTAGES (0-100) of the FULL uploaded image (including any phone status bar, browser bar, header, footer, payment row).
 
-2) products[] coords are RELATIVE to contentBounds (0-100 of its width/height, NOT the full image). x1,y1 = top-left corner, x2,y2 = bottom-right of TIGHT bbox around just the thumbnail.
+Fields:
+- thumbXCenter: x-coordinate of the center of the thumbnail column (where every product photo is horizontally centered)
+- thumbWidth: width of one thumbnail
+- thumbHeight: height of one thumbnail
+- products[].yCenter: the vertical center y of each product's thumbnail (top to bottom order)
 
 Output ONLY this JSON inside <json> tags, no other text:
 <json>
-{"contentBounds":{"topPct":28,"bottomPct":74,"leftPct":4,"rightPct":96},"products":[{"index":0,"x1":5,"y1":4,"x2":26,"y2":30},{"index":1,"x1":5,"y1":56,"x2":26,"y2":82}]}
+{"thumbXCenter":18,"thumbWidth":22,"thumbHeight":14,"products":[{"index":0,"yCenter":37},{"index":1,"yCenter":59}]}
 </json>
 
-Use real coordinates from the image, not the example values. Order top to bottom. Include EVERY product thumbnail.` }
+Use real numbers from the image. Include EVERY product thumbnail in top-to-bottom order.` }
         ]
       }]
     });
@@ -602,37 +606,23 @@ Use real coordinates from the image, not the example values. Order top to bottom
       return res.status(500).json({ success: false, message: 'JSON invalid', debug: jsonCandidate.slice(0, 500) });
     }
 
-    // Normalize: convert relative-to-contentBounds coords → absolute full-image xPct/yPct/widthPct/heightPct
+    // Normalize: shared-dimension format (thumbXCenter + thumbWidth + thumbHeight + products[].yCenter)
     const rawProducts = Array.isArray(parsed.products) ? parsed.products : [];
-    const cb = parsed.contentBounds || { topPct: 0, bottomPct: 100, leftPct: 0, rightPct: 100 };
-    const cbTop = typeof cb.topPct === 'number' ? cb.topPct : 0;
-    const cbBottom = typeof cb.bottomPct === 'number' ? cb.bottomPct : 100;
-    const cbLeft = typeof cb.leftPct === 'number' ? cb.leftPct : 0;
-    const cbRight = typeof cb.rightPct === 'number' ? cb.rightPct : 100;
-    const cbW = Math.max(0.01, cbRight - cbLeft);
-    const cbH = Math.max(0.01, cbBottom - cbTop);
+    const tw = typeof parsed.thumbWidth === 'number' ? parsed.thumbWidth : 20;
+    const th = typeof parsed.thumbHeight === 'number' ? parsed.thumbHeight : 14;
+    const tx = typeof parsed.thumbXCenter === 'number' ? parsed.thumbXCenter : (tw / 2 + 5);
 
     const normalized = rawProducts.map((p, i) => {
-      const relX1 = typeof p.x1 === 'number' ? p.x1 : (p.xPct || 0);
-      const relY1 = typeof p.y1 === 'number' ? p.y1 : (p.yPct || 0);
-      const relX2 = typeof p.x2 === 'number' ? p.x2 : ((p.xPct || 0) + (p.widthPct || 0));
-      const relY2 = typeof p.y2 === 'number' ? p.y2 : ((p.yPct || 0) + (p.heightPct || 0));
-
-      // Map relative (0-100 of contentBounds) → absolute (0-100 of full image)
-      const absX1 = cbLeft + (relX1 / 100) * cbW;
-      const absY1 = cbTop + (relY1 / 100) * cbH;
-      const absX2 = cbLeft + (relX2 / 100) * cbW;
-      const absY2 = cbTop + (relY2 / 100) * cbH;
-
+      const yc = typeof p.yCenter === 'number' ? p.yCenter : 50;
       return {
         index: p.index ?? i,
-        xPct: absX1,
-        yPct: absY1,
-        widthPct: Math.max(0, absX2 - absX1),
-        heightPct: Math.max(0, absY2 - absY1),
+        xPct: Math.max(0, tx - tw / 2),
+        yPct: Math.max(0, yc - th / 2),
+        widthPct: tw,
+        heightPct: th,
       };
     });
-    console.log('[extract-product-images] contentBounds:', JSON.stringify(cb));
+    console.log('[extract-product-images] shared:', JSON.stringify({ thumbXCenter: tx, thumbWidth: tw, thumbHeight: th }));
     console.log('[extract-product-images] products (absolute):', JSON.stringify(normalized));
     res.json({ success: true, data: { products: normalized } });
   } catch (err) {
