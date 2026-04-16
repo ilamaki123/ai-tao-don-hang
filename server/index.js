@@ -569,24 +569,28 @@ app.post('/api/extract-product-images', upload.single('image'), async (req, res)
 
 A "product thumbnail" = the photo of the actual item (jar, bottle, box, clothing, shoe, device, or model wearing the item). NOT: app icons, store logos, checkout buttons, payment icons (Apple Pay/PayPal/Klarna/Venmo), nav icons, badges, qty/delete buttons, edit/save links.
 
-Estimating a single center point per product is MUCH easier and more accurate than estimating four bounding box edges. You only need to report:
+Cart layouts vary:
+- VERTICAL LIST (most common): thumbnails stacked vertically in a left column.
+- HORIZONTAL GRID: thumbnails arranged side-by-side in a row.
+- MIXED GRID: thumbnails in a 2D grid (rows + columns).
+All layouts are handled the same way — just give the center of each thumbnail.
 
-- thumbXCenter: x-coordinate (percent of full image) of the column where all product thumbnails are horizontally centered.
-- thumbWidth: approximate width of one thumbnail (percent of full image).
-- products[].yCenter: y-coordinate (percent of full image) of the VERTICAL CENTER of each product's thumbnail, in top-to-bottom order.
+For each product, report:
+- xCenter: x-coordinate of the center of this product's thumbnail (percent of full image width)
+- yCenter: y-coordinate of the center of this product's thumbnail (percent of full image height)
 
-All values are percentages (0-100) of the FULL uploaded image file, including phone status bar, browser bar, store header, footer, payment row — everything.
+Also report (shared for all products):
+- thumbWidth: approximate width of one thumbnail (percent of full image width)
+- thumbHeight: approximate height of one thumbnail (percent of full image height)
 
-The yCenter is the middle point of the thumbnail:
-- For a square product photo (jar, box, device): midway between the top and bottom edges of the photo.
-- For a tall clothing photo showing a model from head to legs: midway between the top of the head and the bottom of the visible legs.
+All values are percentages (0-100) of the FULL uploaded image file.
 
 Output ONLY this JSON inside <json> tags, no other text:
 <json>
-{"thumbXCenter":13,"thumbWidth":22,"products":[{"index":0,"yCenter":24},{"index":1,"yCenter":46},{"index":2,"yCenter":68}]}
+{"thumbWidth":20,"thumbHeight":15,"products":[{"index":0,"xCenter":15,"yCenter":35},{"index":1,"xCenter":15,"yCenter":60}]}
 </json>
 
-Use REAL numbers from the image, not the example values. Include EVERY product thumbnail in top-to-bottom order.` }
+Use REAL numbers from the image, not the example values. Include EVERY product thumbnail.` }
         ]
       }]
     });
@@ -608,47 +612,38 @@ Use REAL numbers from the image, not the example values. Include EVERY product t
       return res.status(500).json({ success: false, message: 'JSON invalid', debug: jsonCandidate.slice(0, 500) });
     }
 
-    // Normalize: center-based format — Claude gives yCenter per product, server derives height from spacing
+    // Normalize: per-product (xCenter, yCenter) + shared (thumbWidth, thumbHeight)
     const rawProducts = Array.isArray(parsed.products) ? parsed.products : [];
-    const tw = typeof parsed.thumbWidth === 'number' ? parsed.thumbWidth : 22;
-    const tx = typeof parsed.thumbXCenter === 'number' ? parsed.thumbXCenter : (tw / 2 + 5);
+    const tw = typeof parsed.thumbWidth === 'number' ? parsed.thumbWidth : 20;
+    let th = typeof parsed.thumbHeight === 'number' ? parsed.thumbHeight : 0;
 
-    // Extract yCenters (fallback to midpoint of yTop/yBottom for backward compat)
-    const yCenters = rawProducts.map(p => {
-      if (typeof p.yCenter === 'number') return p.yCenter;
-      if (typeof p.yTop === 'number' && typeof p.yBottom === 'number') return (p.yTop + p.yBottom) / 2;
-      return null;
-    });
-
-    // Derive thumbHeight from spacing between consecutive yCenters
-    let thumbHeight;
-    if (yCenters.length >= 2) {
-      const validPairs = [];
-      for (let i = 1; i < yCenters.length; i++) {
-        if (yCenters[i] != null && yCenters[i - 1] != null) {
-          validPairs.push(yCenters[i] - yCenters[i - 1]);
-        }
-      }
-      const avgSpacing = validPairs.length > 0
-        ? validPairs.reduce((a, b) => a + b, 0) / validPairs.length
-        : tw * 1.2;
-      thumbHeight = avgSpacing * 0.65; // real carts: thumb is ~60-70% of center spacing (rest is gap + row padding)
-    } else {
-      // Single product fallback: square-ish box
-      thumbHeight = Math.min(tw * 1.3, 30);
+    // If Claude didn't give thumbHeight, derive from spacing
+    if (!th && rawProducts.length >= 2) {
+      // Use max of vertical or horizontal spacing (handles both grid and list)
+      const yVals = rawProducts.map(p => p.yCenter).filter(v => typeof v === 'number');
+      const xVals = rawProducts.map(p => p.xCenter).filter(v => typeof v === 'number');
+      const ySpacings = [], xSpacings = [];
+      for (let i = 1; i < yVals.length; i++) ySpacings.push(Math.abs(yVals[i] - yVals[i - 1]));
+      for (let i = 1; i < xVals.length; i++) xSpacings.push(Math.abs(xVals[i] - xVals[i - 1]));
+      const avgYSpacing = ySpacings.length > 0 ? ySpacings.reduce((a, b) => a + b, 0) / ySpacings.length : 0;
+      const avgXSpacing = xSpacings.length > 0 ? xSpacings.reduce((a, b) => a + b, 0) / xSpacings.length : 0;
+      const maxSpacing = Math.max(avgYSpacing, avgXSpacing);
+      th = maxSpacing > 0 ? maxSpacing * 0.65 : Math.min(tw * 1.3, 25);
     }
+    if (!th) th = Math.min(tw * 1.3, 25); // single product fallback
 
     const normalized = rawProducts.map((p, i) => {
-      const yc = yCenters[i] ?? 50;
+      const xc = typeof p.xCenter === 'number' ? p.xCenter : (typeof parsed.thumbXCenter === 'number' ? parsed.thumbXCenter : 15);
+      const yc = typeof p.yCenter === 'number' ? p.yCenter : 50;
       return {
         index: p.index ?? i,
-        xPct: Math.max(0, tx - tw / 2),
-        yPct: Math.max(0, yc - thumbHeight / 2),
+        xPct: Math.max(0, xc - tw / 2),
+        yPct: Math.max(0, yc - th / 2),
         widthPct: tw,
-        heightPct: thumbHeight,
+        heightPct: th,
       };
     });
-    console.log('[extract-product-images] shared:', JSON.stringify({ thumbXCenter: tx, thumbWidth: tw, derivedHeight: thumbHeight }));
+    console.log('[extract-product-images] shared:', JSON.stringify({ thumbWidth: tw, thumbHeight: th }));
     console.log('[extract-product-images] products (absolute):', JSON.stringify(normalized));
     res.json({ success: true, data: { products: normalized } });
   } catch (err) {
