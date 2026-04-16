@@ -1700,7 +1700,7 @@
       }
     } catch (err) {
       removeTyping();
-      addMessage('ai', 'Co loi xay ra: ' + err.message);
+      addMessage('ai', 'Có lỗi xảy ra: ' + err.message);
     } finally {
       isLoading = false;
       document.getElementById('btnSend').disabled = false;
@@ -2179,9 +2179,16 @@
         canvas.toBlob((blob) => {
           URL.revokeObjectURL(url);
           if (!blob) { resolve(file); return; }
-          const newFile = new File([blob], file.name || 'cart.jpg', { type: 'image/jpeg' });
-          console.log(`[preCrop] mobile detected (ratio=${ratio.toFixed(2)}), trimmed ${Math.round((topCropPct + bottomCropPct) * 100)}% chrome, new size: ${canvas.width}x${canvas.height}`);
-          resolve(newFile);
+          try {
+            const newFile = new File([blob], file.name || 'cart.jpg', { type: 'image/jpeg' });
+            console.log(`[preCrop] mobile detected (ratio=${ratio.toFixed(2)}), trimmed ${Math.round((topCropPct + bottomCropPct) * 100)}% chrome, new size: ${canvas.width}x${canvas.height}`);
+            resolve(newFile);
+          } catch (e) {
+            // Safari fallback: File constructor may throw, use Blob with name property
+            console.warn('[preCrop] File constructor failed, using Blob fallback:', e.message);
+            blob.name = file.name || 'cart.jpg';
+            resolve(blob);
+          }
         }, 'image/jpeg', 0.92);
       };
       img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
