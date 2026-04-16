@@ -1801,10 +1801,16 @@
       // Upload ảnh → thêm SP mới vào đơn
       if (file) {
         const links = extractLinks(text);
+        const compressedFile = await compressImage(file);
         const analyzeForm = new FormData();
-        analyzeForm.append('image', file);
+        analyzeForm.append('image', compressedFile);
         analyzeForm.append('links', links.join('\n'));
         const analyzeRes = await fetch(`${API_BASE}/api/analyze-image`, { method: 'POST', headers: getAuthHeaders(), body: analyzeForm });
+        if (!analyzeRes.ok) {
+          removeTyping();
+          addMessage('ai', `Lỗi server (${analyzeRes.status}). Ảnh có thể quá lớn — thử ảnh nhỏ hơn.`);
+          return;
+        }
         const analyzeData = await analyzeRes.json();
         if (!analyzeData.success) {
           removeTyping();
@@ -1813,7 +1819,7 @@
         }
         const newItems = (analyzeData.data.items || []).map(item => ({ ...item }));
         try {
-          const extractSrcFile = await preCropMobileChrome(file);
+          const extractSrcFile = await preCropMobileChrome(compressedFile);
           const extractForm = new FormData();
           extractForm.append('image', extractSrcFile);
           const extractRes = await fetch(`${API_BASE}/api/extract-product-images`, { method: 'POST', headers: getAuthHeaders(), body: extractForm });
@@ -1925,10 +1931,17 @@
         }
 
         // 2a: Claude Vision phân tích ảnh + map links
+        const compressedFile = await compressImage(file);
+        console.log(`[compress] ${(file.size/1024).toFixed(0)}KB → ${(compressedFile.size/1024).toFixed(0)}KB`);
         const analyzeForm = new FormData();
-        analyzeForm.append('image', file);
+        analyzeForm.append('image', compressedFile);
         analyzeForm.append('links', links.join('\n'));
         const analyzeRes = await fetch(`${API_BASE}/api/analyze-image`, { method: 'POST', headers: getAuthHeaders(), body: analyzeForm });
+        if (!analyzeRes.ok) {
+          removeTyping();
+          addMessage('ai', `Lỗi server (${analyzeRes.status}). Ảnh có thể quá lớn — thử ảnh nhỏ hơn.`);
+          return;
+        }
         const analyzeData = await analyzeRes.json();
 
         if (!analyzeData.success) {
@@ -1941,7 +1954,7 @@
         session.cartImages.push(file);
         const newItems = (analyzeData.data.items || []).map(item => ({ ...item }));
         try {
-          const extractSrcFile = await preCropMobileChrome(file);
+          const extractSrcFile = await preCropMobileChrome(compressedFile);
           const extractForm = new FormData();
           extractForm.append('image', extractSrcFile);
           const extractRes = await fetch(`${API_BASE}/api/extract-product-images`, { method: 'POST', headers: getAuthHeaders(), body: extractForm });
@@ -2154,6 +2167,47 @@
     return n.includes('tạođơn') || n.includes('taodon') || n.includes('tạo đơn');
   }
 
+
+  // Compress image to stay under nginx body limit (~1MB default)
+  async function compressImage(file, maxSizeKB = 900, maxDim = 1600) {
+    return new Promise((resolve) => {
+      // Skip if already small enough
+      if (file.size <= maxSizeKB * 1024) { resolve(file); return; }
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        let w = img.naturalWidth, h = img.naturalHeight;
+        if (w > maxDim || h > maxDim) {
+          const scale = maxDim / Math.max(w, h);
+          w = Math.round(w * scale);
+          h = Math.round(h * scale);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        // Try quality levels until under limit
+        const tryQuality = (q) => {
+          canvas.toBlob((blob) => {
+            URL.revokeObjectURL(url);
+            if (!blob) { resolve(file); return; }
+            if (blob.size > maxSizeKB * 1024 && q > 0.3) {
+              tryQuality(q - 0.1);
+              return;
+            }
+            try {
+              resolve(new File([blob], file.name || 'image.jpg', { type: 'image/jpeg' }));
+            } catch {
+              blob.name = file.name || 'image.jpg';
+              resolve(blob);
+            }
+          }, 'image/jpeg', q);
+        };
+        tryQuality(0.85);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+      img.src = url;
+    });
+  }
 
   // Remove mobile chrome (status bar, browser bar, bottom nav, payment row) before sending to Claude
   // Mobile portrait screenshots (aspect ratio > 1.6) get top 5% + bottom 8% trimmed.
