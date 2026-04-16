@@ -1700,6 +1700,7 @@
       }
     } catch (err) {
       removeTyping();
+      console.error('[sendMessage] error:', err.message, '\nStack:', err.stack);
       addMessage('ai', 'Có lỗi xảy ra: ' + err.message);
     } finally {
       isLoading = false;
