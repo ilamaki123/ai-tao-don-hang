@@ -1261,6 +1261,10 @@
               <span class="cart-field-label">Link</span>
               <span class="cart-field-value" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(linkShow)}</span>
             </span>
+            <span class="cart-field" ${canEdit ? `onclick="editOrderItemField(${i},'note')"` : ''} style="color:${item.note ? '#333' : '#999'}">
+              <span class="cart-field-label">Note</span>
+              <span class="cart-field-value" style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.note ? escapeHtml(item.note) : '—'}</span>
+            </span>
             ${vars}
           </div>
           ${status !== 'deleted' ? `<button class="cart-card-delete" onclick="markDeleteOrderItem(${i})" title="Xóa"><svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>` : `<button class="cart-card-delete" onclick="unmarkDeleteOrderItem(${i})" title="Hoàn tác" style="color:#28a745">↩</button>`}
@@ -1320,6 +1324,8 @@
       label = 'Giá'; currentVal = item.price || 0;
     } else if (field === 'itemSale') {
       label = 'Giảm giá riêng (%)'; currentVal = item.itemSalePct || 0;
+    } else if (field === 'note') {
+      label = 'Ghi chú'; currentVal = item.note || '';
     } else if (field === 'link') {
       label = 'Link'; currentVal = item.link || '';
     }
@@ -1328,6 +1334,7 @@
       else if (field === 'name') item.name = newVal;
       else if (field === 'quantity') item.quantity = parseInt(newVal) || 1;
       else if (field === 'price') item.price = parseFloat(newVal) || 0;
+      else if (field === 'note') item.note = newVal;
       else if (field === 'itemSale') {
         const pct = parseFloat(newVal) || 0;
         item.itemSalePct = pct > 0 ? pct : undefined;
@@ -1436,6 +1443,7 @@
         price: computeAfterSale(base, pct),
         variations: i.variations || [],
         ...(i.image_id ? { image_id: i.image_id } : {}),
+        ...(i.note ? { note: i.note } : {}),
       };
     })];
 
@@ -1454,6 +1462,7 @@
         upd.price = computeAfterSale(i.price || 0, newPct);
       }
       if (i.link !== orig.link) upd.link = i.link;
+      if ((i.note || '') !== (orig.note || '')) upd.note = i.note || '';
       if (JSON.stringify(i.variations) !== JSON.stringify(orig.variations)) {
         upd.variations = i.variations || [];
       }
@@ -1472,6 +1481,7 @@
             variations: i.variations || [],
             ...(i.image_id ? { image_id: i.image_id } : {}),
             ...(i.image_path ? { image_path: i.image_path } : {}),
+            ...(i.note ? { note: i.note } : {}),
           });
         }
       }
@@ -2063,6 +2073,7 @@
           variations: item.variations || [],
           ...(item.image_id ? { image_id: item.image_id } : {}),
           ...(item.image_path ? { image_path: item.image_path } : {}),
+          ...(item.note ? { note: item.note } : {}),
         };
       })),
     };
@@ -2395,6 +2406,10 @@
             <span class="cart-field-label">Link</span>
             <span class="cart-field-value" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(linkShow)}</span>
           </span>
+          <span class="cart-field" onclick="editCartField(${i},'note')" style="color:${item.note ? '#333' : '#999'}">
+            <span class="cart-field-label">Note</span>
+            <span class="cart-field-value" style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.note ? escapeHtml(item.note) : '—'}</span>
+          </span>
           ${vars}
           <span class="cart-field" onclick="addCartVariation(${i})" style="color:#7c5cbf;cursor:pointer;font-size:12px">
             <span class="cart-field-value">+ Variant</span>
@@ -2450,6 +2465,8 @@
       label = 'Giá'; currentVal = item.price || 0;
     } else if (field === 'itemSale') {
       label = 'Giảm giá riêng (%)'; currentVal = item.itemSalePct || 0;
+    } else if (field === 'note') {
+      label = 'Ghi chú'; currentVal = item.note || '';
     } else if (field === 'link') {
       label = 'Link sản phẩm'; currentVal = item.link || '';
     }
@@ -2463,6 +2480,8 @@
         item.quantity = parseInt(newVal) || 1;
       } else if (field === 'price') {
         item.price = parseFloat(newVal) || 0;
+      } else if (field === 'note') {
+        item.note = newVal;
       } else if (field === 'itemSale') {
         const pct = parseFloat(newVal) || 0;
         item.itemSalePct = pct > 0 ? pct : undefined;
