@@ -1013,8 +1013,8 @@
     const hint = document.getElementById('inputHint');
     const newOrderBtn = document.getElementById('newOrderBtnWrap');
     if (!session) { if (newOrderBtn) newOrderBtn.style.display = 'none'; return; }
-    // Show "Tạo đơn mới" button when order is done or waiting image (has customer)
-    const showNewOrder = session.state === 'DONE' || (session.state === 'WAITING_IMAGE' && session.customer);
+    // Show "Tạo đơn mới" button only when order flow is complete (created/updated/cancelled)
+    const showNewOrder = session.state === 'DONE';
     if (newOrderBtn) newOrderBtn.style.display = showNewOrder ? 'block' : 'none';
     if (session.state === 'INIT') {
       hint.textContent = 'Nhập số điện thoại khách hàng để bắt đầu';
