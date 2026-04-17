@@ -1526,6 +1526,7 @@
         session.salePct = 0;
         delete session.editingOrder;
         saveSessions();
+        updateHint();
         // Gọi getOrderByCode để lấy danh sách SP chính xác từ Basso
         let orderItems = [];
         let orderId = data.data?.order?.id || '';
