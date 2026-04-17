@@ -1257,15 +1257,15 @@
             </span>
             ${(salePct > 0 && canEdit && !item.noSale && !item.itemSalePct) ? `<span class="cart-field" onclick="toggleEditNoSale(${i})" style="color:#e55;font-size:11px;cursor:pointer"><span class="cart-field-value">Miễn sale</span></span>` : ''}
             ${(item.noSale && canEdit) ? `<span class="cart-field" onclick="toggleEditNoSale(${i})" style="color:#28a745;font-size:11px;cursor:pointer"><span class="cart-field-value">Áp sale lại</span></span>` : ''}
-            <span class="cart-field" ${canEdit ? `onclick="editOrderItemField(${i},'link')"` : ''} style="flex:1;min-width:0">
+            <span class="cart-field" ${canEdit ? `onclick="editOrderItemField(${i},'link')"` : ''} style="flex:1;min-width:0;max-width:calc(100% - 40px)">
               <span class="cart-field-label">Link</span>
               <span class="cart-field-value" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(linkShow)}</span>
             </span>
+            ${vars}
             <span class="cart-field" ${canEdit ? `onclick="editOrderItemField(${i},'note')"` : ''} style="color:${item.note ? '#333' : '#999'}">
               <span class="cart-field-label">Note</span>
               <span class="cart-field-value" style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.note ? escapeHtml(item.note) : '—'}</span>
             </span>
-            ${vars}
           </div>
           ${status !== 'deleted' ? `<button class="cart-card-delete" onclick="markDeleteOrderItem(${i})" title="Xóa"><svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>` : `<button class="cart-card-delete" onclick="unmarkDeleteOrderItem(${i})" title="Hoàn tác" style="color:#28a745">↩</button>`}
         </div>
@@ -2464,15 +2464,15 @@
           </span>
           ${(session.salePct > 0 && !item.noSale && !item.itemSalePct) ? `<span class="cart-field" onclick="toggleNoSale(${i})" style="color:#e55;font-size:11px;cursor:pointer"><span class="cart-field-value">Miễn sale</span></span>` : ''}
           ${item.noSale ? `<span class="cart-field" onclick="toggleNoSale(${i})" style="color:#28a745;font-size:11px;cursor:pointer"><span class="cart-field-value">Áp sale lại</span></span>` : ''}
-          <span class="cart-field" onclick="editCartField(${i},'link')" style="flex:1;min-width:0">
+          <span class="cart-field" onclick="editCartField(${i},'link')" style="flex:1;min-width:0;max-width:calc(100% - 40px)">
             <span class="cart-field-label">Link</span>
             <span class="cart-field-value" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(linkShow)}</span>
           </span>
+          ${vars}
           <span class="cart-field" onclick="editCartField(${i},'note')" style="color:${item.note ? '#333' : '#999'}">
             <span class="cart-field-label">Note</span>
             <span class="cart-field-value" style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.note ? escapeHtml(item.note) : '—'}</span>
           </span>
-          ${vars}
           <span class="cart-field" onclick="addCartVariation(${i})" style="color:#7c5cbf;cursor:pointer;font-size:12px">
             <span class="cart-field-value">+ Variant</span>
           </span>
