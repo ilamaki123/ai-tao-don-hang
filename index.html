@@ -772,6 +772,10 @@
 
   <!-- Input bar -->
   <div class="input-bar-wrap" id="inputArea" style="display:none;">
+    <!-- Nút tạo đơn mới luôn hiện -->
+    <div id="newOrderBtnWrap" style="display:none;padding:0 16px 4px;">
+      <button class="cart-btn" style="background:#f0f0f0;color:#666" onclick="startNewOrder()">+ Tạo đơn mới</button>
+    </div>
     <!-- Preview ảnh trước khi gửi -->
     <div class="preview-wrap" id="previewWrap">
       <div class="preview-images" id="previewImages"></div>
@@ -1007,7 +1011,11 @@
   function updateHint() {
     const session = getActiveSession();
     const hint = document.getElementById('inputHint');
-    if (!session) return;
+    const newOrderBtn = document.getElementById('newOrderBtnWrap');
+    if (!session) { if (newOrderBtn) newOrderBtn.style.display = 'none'; return; }
+    // Show "Tạo đơn mới" button when order is done or waiting image (has customer)
+    const showNewOrder = session.state === 'DONE' || (session.state === 'WAITING_IMAGE' && session.customer);
+    if (newOrderBtn) newOrderBtn.style.display = showNewOrder ? 'block' : 'none';
     if (session.state === 'INIT') {
       hint.textContent = 'Nhập số điện thoại khách hàng để bắt đầu';
     } else if (session.state === 'EDITING_ORDER') {
@@ -1015,7 +1023,7 @@
     } else if (session.state === 'WAITING_IMAGE') {
       hint.textContent = 'Upload ảnh giỏ hàng + link sản phẩm';
     } else if (session.state === 'DONE') {
-      hint.textContent = 'Bấm "Tạo đơn mới" | "Chỉnh sửa đơn" | "Hủy đơn hàng" ở ô phía trên';
+      hint.textContent = 'Bấm "Chỉnh sửa đơn" | "Hủy đơn hàng" ở ô phía trên';
     } else {
       hint.textContent = '';
     }
@@ -1106,7 +1114,6 @@
           <a class="order-link" href="${data.order_url || '#'}" target="_blank">Xem đơn hàng &rarr;</a>
           <button class="order-link" style="border:none;cursor:pointer;background:#EFE7FF;color:#7C5ACB" onclick="enterEditOrder('${code}')">Chỉnh sửa đơn</button>
           <button class="order-link" style="border:none;cursor:pointer;background:#FDEBEC;color:#D95C5C" onclick="cancelOrder('${code}')">Hủy đơn hàng</button>
-          <button class="order-link" style="border:none;cursor:pointer;background:#28a745" onclick="startNewOrder()">Tạo đơn mới</button>
         </div>
       </div>
     `;
