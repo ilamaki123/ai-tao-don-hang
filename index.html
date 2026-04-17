@@ -1113,10 +1113,12 @@
       <div class="order-card">
         <div class="order-title">${data.title || 'Đơn hàng đã tạo'} — ${code}${siteSuffix}</div>
         <pre>${items}</pre>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
-          <a class="order-link" href="${data.order_url || '#'}" target="_blank">Xem đơn hàng &rarr;</a>
-          <button class="order-link" style="border:none;cursor:pointer;background:#EFE7FF;color:#7C5ACB;font-size:13px;padding:6px 14px" onclick="enterEditOrder('${code}')">Chỉnh sửa đơn</button>
-          <button class="order-link" style="border:none;cursor:pointer;background:#FDEBEC;color:#D95C5C;font-size:13px;padding:6px 14px" onclick="cancelOrder('${code}')">Hủy đơn hàng</button>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">
+          <div><a class="order-link" href="${data.order_url || '#'}" target="_blank">Xem đơn hàng &rarr;</a></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="order-link" style="border:none;cursor:pointer;background:#EFE7FF;color:#7C5ACB;font-size:13px;padding:6px 14px" onclick="enterEditOrder('${code}')">Chỉnh sửa đơn</button>
+            <button class="order-link" style="border:none;cursor:pointer;background:#FDEBEC;color:#D95C5C;font-size:13px;padding:6px 14px" onclick="cancelOrder('${code}')">Hủy đơn hàng</button>
+          </div>
         </div>
       </div>
     `;
