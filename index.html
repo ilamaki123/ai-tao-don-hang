@@ -1280,11 +1280,11 @@
         <div class="cart-cards">${cards}</div>
         <div class="cart-actions" style="justify-content:space-between">
           <div style="display:flex;gap:8px;align-items:center">
-            <button class="cart-btn" style="background:#f0eaff;color:#7c5cbf" onclick="applyEditSaleUI()">Giảm giá ${salePct ? salePct + '%' : ''}</button>
-            ${salePct > 0 ? `<button class="cart-btn" style="background:#fde8e8;color:#e55;font-size:12px" onclick="removeEditSaleUI()">Bỏ giảm giá</button>` : ''}
+            <button class="cart-btn" style="background:#EFE7FF;color:#7C5ACB" onclick="applyEditSaleUI()">Giảm giá ${salePct ? salePct + '%' : ''}</button>
+            ${salePct > 0 ? `<button class="cart-btn" style="background:#FDEBEC;color:#D95C5C;font-size:12px" onclick="removeEditSaleUI()">Bỏ giảm giá</button>` : ''}
           </div>
           <div style="display:flex;gap:10px">
-            <button class="cart-btn" style="background:#f0f0f0;color:#666" onclick="cancelEditOrderUI()">Hủy chỉnh sửa</button>
+            <button class="cart-btn" style="background:#FDEBEC;color:#D95C5C" onclick="cancelEditOrderUI()">Hủy chỉnh sửa</button>
             <button class="cart-btn cart-btn-order" onclick="submitOrderUpdate(getActiveSession())">Cập nhật đơn</button>
           </div>
         </div>
@@ -2380,8 +2380,8 @@
         <div class="cart-cards">${cards}</div>
         <div class="cart-actions" style="justify-content:space-between">
           <div style="display:flex;gap:8px;align-items:center">
-            <button class="cart-btn" style="background:#f0eaff;color:#7c5cbf" onclick="applySaleUI()">Giảm giá ${session.salePct ? session.salePct + '%' : ''}</button>
-            ${session.salePct > 0 ? `<button class="cart-btn" style="background:#fde8e8;color:#e55;font-size:12px" onclick="removeSaleUI()">Bỏ giảm giá</button>` : ''}
+            <button class="cart-btn" style="background:#EFE7FF;color:#7C5ACB" onclick="applySaleUI()">Giảm giá ${session.salePct ? session.salePct + '%' : ''}</button>
+            ${session.salePct > 0 ? `<button class="cart-btn" style="background:#FDEBEC;color:#D95C5C;font-size:12px" onclick="removeSaleUI()">Bỏ giảm giá</button>` : ''}
           </div>
           <div style="display:flex;gap:10px">
             <button class="cart-btn cart-btn-clear" onclick="clearCartUI()">Xóa giỏ hàng</button>
