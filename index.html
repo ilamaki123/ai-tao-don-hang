@@ -1555,7 +1555,10 @@
       if (Object.keys(upd).length > 1) updateItems.push(upd);
     });
 
-    if (deleteIds.length === 0 && updateItems.length === 0 && addItems.length === 0) {
+    const origFee = parseFloat(editing._original_web_shipping_fee ?? 0) || 0;
+    const newFee = Number(editing.webShippingFee) || 0;
+    const feeChanged = newFee !== origFee;
+    if (deleteIds.length === 0 && updateItems.length === 0 && addItems.length === 0 && !feeChanged) {
       addMessage('ai', 'Không có thay đổi nào để cập nhật.');
       return;
     }
@@ -1565,9 +1568,7 @@
       if (deleteIds.length > 0) body.delete_item_ids = deleteIds;
       if (updateItems.length > 0) body.update_items = updateItems;
       if (addItems.length > 0) body.add_items = addItems;
-      const origFee = parseFloat(editing._original_web_shipping_fee ?? 0) || 0;
-      const newFee = Number(editing.webShippingFee) || 0;
-      if (newFee !== origFee) body.web_shipping_fee = newFee;
+      if (feeChanged) body.web_shipping_fee = newFee;
 
       const res = await fetch(`${API_BASE}/api/update-order`, {
         method: 'POST',
