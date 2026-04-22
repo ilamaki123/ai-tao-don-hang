@@ -1082,6 +1082,7 @@
           <div class="message-bubble" style="white-space:pre-wrap">${escapeHtml(m.text)}</div>
           ${m.orderData ? renderOrderCard(m.orderData) : ''}
           ${m.orderStatusMenu ? renderOrderStatusMenu() : ''}
+          ${m.orderStatusResult ? renderOrderStatusResult(m.orderStatusResult) : ''}
         </div>
       `;
     }
@@ -1114,6 +1115,30 @@
     return base.charAt(0).toUpperCase() + base.slice(1);
   }
 
+  function renderOrderStatusResult(data) {
+    const title = data.title || 'Đơn hàng';
+    return (data.orders || []).map(o => {
+      const order = o.order || {};
+      const items = o.items || [];
+      const orderCode = order.order_code || '';
+      const orderId = order.id || '';
+      const website = order.website || '';
+      const site = website ? getWebsiteName('https://' + website) : '';
+      const siteSuffix = site ? ` — ${site}` : '';
+      const itemsStr = items.map((it, idx) => `${idx + 1}. ${it.name || ''}${it.quantity ? ' x' + it.quantity : ''}`).join('\n');
+      const orderUrl = orderId ? `https://basso.vn/basso/customer_order/detail/${orderId}` : '#';
+      return `
+        <div class="order-card">
+          <div class="order-title">${title} — ${orderCode}${siteSuffix}</div>
+          <pre>${escapeHtml(itemsStr)}</pre>
+          <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">
+            <div><a class="order-link" href="${orderUrl}" target="_blank">Xem đơn hàng &rarr;</a></div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
   function renderOrderStatusMenu() {
     return `
       <div class="order-card">
@@ -1135,9 +1160,47 @@
     saveSessions();
   }
 
-  function selectOrderStatus(status) {
-    // TODO: implement fetch + render order list
-    console.log('[selectOrderStatus] chosen:', status);
+  async function selectOrderStatus(status) {
+    const session = getActiveSession();
+    if (!session || !session.customer?.id) {
+      addMessage('ai', 'Chưa có thông tin khách hàng.');
+      return;
+    }
+    // Map UI label → Basso item_status
+    const statusMap = {
+      not_bought: { itemStatus: 'pending', label: 'chưa mua', title: 'Đơn chưa mua' },
+      bought: { itemStatus: 'bought', label: 'đã mua', title: 'Đơn đã mua' },
+      not_available: { itemStatus: 'not_available', label: 'đã hủy', title: 'Đơn cancel' },
+    };
+    const cfg = statusMap[status];
+    if (!cfg) return;
+    showTyping();
+    try {
+      const url = `${API_BASE}/api/orders-by-item-status?customer_id=${encodeURIComponent(session.customer.id)}&item_status=${encodeURIComponent(cfg.itemStatus)}`;
+      const res = await fetch(url, { headers: getAuthHeaders() });
+      if (!res.ok) {
+        removeTyping();
+        addMessage('ai', `Lỗi server (${res.status}).`);
+        return;
+      }
+      const data = await res.json();
+      removeTyping();
+      if (!data.success) {
+        addMessage('ai', `Không thể tải đơn ${cfg.label}: ${translateError(data.message || (data.errors || []).join(', '))}`);
+        return;
+      }
+      const orders = data.data?.orders || [];
+      if (orders.length === 0) {
+        addMessage('ai', `Không có đơn ${cfg.label} nào cho khách hàng này.`);
+        return;
+      }
+      addMessage('ai', `Tìm thấy ${orders.length} đơn ${cfg.label}:`, {
+        orderStatusResult: { title: cfg.title, orders },
+      });
+    } catch (err) {
+      removeTyping();
+      addMessage('ai', `Lỗi kết nối: ${err.message}`);
+    }
   }
 
   function renderOrderCard(data) {

@@ -791,6 +791,31 @@ app.post('/api/cancel-order', async (req, res) => {
   } catch (err) { console.error('[api] error:', req.url, err.message); res.status(500).json({ success: false, message: err.message }); }
 });
 
+// ===== PROXY: LẤY ĐƠN THEO TRẠNG THÁI SẢN PHẨM =====
+app.get('/api/orders-by-item-status', async (req, res) => {
+  const { customer_id, item_status, page, page_size } = req.query;
+  if (!customer_id) return res.status(400).json({ success: false, message: 'Thiếu customer_id' });
+  if (!item_status) return res.status(400).json({ success: false, message: 'Thiếu item_status' });
+  if (IS_MOCK) {
+    return res.json({ success: true, data: { customer_id, item_status, total_orders: 0, orders: [] }, _mock: true });
+  }
+  try {
+    const params = new URLSearchParams({ customer_id, item_status });
+    if (page) params.set('page', page);
+    if (page_size) params.set('page_size', page_size);
+    const url = `${BASSO_URL}/partner/getCustomerOrdersByItemStatus?${params.toString()}`;
+    console.log('[orders-by-item-status] calling:', url);
+    const response = await fetch(url, { headers: bassoHeaders(req) });
+    const rawText = await response.text();
+    console.log('[orders-by-item-status] status:', response.status, 'raw:', rawText.substring(0, 500));
+    let data;
+    try { data = JSON.parse(rawText); } catch {
+      return res.status(502).json({ success: false, message: 'Basso trả về không phải JSON', raw: rawText.substring(0, 200) });
+    }
+    res.json(data);
+  } catch (err) { console.error('[api] error:', req.url, err.message); res.status(500).json({ success: false, message: err.message }); }
+});
+
 // ===== DEBUG: catch all unmatched routes =====
 app.use((req, res) => {
   console.log('[404]', req.method, req.url, req.originalUrl);
