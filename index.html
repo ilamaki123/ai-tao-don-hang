@@ -316,6 +316,10 @@
       padding: 14px 16px;
       margin-top: 8px;
       font-size: 13px;
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      overflow: hidden;
     }
 
     .order-card .order-title {
@@ -1136,11 +1140,12 @@
         const priceStr = price > 0 ? `${cur}${price}` : '';
         const img = it.image_path || '';
         const thumb = img ? `<img src="${img}" style="width:36px;height:36px;object-fit:cover;border-radius:6px;flex-shrink:0" />` : `<div style="width:36px;height:36px;flex-shrink:0"></div>`;
+        const fullName = it.name || '';
         return `
-          <div style="display:flex;align-items:center;gap:8px;padding:4px 0">
+          <div style="display:flex;align-items:center;gap:8px;padding:4px 0;min-width:0">
             <span style="flex-shrink:0;color:#666;min-width:18px">${idx + 1}.</span>
             ${thumb}
-            <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px">${escapeHtml(it.name || '')}</span>
+            <span title="${escapeHtml(fullName)}" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px">${escapeHtml(fullName)}</span>
             ${priceStr ? `<span style="flex-shrink:0;font-weight:600;color:#7c5cbf;font-size:13px">${priceStr}</span>` : ''}
           </div>
         `;
