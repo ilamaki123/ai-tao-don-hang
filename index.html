@@ -1081,10 +1081,10 @@
     } else {
       // Cart view — render interactive cards inline
       if (m.editOrderView) {
-        return `<div class="message ai" style="max-width:100%;width:100%"><div id="inlineEditOrder">${buildInlineEditOrderHtml()}</div></div>`;
+        return `<div class="message ai" style="width:100%"><div id="inlineEditOrder">${buildInlineEditOrderHtml()}</div></div>`;
       }
       if (m.cartView) {
-        return `<div class="message ai" style="max-width:100%;width:100%"><div id="inlineCart">${buildInlineCartHtml()}</div></div>`;
+        return `<div class="message ai" style="width:100%"><div id="inlineCart">${buildInlineCartHtml()}</div></div>`;
       }
       return `
         <div class="message ai">
