@@ -760,7 +760,7 @@
 <!-- SIDEBAR -->
 <div class="sidebar" id="sidebar">
   <div style="display:flex;align-items:center;justify-content:space-between;">
-    <div class="sidebar-logo" id="sidebarLogo" onclick="debugToggleClick()">Doraemon</div>
+    <div class="sidebar-logo">Doraemon</div>
     <button class="btn-close-sidebar" onclick="closeSidebar()">&times;</button>
   </div>
   <div class="sidebar-welcome">Welcome, Vinh Pham</div>
@@ -3105,50 +3105,6 @@
     document.getElementById('msgSearchCount').textContent = '';
     document.querySelectorAll('.msg-highlight').forEach(el => el.classList.remove('msg-highlight'));
   }
-
-  // ===== DEBUG OVERLAY (toggle by 5-tap sidebar logo) ===== REMOVE LATER =====
-  var _debugClicks = 0;
-  var _debugTimer = null;
-  var _debugOn = false;
-  function debugToggleClick() {
-    _debugClicks++;
-    clearTimeout(_debugTimer);
-    _debugTimer = setTimeout(() => { _debugClicks = 0; }, 1500);
-    if (_debugClicks >= 5) {
-      _debugClicks = 0;
-      _debugOn = !_debugOn;
-      document.body.classList.toggle('debug-widths', _debugOn);
-      if (_debugOn) debugRefreshWidths();
-      else document.querySelectorAll('.debug-w-badge').forEach(el => el.remove());
-    }
-  }
-  function debugRefreshWidths() {
-    if (!_debugOn) return;
-    document.querySelectorAll('.debug-w-badge').forEach(el => el.remove());
-    document.querySelectorAll('.cart-card').forEach(card => {
-      const name = card.querySelector('.cart-card-compact-name');
-      const compact = card.querySelector('.cart-card-compact');
-      if (!name || !compact) return;
-      const nameW = Math.round(name.getBoundingClientRect().width);
-      const compactW = Math.round(compact.getBoundingClientRect().width);
-      const cardW = Math.round(card.getBoundingClientRect().width);
-      const isExp = card.classList.contains('expanded');
-      const badge = document.createElement('div');
-      badge.className = 'debug-w-badge';
-      badge.style.cssText = 'position:absolute;top:2px;right:4px;background:#ff0;color:#000;font-size:10px;font-family:monospace;padding:1px 4px;border:1px solid #000;border-radius:3px;z-index:999;pointer-events:none';
-      badge.textContent = `${isExp?'E':'C'} card:${cardW} compact:${compactW} name:${nameW}`;
-      card.style.position = 'relative';
-      card.appendChild(badge);
-    });
-  }
-  window.addEventListener('resize', () => debugRefreshWidths());
-  // Observe cart re-renders to refresh badges
-  var _debugObserver = new MutationObserver(() => { if (_debugOn) debugRefreshWidths(); });
-  setTimeout(() => {
-    const msgList = document.getElementById('messageList');
-    if (msgList) _debugObserver.observe(msgList, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] });
-  }, 500);
-  // ===== END DEBUG OVERLAY =====
 
   function escapeHtml(str) {
     return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
