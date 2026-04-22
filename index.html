@@ -1079,7 +1079,7 @@
       }
       return `
         <div class="message ai">
-          <div class="message-bubble" style="white-space:pre-wrap">${escapeHtml(m.text)}</div>
+          ${m.text ? `<div class="message-bubble" style="white-space:pre-wrap">${escapeHtml(m.text)}</div>` : ''}
           ${m.orderData ? renderOrderCard(m.orderData) : ''}
           ${m.orderStatusMenu ? renderOrderStatusMenu() : ''}
           ${m.orderStatusResult ? renderOrderStatusResult(m.orderStatusResult) : ''}
