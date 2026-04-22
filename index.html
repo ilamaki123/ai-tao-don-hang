@@ -1125,7 +1125,12 @@
       const website = order.website || '';
       const site = website ? getWebsiteName('https://' + website) : '';
       const siteSuffix = site ? ` — ${site}` : '';
-      const itemsStr = items.map((it, idx) => `${idx + 1}. ${it.name || ''}${it.quantity ? ' x' + it.quantity : ''}`).join('\n');
+      const cur = order.currency_symbol || '$';
+      const itemsStr = items.map((it, idx) => {
+        const price = parseFloat(it.price ?? it.price_origin ?? 0) || 0;
+        const priceStr = price > 0 ? ` — ${cur}${price}` : '';
+        return `${idx + 1}. ${it.name || ''}${priceStr}`;
+      }).join('\n');
       const orderUrl = orderId ? `https://basso.vn/basso/customer_order/detail/${orderId}` : '#';
       return `
         <div class="order-card">
