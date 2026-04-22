@@ -3106,6 +3106,49 @@
     document.querySelectorAll('.msg-highlight').forEach(el => el.classList.remove('msg-highlight'));
   }
 
+  /* ============================================================
+     DEBUG-WIDTH-OVERLAY — REMOVE THIS BLOCK TO REVERT
+     Activate: load any page with ?debug=1 (e.g. /?debug=1)
+     Shows a yellow badge on every cart card with:
+       C|E  card:<px>  compact:<px>  name:<px>
+     Auto-updates on re-render + resize.
+     ============================================================ */
+  (function(){
+    if (!/[?&]debug=1/.test(location.search)) return;
+    function render(){
+      document.querySelectorAll('.__dw').forEach(el=>el.remove());
+      document.querySelectorAll('.cart-card').forEach(card=>{
+        var name = card.querySelector('.cart-card-compact-name');
+        var compact = card.querySelector('.cart-card-compact');
+        if (!name || !compact) return;
+        var nameW = Math.round(name.getBoundingClientRect().width);
+        var compactW = Math.round(compact.getBoundingClientRect().width);
+        var cardW = Math.round(card.getBoundingClientRect().width);
+        var isExp = card.classList.contains('expanded');
+        var badge = document.createElement('div');
+        badge.className = '__dw';
+        badge.style.cssText = 'position:absolute;top:-6px;right:-6px;background:#ff0;color:#000;font-size:9px;font-family:monospace;padding:2px 5px;border:1px solid #000;border-radius:4px;z-index:9999;pointer-events:none;white-space:nowrap';
+        badge.textContent = (isExp?'E':'C') + ' card:' + cardW + ' compact:' + compactW + ' name:' + nameW;
+        card.style.position = 'relative';
+        card.appendChild(badge);
+      });
+    }
+    var t;
+    function schedule(){ clearTimeout(t); t = setTimeout(render, 50); }
+    window.addEventListener('resize', schedule);
+    var mo = new MutationObserver(schedule);
+    function start(){
+      var ml = document.getElementById('messageList');
+      if (ml) mo.observe(ml, {subtree:true, childList:true, attributes:true, attributeFilter:['class']});
+      schedule();
+    }
+    if (document.readyState !== 'loading') start();
+    else document.addEventListener('DOMContentLoaded', start);
+  })();
+  /* ============================================================
+     END DEBUG-WIDTH-OVERLAY
+     ============================================================ */
+
   function escapeHtml(str) {
     return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
