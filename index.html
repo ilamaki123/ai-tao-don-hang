@@ -1192,11 +1192,13 @@
         addMessage('ai', `Không thể tải đơn hàng ${orderCode}: ${translateError(data.message)}`);
         return;
       }
+      const orderCurrency = data.data.order?.currency_symbol || '$';
       const orderItems = (data.data.items || []).map(item => {
         const priceOrigin = parseFloat(item.price_origin ?? item.price ?? 0) || 0;
         const rate = parseFloat(item.price_discount_rate ?? 0) || 0;
         const normalized = {
           ...item,
+          currency: item.currency || orderCurrency,
           variations: (item.variations || []).map(v => ({ ...v })),
           price: priceOrigin,
           itemSalePct: rate > 0 ? rate : undefined,
