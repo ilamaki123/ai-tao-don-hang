@@ -1015,7 +1015,7 @@
     sessions.unshift(newSession);
     selectSession(newSession.id);
     setTimeout(() => {
-      addMessage('ai', 'Xin chào! Vui lòng nhập số điện thoại khách hàng để bắt đầu tạo đơn hàng.');
+      addMessage('ai', 'Mon xin chào! Vui lòng nhập số điện thoại khách hàng để Mon bắt đầu tạo đơn hàng nhé.');
     }, 200);
   }
 
@@ -1177,7 +1177,7 @@
   async function selectOrderStatus(status) {
     const session = getActiveSession();
     if (!session || !session.customer?.id) {
-      addMessage('ai', 'Chưa có thông tin khách hàng.');
+      addMessage('ai', 'Mon chưa có thông tin khách hàng này.');
       return;
     }
     // Map UI label → Basso item_status
@@ -1306,7 +1306,7 @@
     session.salePct = 0;
     saveSessions();
     updateHint();
-    addMessage('ai', `Bắt đầu tạo đơn mới cho ${session.customer?.name || 'khách hàng'}. Vui lòng upload ảnh giỏ hàng kèm link sản phẩm.`);
+    addMessage('ai', `Mon bắt đầu tạo đơn mới cho ${session.customer?.name || 'khách hàng'}. Bạn vui lòng upload ảnh giỏ hàng kèm link sản phẩm.`);
   }
 
   async function enterEditOrder(orderCode) {
@@ -2027,7 +2027,7 @@
         const analyzeData = await analyzeRes.json();
         if (!analyzeData.success) {
           removeTyping();
-          addMessage('ai', 'Không thể phân tích ảnh. Vui lòng thử lại.');
+          addMessage('ai', 'Mon không thể phân tích ảnh. Vui lòng thử lại.');
           return;
         }
         const newItems = (analyzeData.data.items || []).map(item => ({ ...item }));
@@ -2073,7 +2073,7 @@
       const phone = extractPhone(text);
       if (!phone) {
         removeTyping();
-        addMessage('ai', `"${text}" không phải số điện thoại hợp lệ. Vui lòng nhập SĐT khách hàng (9-12 chữ số).`);
+        addMessage('ai', `"${text}" không phải số điện thoại hợp lệ. Bạn vui lòng nhập SĐT khách hàng (9-12 chữ số).`);
         return;
       }
 
@@ -2110,7 +2110,7 @@
         const domainCheck = validateLinkDomain(pendingLinks, session);
         if (!domainCheck.valid) {
           removeTyping();
-          addMessage('ai', `Không thể thêm link này vì domain không trùng với đơn hàng hiện tại (${domainCheck.cartDomain}). Vui lòng gửi link từ ${domainCheck.cartDomain} hoặc xóa link cũ trước.`);
+          addMessage('ai', `Mon không thể thêm link này vì domain không trùng với đơn hàng hiện tại (${domainCheck.cartDomain}). Bạn vui lòng gửi link từ ${domainCheck.cartDomain} hoặc xóa link cũ trước.`);
           return;
         }
         let updated = 0;
@@ -2124,7 +2124,7 @@
         saveSessions();
         removeTyping();
         invalidateOldCarts();
-        addMessage('ai', `Đã cập nhật ${updated} link.`);
+        addMessage('ai', `Mon đã cập nhật ${updated} link.`);
         ensureCartMessage();
         return;
       }
@@ -2138,7 +2138,7 @@
           const domainCheck = validateLinkDomain(links, session);
           if (!domainCheck.valid) {
             removeTyping();
-            addMessage('ai', `Không thể thêm link này vì domain không trùng với đơn hàng hiện tại (${domainCheck.cartDomain}). Vui lòng gửi link từ ${domainCheck.cartDomain} hoặc xóa link cũ trước.`);
+            addMessage('ai', `Mon không thể thêm link này vì domain không trùng với đơn hàng hiện tại (${domainCheck.cartDomain}). Bạn vui lòng gửi link từ ${domainCheck.cartDomain} hoặc xóa link cũ trước.`);
             return;
           }
         }
@@ -2159,7 +2159,7 @@
 
         if (!analyzeData.success) {
           removeTyping();
-          addMessage('ai', 'Không thể phân tích ảnh. Vui lòng thử lại với ảnh rõ hơn.');
+          addMessage('ai', 'Mon không thể phân tích ảnh. Vui lòng thử lại với ảnh rõ hơn.');
           return;
         }
 
@@ -2784,7 +2784,7 @@
         const cartDomain = getCartDomain(session);
         const newDomain = getDomainFromUrl(newVal);
         if (cartDomain && newDomain && newDomain !== cartDomain) {
-          addMessage('ai', `Không thể thêm link này vì domain (${newDomain}) không trùng với đơn hàng hiện tại (${cartDomain}).`);
+          addMessage('ai', `Mon không thể thêm link này vì domain (${newDomain}) không trùng với đơn hàng hiện tại (${cartDomain}).`);
           return;
         }
         item.link = newVal;
@@ -2892,7 +2892,7 @@
       session.salePct = 0;
       saveSessions();
       renderMessages();
-      addMessage('ai', 'Đã xóa toàn bộ giỏ hàng.');
+      addMessage('ai', 'Mon đã xóa toàn bộ giỏ hàng.');
     });
   }
 
