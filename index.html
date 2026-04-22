@@ -225,6 +225,7 @@
     .messages {
       flex: 1;
       overflow-y: auto;
+      overflow-x: hidden;
       padding: 20px 120px;
       display: flex;
       flex-direction: column;
@@ -660,8 +661,9 @@
       .cart-card.expanded .cart-card-details { display: block; margin-top: 8px; }
       .cart-card-delete { top: auto; bottom: 8px; right: 8px; }
       .hide-mobile { display: none !important; }
-      .cart-panel { padding: 12px 10px; max-width: 100%; overflow: hidden; }
-      .cart-card { padding: 10px 12px; max-width: 100%; overflow: hidden; }
+      .cart-panel { padding: 12px 10px; width: 100%; max-width: 100%; box-sizing: border-box; overflow: hidden; }
+      .cart-card { padding: 10px 12px; width: 100%; max-width: 100%; box-sizing: border-box; overflow: hidden; }
+      .cart-card-compact, .cart-card-details, .cart-card-fields { max-width: 100%; box-sizing: border-box; }
       .cart-card-thumb { width: 36px; height: 36px; }
       .cart-card-fields { font-size: 12px; }
       .cart-field { max-width: 100%; }
