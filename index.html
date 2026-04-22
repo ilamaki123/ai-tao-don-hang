@@ -1189,9 +1189,11 @@
         addMessage('ai', `Không thể tải đơn ${cfg.label}: ${translateError(data.message || (data.errors || []).join(', '))}`);
         return;
       }
-      const orders = data.data?.orders || [];
+      const allOrders = data.data?.orders || [];
+      // Chỉ lấy order có status=processing, bỏ qua cancelled/completed
+      const orders = allOrders.filter(o => o.order?.status === 'processing');
       if (orders.length === 0) {
-        addMessage('ai', `Không có đơn ${cfg.label} nào cho khách hàng này.`);
+        addMessage('ai', `Không có đơn ${cfg.label} nào đang xử lý cho khách hàng này.`);
         return;
       }
       addMessage('ai', `Tìm thấy ${orders.length} đơn ${cfg.label}:`, {
