@@ -8,7 +8,10 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" href="icon-192.png" />
-  <title>AI Chat - Tạo đơn hàng</title>
+  <title>Doraemon - Tạo đơn hàng</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&display=swap" rel="stylesheet">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -32,9 +35,11 @@
     }
 
     .sidebar-logo {
-      font-size: 20px;
+      font-family: 'Fredoka', 'Segoe UI', sans-serif;
+      font-size: 26px;
       font-weight: 700;
       color: #00354E;
+      letter-spacing: 0.5px;
       margin-bottom: 4px;
     }
 
@@ -742,7 +747,7 @@
 <!-- SIDEBAR -->
 <div class="sidebar" id="sidebar">
   <div style="display:flex;align-items:center;justify-content:space-between;">
-    <div class="sidebar-logo">AI Chat</div>
+    <div class="sidebar-logo">Doraemon</div>
     <button class="btn-close-sidebar" onclick="closeSidebar()">&times;</button>
   </div>
   <div class="sidebar-welcome">Welcome, Vinh Pham</div>
