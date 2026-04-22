@@ -167,6 +167,14 @@ async function getDb() {
         INDEX idx_user_id (user_id)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `);
+    await dbPool.execute(`
+      CREATE TABLE IF NOT EXISTS daily_order_stats (
+        user_id INT NOT NULL,
+        stat_date DATE NOT NULL,
+        order_count INT DEFAULT 0,
+        PRIMARY KEY (user_id, stat_date)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
     console.log('[mysql] Connected to', process.env.MYSQL_HOST || 'localhost');
   }
   return dbPool;
@@ -807,13 +815,63 @@ app.get('/api/orders-by-item-status', async (req, res) => {
     console.log('[orders-by-item-status] calling:', url);
     const response = await fetch(url, { headers: bassoHeaders(req) });
     const rawText = await response.text();
-    console.log('[orders-by-item-status] status:', response.status, 'raw:', rawText.substring(0, 500));
+    console.log('[orders-by-item-status] status:', response.status, 'raw:', rawText.substring(0, 3000));
     let data;
     try { data = JSON.parse(rawText); } catch {
       return res.status(502).json({ success: false, message: 'Basso trả về không phải JSON', raw: rawText.substring(0, 200) });
     }
     res.json(data);
   } catch (err) { console.error('[api] error:', req.url, err.message); res.status(500).json({ success: false, message: err.message }); }
+});
+
+// ===== ENCOURAGEMENT MESSAGE AFTER ORDER SUCCESS =====
+app.post('/api/encouragement', async (req, res) => {
+  try {
+    const user = resolveUser(req);
+    if (!user) return res.status(401).json({ success: false, message: 'Unauthorized' });
+
+    const db = await getDb();
+    // Use Asia/Ho_Chi_Minh date (YYYY-MM-DD)
+    const vnDate = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
+    await db.execute(
+      'INSERT INTO daily_order_stats (user_id, stat_date, order_count) VALUES (?, ?, 1) ON DUPLICATE KEY UPDATE order_count = order_count + 1',
+      [user.id, vnDate]
+    );
+    const [rows] = await db.execute(
+      'SELECT order_count FROM daily_order_stats WHERE user_id = ? AND stat_date = ?',
+      [user.id, vnDate]
+    );
+    const count = rows[0]?.order_count || 1;
+
+    let hint;
+    if (count === 1) hint = 'Đơn mở hàng đầu ngày, chúc may mắn, năng lượng tích cực.';
+    else if (count === 2) hint = 'Đã có đà, tiếp tục phát huy.';
+    else if (count <= 4) hint = 'Đà ổn rồi, cố thêm chút nữa.';
+    else if (count <= 9) hint = 'Năng suất cao, trêu đùa khích lệ vui vẻ.';
+    else hint = 'Con số khủng, trầm trồ khen ngợi.';
+
+    const userName = req.body?.name || 'bạn';
+    const prompt = `Bạn là "Mon" — trợ lý AI vui nhộn của Basso.
+Nhân viên ${userName} vừa tạo đơn hàng thành công.
+Đây là đơn thứ ${count} trong ngày của họ.
+Context: ${hint}
+
+Viết 1 câu NGẮN (≤ 20 từ), tiếng Việt, vui nhộn, khích lệ. Có thể dùng emoji nhẹ 😂🎉🔥.
+KHÔNG nói "Đã tạo đơn thành công" (đã nói rồi).
+Chỉ trả về đúng 1 câu, không giải thích, không markdown.`;
+
+    const response = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 100,
+      messages: [{ role: 'user', content: prompt }],
+    });
+    const text = (response.content || []).map(c => c.text || '').join('').trim();
+    console.log(`[encouragement] user=${user.id} count=${count} msg="${text}"`);
+    res.json({ success: true, data: { message: text, count } });
+  } catch (err) {
+    console.error('[encouragement] error:', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
 });
 
 // ===== DEBUG: catch all unmatched routes =====

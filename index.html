@@ -2333,6 +2333,19 @@
           order_url: `https://basso.vn/basso/customer_order/detail/${orderData.data.orderId}`,
         }
       });
+      // Fire-and-forget encouragement message (non-blocking)
+      (async () => {
+        try {
+          const encRes = await fetch(`${API_BASE}/api/encouragement`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+            body: JSON.stringify({ name: sessionUser?.name || sessionUser?.email || 'bạn' }),
+          });
+          if (!encRes.ok) return;
+          const encData = await encRes.json();
+          if (encData.success && encData.data?.message) addMessage('ai', encData.data.message);
+        } catch { /* ignore */ }
+      })();
     } else {
       const errMsg = orderData.message || (orderData.errors || []).join(', ');
       addMessage('ai', `Tạo đơn thất bại: ${translateError(errMsg)}`);
