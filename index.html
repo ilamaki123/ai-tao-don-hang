@@ -1425,7 +1425,7 @@
       const linkShow = item.link ? item.link.substring(0, 35) + '...' : '⚠️ chưa có link';
       const thumbSrc = item.thumb || (item.image_path ? (item.image_path.startsWith('http') ? item.image_path : 'https://basso.vn' + item.image_path) : '');
       const thumbHtml = thumbSrc ? `<img class="cart-card-thumb" src="${thumbSrc}" />` : '';
-      const shortName = item.name.length > 20 ? item.name.substring(0, 20) + '...' : item.name;
+      const shortName = item.name.length > 27 ? item.name.substring(0, 27) + '...' : item.name;
       const canEdit = status !== 'deleted';
       return `<div class="cart-card" style="${opacity}" id="editCard${i}">
         <div class="cart-card-compact" onclick="toggleCardExpand(${i},'editCard')">
@@ -2684,7 +2684,7 @@
     const linkShow = item.link ? item.link.substring(0, 40) + (item.link.length > 40 ? '...' : '') : '⚠️ chưa có link';
     const thumbSrc = item.thumb || (item.image_path ? (item.image_path.startsWith('http') ? item.image_path : 'https://basso.vn' + item.image_path) : '');
       const thumbHtml = thumbSrc ? `<img class="cart-card-thumb" src="${thumbSrc}" />` : '';
-    const shortName = item.name.length > 20 ? item.name.substring(0, 20) + '...' : item.name;
+    const shortName = item.name.length > 27 ? item.name.substring(0, 27) + '...' : item.name;
     return `<div class="cart-card" id="cartCard${i}">
       <div class="cart-card-compact" onclick="toggleCardExpand(${i})">
         <span class="cart-card-num">${i+1}.</span>
