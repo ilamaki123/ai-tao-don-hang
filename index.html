@@ -1385,7 +1385,7 @@
         session.salePct = 0;
         saveSessions();
         updateHint();
-        addMessage('ai', `✅ Đã hủy đơn hàng ${orderCode}.\n\nBấm "Tạo đơn mới" để tiếp tục.`);
+        addMessage('ai', `✅ Mon đã hủy đơn hàng ${orderCode}.\n\nBấm "Tạo đơn mới" để tiếp tục.`);
       } else {
         addMessage('ai', `❌ Không thể hủy: ${translateError(data.message || (data.errors || []).join(', '))}`);
       }
@@ -1705,7 +1705,7 @@
     const newAdminNote = editing.adminNote || '';
     const adminNoteChanged = newAdminNote !== origAdminNote;
     if (deleteIds.length === 0 && updateItems.length === 0 && addItems.length === 0 && !feeChanged && !adminNoteChanged) {
-      addMessage('ai', 'Không có thay đổi nào để cập nhật.');
+      addMessage('ai', 'Mon không thấy có thay đổi mới nào để cập nhật.');
       return;
     }
 
@@ -1748,7 +1748,7 @@
             orderId = orderData.data.order?.id || orderId;
           }
         } catch {}
-        addMessage('ai', `✅ Đã cập nhật đơn ${orderCode}: ${summary}\n\nBấm "Tạo đơn mới" để tiếp tục.`, {
+        addMessage('ai', `✅ Mon đã cập nhật đơn ${orderCode}: ${summary}\n\nBấm "Tạo đơn mới" để tiếp tục.`, {
           orderData: {
             title: 'Đã cập nhật đơn',
             orderCode,
@@ -2331,7 +2331,7 @@
       session.items = [];
       session.salePct = 0;
       updateHint();
-      addMessage('ai', 'Đã tạo đơn hàng thành công!\n\nBấm "Tạo đơn mới" để tiếp tục.', {
+      addMessage('ai', 'Mon đã tạo đơn hàng thành công!\n\nHãy bấm "Tạo đơn mới" để Mon tiếp tục tạo đơn nhé.', {
         orderData: {
           orderCode: orderData.data.orderCode,
           items: completedItems,
