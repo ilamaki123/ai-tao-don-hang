@@ -1133,6 +1133,28 @@
     `;
   }
 
+  function editCartShipFee() {
+    const session = getActiveSession();
+    if (!session) return;
+    openEditModal('Phí ship web (theo ngoại tệ của web)', session.webShippingFee || 0, (val) => {
+      const fee = Math.max(0, parseFloat(val) || 0);
+      session.webShippingFee = fee > 0 ? fee : 0;
+      saveSessions();
+      renderCart();
+    });
+  }
+
+  function editOrderShipFee() {
+    const session = getActiveSession();
+    if (!session || !session.editingOrder) return;
+    openEditModal('Phí ship web (theo ngoại tệ của web)', session.editingOrder.webShippingFee || 0, (val) => {
+      const fee = Math.max(0, parseFloat(val) || 0);
+      session.editingOrder.webShippingFee = fee > 0 ? fee : 0;
+      saveSessions();
+      renderEditOrder();
+    });
+  }
+
   function cancelNewOrder() {
     const session = getActiveSession();
     if (!session) return;
@@ -1184,6 +1206,7 @@
         normalized._status = 'unchanged';
         return normalized;
       });
+      const origWebFee = parseFloat(data.data.order?.web_shipping_fee) || 0;
       session.editingOrder = {
         orderCode,
         items: orderItems,
@@ -1191,6 +1214,8 @@
         addItems: [],
         updateItems: [],
         salePct: 0,
+        webShippingFee: origWebFee,
+        _original_web_shipping_fee: origWebFee,
       };
       session.state = 'EDITING_ORDER';
       saveSessions();
@@ -1305,10 +1330,18 @@
       </div>`;
     }).join('');
 
+    const editWebFee = Number(editing.webShippingFee) || 0;
+    const editTotals = calcCartTotal(editing.items.filter(i => i._status !== 'deleted').concat(editing.addItems || []), salePct, editWebFee);
+    const editTotalStr = Object.keys(editTotals).length > 0 ? formatTotal(editTotals) : '';
     return `
       <div class="cart-panel" style="display:block;border:none;max-height:none;padding:8px 0;">
         <div class="cart-header">
           <span class="cart-title">Chỉnh sửa đơn ${editing.orderCode}</span>
+          <span class="cart-field" onclick="editOrderShipFee()" style="color:${editWebFee ? '#333' : '#999'};cursor:pointer">
+            <span class="cart-field-label">Ship web</span>
+            <span class="cart-field-value">${editWebFee ? editWebFee : '—'}</span>
+          </span>
+          <span class="cart-total">${editTotalStr}</span>
         </div>
         <div class="cart-cards">${cards}</div>
         <div class="cart-actions" style="justify-content:space-between">
@@ -1532,6 +1565,9 @@
       if (deleteIds.length > 0) body.delete_item_ids = deleteIds;
       if (updateItems.length > 0) body.update_items = updateItems;
       if (addItems.length > 0) body.add_items = addItems;
+      const origFee = parseFloat(editing._original_web_shipping_fee ?? 0) || 0;
+      const newFee = Number(editing.webShippingFee) || 0;
+      if (newFee !== origFee) body.web_shipping_fee = newFee;
 
       const res = await fetch(`${API_BASE}/api/update-order`, {
         method: 'POST',
@@ -2105,6 +2141,7 @@
       payment_limit_id: 1,
       brand: c.brand || 'shipus',
       website: extractWebsiteFromItems(session.items),
+      ...(session.webShippingFee ? { web_shipping_fee: Number(session.webShippingFee) } : {}),
       items: JSON.stringify(session.items.map(item => {
         const pct = getItemSalePct(item, session.salePct || 0);
         const priceAfterSale = pct > 0
@@ -2347,14 +2384,20 @@
     return globalSalePct;
   }
 
-  function calcCartTotal(items, salePct = 0) {
+  function calcCartTotal(items, salePct = 0, webShippingFee = 0) {
     const totals = {};
+    let primaryCur = null;
     for (const item of items) {
       if (!item.price) continue;
       const cur = (item.currency || '').trim() || '?';
+      if (!primaryCur) primaryCur = cur;
       const pct = getItemSalePct(item, salePct);
       const price = pct > 0 ? item.price * (1 - pct / 100) : item.price;
       totals[cur] = (totals[cur] || 0) + (price * (item.quantity || 1));
+    }
+    const fee = Number(webShippingFee) || 0;
+    if (fee > 0 && primaryCur) {
+      totals[primaryCur] = (totals[primaryCur] || 0) + fee;
     }
     return totals;
   }
@@ -2402,13 +2445,18 @@
   function buildInlineCartHtml() {
     const session = getActiveSession();
     if (!session || session.items.length === 0) return '<div class="cart-panel" style="display:block;border:none;padding:8px 0;">Giỏ hàng trống.</div>';
-    const totals = calcCartTotal(session.items, session.salePct || 0);
+    const webFee = Number(session.webShippingFee) || 0;
+    const totals = calcCartTotal(session.items, session.salePct || 0, webFee);
     const totalStr = Object.keys(totals).length > 0 ? formatTotal(totals) : '';
     const cards = session.items.map((item, i) => renderCartCard(item, i, session)).join('');
     return `
       <div class="cart-panel" style="display:block;border:none;max-height:none;padding:8px 0;">
         <div class="cart-header">
           <span class="cart-title">Giỏ hàng (${session.items.length} sản phẩm)</span>
+          <span class="cart-field" onclick="editCartShipFee()" style="color:${webFee ? '#333' : '#999'};cursor:pointer">
+            <span class="cart-field-label">Ship web</span>
+            <span class="cart-field-value">${webFee ? webFee : '—'}</span>
+          </span>
           <span class="cart-total">${totalStr}</span>
         </div>
         <div class="cart-cards">${cards}</div>
