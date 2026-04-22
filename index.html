@@ -1126,16 +1126,25 @@
       const site = website ? getWebsiteName('https://' + website) : '';
       const siteSuffix = site ? ` — ${site}` : '';
       const cur = order.currency_symbol || '$';
-      const itemsStr = items.map((it, idx) => {
+      const itemsHtml = items.map((it, idx) => {
         const price = parseFloat(it.price ?? it.price_origin ?? 0) || 0;
-        const priceStr = price > 0 ? ` — ${cur}${price}` : '';
-        return `${idx + 1}. ${it.name || ''}${priceStr}`;
-      }).join('\n');
+        const priceStr = price > 0 ? `${cur}${price}` : '';
+        const img = it.image_path || '';
+        const thumb = img ? `<img src="${img}" style="width:36px;height:36px;object-fit:cover;border-radius:6px;flex-shrink:0" />` : `<div style="width:36px;height:36px;flex-shrink:0"></div>`;
+        return `
+          <div style="display:flex;align-items:center;gap:8px;padding:4px 0">
+            <span style="flex-shrink:0;color:#666;min-width:18px">${idx + 1}.</span>
+            ${thumb}
+            <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px">${escapeHtml(it.name || '')}</span>
+            ${priceStr ? `<span style="flex-shrink:0;font-weight:600;color:#7c5cbf;font-size:13px">${priceStr}</span>` : ''}
+          </div>
+        `;
+      }).join('');
       const orderUrl = orderId ? `https://basso.vn/basso/customer_order/detail/${orderId}` : '#';
       return `
         <div class="order-card">
           <div class="order-title">${title} — ${orderCode}${siteSuffix}</div>
-          <pre>${escapeHtml(itemsStr)}</pre>
+          <div style="margin:8px 0;padding:8px 10px;background:#fafafa;border-radius:6px">${itemsHtml}</div>
           <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">
             <div><a class="order-link" href="${orderUrl}" target="_blank">Xem đơn hàng &rarr;</a></div>
           </div>
