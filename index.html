@@ -782,6 +782,7 @@
     <!-- Nút tạo đơn mới (DONE) / hủy tạo đơn (WAITING_IMAGE) -->
     <div id="newOrderBtnWrap" style="display:none;padding:5px 0 0;text-align:center;width:100%;max-width:700px;margin:0 auto;">
       <button class="cart-btn" style="background:#f0f0f0;color:#666;border:1px solid #ccc;border-radius:6px" onclick="startNewOrder()">Tạo đơn mới</button>
+      <button class="cart-btn" style="background:#f0f0f0;color:#666;border:1px solid #ccc;border-radius:6px;margin-left:8px" onclick="openOrderStatusMenu()">Tình trạng đơn</button>
     </div>
     <div id="cancelNewOrderBtnWrap" style="display:none;padding:5px 0 0;text-align:center;width:100%;max-width:700px;margin:0 auto;">
       <button class="cart-btn" style="background:#FDEBEC;color:#D95C5C;border:1px solid #f0c0c0;border-radius:6px" onclick="cancelNewOrder()">Hủy tạo đơn</button>
@@ -1080,6 +1081,7 @@
         <div class="message ai">
           <div class="message-bubble" style="white-space:pre-wrap">${escapeHtml(m.text)}</div>
           ${m.orderData ? renderOrderCard(m.orderData) : ''}
+          ${m.orderStatusMenu ? renderOrderStatusMenu() : ''}
         </div>
       `;
     }
@@ -1110,6 +1112,32 @@
     }
     const base = parts[parts.length - 1] || d;
     return base.charAt(0).toUpperCase() + base.slice(1);
+  }
+
+  function renderOrderStatusMenu() {
+    return `
+      <div class="order-card">
+        <div class="order-title">Chọn tình trạng đơn</div>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">
+          <div><button class="order-link" style="border:none;cursor:pointer;background:#EFE7FF;color:#7C5ACB;font-size:13px;padding:6px 14px" onclick="selectOrderStatus('not_bought')">Đơn chưa mua</button></div>
+          <div><button class="order-link" style="border:none;cursor:pointer;background:#EFE7FF;color:#7C5ACB;font-size:13px;padding:6px 14px" onclick="selectOrderStatus('bought')">Đơn đã mua</button></div>
+          <div><button class="order-link" style="border:none;cursor:pointer;background:#FDEBEC;color:#D95C5C;font-size:13px;padding:6px 14px" onclick="selectOrderStatus('not_available')">Đơn cancel</button></div>
+        </div>
+      </div>
+    `;
+  }
+
+  function openOrderStatusMenu() {
+    const session = getActiveSession();
+    if (!session) return;
+    session.messages.push({ role: 'ai', text: '', orderStatusMenu: true, timestamp: Date.now() });
+    renderMessages();
+    saveSessions();
+  }
+
+  function selectOrderStatus(status) {
+    // TODO: implement fetch + render order list
+    console.log('[selectOrderStatus] chosen:', status);
   }
 
   function renderOrderCard(data) {
