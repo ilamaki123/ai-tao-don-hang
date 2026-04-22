@@ -1134,6 +1134,26 @@
     `;
   }
 
+  function editCartAdminNote() {
+    const session = getActiveSession();
+    if (!session) return;
+    openEditModal('Note mua hàng (nội bộ)', session.adminNote || '', (val) => {
+      session.adminNote = val.trim();
+      saveSessions();
+      renderCart();
+    });
+  }
+
+  function editOrderAdminNote() {
+    const session = getActiveSession();
+    if (!session || !session.editingOrder) return;
+    openEditModal('Note mua hàng (nội bộ)', session.editingOrder.adminNote || '', (val) => {
+      session.editingOrder.adminNote = val.trim();
+      saveSessions();
+      renderEditOrder();
+    });
+  }
+
   function editCartShipFee() {
     const session = getActiveSession();
     if (!session) return;
@@ -1210,6 +1230,7 @@
         return normalized;
       });
       const origWebFee = parseFloat(data.data.order?.web_shipping_fee) || 0;
+      const origAdminNote = data.data.order?.admin_note || '';
       session.editingOrder = {
         orderCode,
         items: orderItems,
@@ -1219,6 +1240,8 @@
         salePct: 0,
         webShippingFee: origWebFee,
         _original_web_shipping_fee: origWebFee,
+        adminNote: origAdminNote,
+        _original_admin_note: origAdminNote,
       };
       session.state = 'EDITING_ORDER';
       saveSessions();
@@ -1347,12 +1370,16 @@
           <span class="cart-total">${editTotalStr}</span>
         </div>
         <div class="cart-cards">${cards}</div>
-        <div class="cart-actions" style="justify-content:space-between">
-          <div style="display:flex;gap:8px;align-items:center">
+        <div class="cart-actions" style="flex-direction:column;align-items:stretch;gap:10px">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
             <button class="cart-btn" style="background:#EFE7FF;color:#7C5ACB" onclick="applyEditSaleUI()">Giảm giá ${salePct ? salePct + '%' : ''}</button>
             ${salePct > 0 ? `<button class="cart-btn" style="background:#FDEBEC;color:#D95C5C" onclick="removeEditSaleUI()">Bỏ giảm giá</button>` : ''}
+            <span class="cart-field" onclick="editOrderAdminNote()" style="color:${editing.adminNote ? '#333' : '#999'};cursor:pointer">
+              <span class="cart-field-label">Note mua hàng</span>
+              <span class="cart-field-value" style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${editing.adminNote ? escapeHtml(editing.adminNote) : '—'}</span>
+            </span>
           </div>
-          <div style="display:flex;gap:10px">
+          <div style="display:flex;gap:10px;justify-content:flex-end">
             <button class="cart-btn" style="background:#f0f0f0;color:#666" onclick="cancelEditOrderUI()">Hủy chỉnh sửa</button>
             <button class="cart-btn cart-btn-order" onclick="submitOrderUpdate(getActiveSession())">Cập nhật đơn</button>
           </div>
@@ -1561,7 +1588,10 @@
     const origFee = parseFloat(editing._original_web_shipping_fee ?? 0) || 0;
     const newFee = Number(editing.webShippingFee) || 0;
     const feeChanged = newFee !== origFee;
-    if (deleteIds.length === 0 && updateItems.length === 0 && addItems.length === 0 && !feeChanged) {
+    const origAdminNote = editing._original_admin_note || '';
+    const newAdminNote = editing.adminNote || '';
+    const adminNoteChanged = newAdminNote !== origAdminNote;
+    if (deleteIds.length === 0 && updateItems.length === 0 && addItems.length === 0 && !feeChanged && !adminNoteChanged) {
       addMessage('ai', 'Không có thay đổi nào để cập nhật.');
       return;
     }
@@ -1572,6 +1602,7 @@
       if (updateItems.length > 0) body.update_items = updateItems;
       if (addItems.length > 0) body.add_items = addItems;
       if (feeChanged) body.web_shipping_fee = newFee;
+      if (adminNoteChanged) body.admin_note = newAdminNote;
 
       const res = await fetch(`${API_BASE}/api/update-order`, {
         method: 'POST',
@@ -2146,6 +2177,7 @@
       brand: c.brand || 'shipus',
       website: extractWebsiteFromItems(session.items),
       ...(session.webShippingFee ? { web_shipping_fee: Number(session.webShippingFee) } : {}),
+      ...(session.adminNote ? { admin_note: session.adminNote } : {}),
       items: JSON.stringify(session.items.map(item => {
         const pct = getItemSalePct(item, session.salePct || 0);
         const priceAfterSale = pct > 0
@@ -2464,12 +2496,16 @@
           <span class="cart-total">${totalStr}</span>
         </div>
         <div class="cart-cards">${cards}</div>
-        <div class="cart-actions" style="justify-content:space-between">
-          <div style="display:flex;gap:8px;align-items:center">
+        <div class="cart-actions" style="flex-direction:column;align-items:stretch;gap:10px">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
             <button class="cart-btn" style="background:#EFE7FF;color:#7C5ACB" onclick="applySaleUI()">Giảm giá ${session.salePct ? session.salePct + '%' : ''}</button>
             ${session.salePct > 0 ? `<button class="cart-btn" style="background:#FDEBEC;color:#D95C5C" onclick="removeSaleUI()">Bỏ giảm giá</button>` : ''}
+            <span class="cart-field" onclick="editCartAdminNote()" style="color:${session.adminNote ? '#333' : '#999'};cursor:pointer">
+              <span class="cart-field-label">Note mua hàng</span>
+              <span class="cart-field-value" style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${session.adminNote ? escapeHtml(session.adminNote) : '—'}</span>
+            </span>
           </div>
-          <div style="display:flex;gap:10px">
+          <div style="display:flex;gap:10px;justify-content:flex-end">
             <button class="cart-btn cart-btn-clear" onclick="clearCartUI()">Xóa giỏ hàng</button>
             <button class="cart-btn cart-btn-order" onclick="submitOrder(getActiveSession())">Tạo đơn</button>
           </div>
