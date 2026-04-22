@@ -658,7 +658,10 @@
 
     @media (max-width: 768px) {
       .cart-card-compact {
-        display: flex; align-items: center; gap: 6px; cursor: pointer; overflow: hidden;
+        display: flex; align-items: center; gap: 6px; cursor: pointer; overflow: hidden; padding-right: 4px;
+      }
+      .cart-card-compact-name {
+        max-width: 100%;
       }
       .cart-card-compact-name {
         flex: 1; font-size: 13px; font-weight: 500; color: #333;
@@ -1425,7 +1428,7 @@
       const linkShow = item.link ? item.link.substring(0, 35) + '...' : '⚠️ chưa có link';
       const thumbSrc = item.thumb || (item.image_path ? (item.image_path.startsWith('http') ? item.image_path : 'https://basso.vn' + item.image_path) : '');
       const thumbHtml = thumbSrc ? `<img class="cart-card-thumb" src="${thumbSrc}" />` : '';
-      const shortName = item.name.length > 30 ? item.name.substring(0, 30) + '...' : item.name;
+      const shortName = item.name;
       const canEdit = status !== 'deleted';
       return `<div class="cart-card" style="${opacity}" id="editCard${i}">
         <div class="cart-card-compact" onclick="toggleCardExpand(${i},'editCard')">
