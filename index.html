@@ -754,6 +754,28 @@
     .edit-modal-btn-save:hover { background: #6a4aad; }
     .edit-modal-btn-danger { background: #e55; color: #fff; }
     .edit-modal-btn-danger:hover { background: #d33; }
+
+    .img-uploader-tabs { display: flex; gap: 6px; margin-bottom: 12px; }
+    .img-uploader-tab {
+      flex: 1; padding: 8px 10px; border: 1px solid #e0d8f0; border-radius: 8px;
+      background: #fff; color: #666; cursor: pointer; font-size: 13px; font-weight: 500; text-align: center;
+    }
+    .img-uploader-tab.active { background: #EFE7FF; color: #7C5ACB; border-color: #7C5ACB; }
+    .img-uploader-panel { display: none; }
+    .img-uploader-panel.active { display: block; }
+    .img-uploader-dropzone {
+      border: 2px dashed #d0c4e8; border-radius: 10px; padding: 28px 10px;
+      text-align: center; color: #999; font-size: 13px; background: #fafaff;
+      min-height: 120px; display: flex; align-items: center; justify-content: center;
+    }
+    .img-uploader-dropzone.has-image { border-style: solid; padding: 10px; }
+    .img-uploader-dropzone img { max-width: 100%; max-height: 180px; object-fit: contain; border-radius: 6px; }
+    .img-uploader-file-btn {
+      display: inline-block; padding: 10px 18px; background: #7c5cbf; color: #fff;
+      border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 500;
+    }
+    .img-uploader-file-btn:hover { background: #6a4aad; }
+    .img-uploader-hint { font-size: 11px; color: #999; margin-top: 8px; }
     .confirm-modal-text { font-size: 14px; color: #555; line-height: 1.5; }
   </style>
 </head>
@@ -1474,7 +1496,10 @@
         : '';
       const linkShow = item.link ? item.link.substring(0, 35) + '...' : '⚠️ chưa có link';
       const thumbSrc = item.thumb || (item.image_path ? (item.image_path.startsWith('http') ? item.image_path : 'https://basso.vn' + item.image_path) : '');
-      const thumbHtml = thumbSrc ? `<img class="cart-card-thumb" src="${thumbSrc}" />` : '';
+      const thumbClick = canEdit ? `onclick="event.stopPropagation();openImageUploader('editOrder',${i})"` : '';
+      const thumbHtml = thumbSrc
+        ? `<img class="cart-card-thumb" src="${thumbSrc}" ${thumbClick} style="cursor:${canEdit ? 'pointer' : 'default'}" title="${canEdit ? 'Bấm để đổi ảnh' : ''}" />`
+        : (canEdit ? `<div class="cart-card-thumb" ${thumbClick} style="cursor:pointer;display:flex;align-items:center;justify-content:center;background:#f3eeff;color:#7c5cbf;font-size:18px" title="Bấm để thêm ảnh">+</div>` : '');
       const shortName = item.name;
       const canEdit = status !== 'deleted';
       return `<div class="cart-card" style="${opacity}" id="editCard${i}">
@@ -1727,6 +1752,7 @@
       }
       if (i.link !== orig.link) upd.link = i.link;
       if ((i.note || '') !== (orig.note || '')) upd.note = i.note || '';
+      if ((i.image_id || '') !== (orig.image_id || '')) upd.image_id = i.image_id;
       if (JSON.stringify(i.variations) !== JSON.stringify(orig.variations)) {
         upd.variations = i.variations || [];
       }
@@ -2733,7 +2759,9 @@
     const priceShow = pct > 0 ? `<s>${formatPrice(item)}</s> ${formatPrice({...item, price: ep})} (-${pct}%)` : formatPrice(item);
     const linkShow = item.link ? item.link.substring(0, 40) + (item.link.length > 40 ? '...' : '') : '⚠️ chưa có link';
     const thumbSrc = item.thumb || (item.image_path ? (item.image_path.startsWith('http') ? item.image_path : 'https://basso.vn' + item.image_path) : '');
-      const thumbHtml = thumbSrc ? `<img class="cart-card-thumb" src="${thumbSrc}" />` : '';
+    const thumbHtml = thumbSrc
+      ? `<img class="cart-card-thumb" src="${thumbSrc}" onclick="event.stopPropagation();openImageUploader('cart',${i})" style="cursor:pointer" title="Bấm để đổi ảnh" />`
+      : `<div class="cart-card-thumb" onclick="event.stopPropagation();openImageUploader('cart',${i})" style="cursor:pointer;display:flex;align-items:center;justify-content:center;background:#f3eeff;color:#7c5cbf;font-size:18px" title="Bấm để thêm ảnh">+</div>`;
     const shortName = item.name;
     return `<div class="cart-card" id="cartCard${i}">
       <div class="cart-card-compact" onclick="toggleCardExpand(${i})">
@@ -2866,6 +2894,113 @@
       renderCart();
     });
   }
+
+  // ===== IMAGE UPLOADER MODAL =====
+  var _imgUploaderCtx = null; // { context: 'cart'|'editOrder', idx: N }
+  var _imgUploaderBlob = null;
+  var _imgUploaderPasteHandler = null;
+
+  function openImageUploader(context, idx) {
+    _imgUploaderCtx = { context, idx };
+    _imgUploaderBlob = null;
+    switchImgUploaderTab('paste');
+    resetImgUploaderZones();
+    document.getElementById('imgUploaderModal').classList.add('show');
+    _imgUploaderPasteHandler = (e) => {
+      const items = (e.clipboardData || e.originalEvent?.clipboardData)?.items || [];
+      for (const it of items) {
+        if (it.type && it.type.indexOf('image') === 0) {
+          const blob = it.getAsFile();
+          setImgUploaderBlob(blob);
+          e.preventDefault();
+          break;
+        }
+      }
+    };
+    document.addEventListener('paste', _imgUploaderPasteHandler);
+    setTimeout(() => document.getElementById('imgUploaderPasteZone').focus(), 100);
+  }
+
+  function closeImgUploader() {
+    document.getElementById('imgUploaderModal').classList.remove('show');
+    if (_imgUploaderPasteHandler) { document.removeEventListener('paste', _imgUploaderPasteHandler); _imgUploaderPasteHandler = null; }
+    _imgUploaderCtx = null;
+    _imgUploaderBlob = null;
+  }
+
+  function switchImgUploaderTab(tab) {
+    document.querySelectorAll('.img-uploader-tab').forEach(el => el.classList.toggle('active', el.dataset.tab === tab));
+    document.getElementById('imgUploaderPanelPaste').classList.toggle('active', tab === 'paste');
+    document.getElementById('imgUploaderPanelFile').classList.toggle('active', tab === 'file');
+  }
+
+  function resetImgUploaderZones() {
+    const pasteZone = document.getElementById('imgUploaderPasteZone');
+    pasteZone.classList.remove('has-image');
+    pasteZone.innerHTML = 'Paste ảnh vào đây (Ctrl+V)';
+    const fileZone = document.getElementById('imgUploaderFileZone');
+    fileZone.classList.remove('has-image');
+    fileZone.innerHTML = '<div><button class="img-uploader-file-btn" onclick="document.getElementById(\'imgUploaderFile\').click()">Chọn ảnh từ máy</button></div>';
+    document.getElementById('imgUploaderFile').value = '';
+  }
+
+  function setImgUploaderBlob(blob) {
+    _imgUploaderBlob = blob;
+    const url = URL.createObjectURL(blob);
+    const activeTab = document.querySelector('.img-uploader-tab.active')?.dataset?.tab || 'paste';
+    const zone = activeTab === 'paste' ? document.getElementById('imgUploaderPasteZone') : document.getElementById('imgUploaderFileZone');
+    zone.classList.add('has-image');
+    zone.innerHTML = `<img src="${url}" />`;
+  }
+
+  function onImgUploaderFile(e) {
+    const file = e.target.files[0];
+    if (file) setImgUploaderBlob(file);
+  }
+
+  async function confirmImgUploader() {
+    if (!_imgUploaderBlob || !_imgUploaderCtx) { closeImgUploader(); return; }
+    const { context, idx } = _imgUploaderCtx;
+    const fileName = _imgUploaderBlob.name || 'image.jpg';
+    const blob = _imgUploaderBlob;
+    try {
+      const compressed = await compressImage(new File([blob], fileName, { type: blob.type || 'image/jpeg' }), 900, 1600);
+      const formData = new FormData();
+      formData.append('file', compressed);
+      const res = await fetch(`${API_BASE}/api/upload-image`, { method: 'POST', headers: getAuthHeaders(), body: formData });
+      const data = await res.json();
+      if (!data.success) {
+        addMessage('ai', 'Upload ảnh thất bại: ' + (data.message || 'lỗi không xác định'));
+        closeImgUploader();
+        return;
+      }
+      const session = getActiveSession();
+      let item;
+      if (context === 'cart') {
+        item = session.items[idx];
+      } else if (context === 'editOrder') {
+        const editing = session.editingOrder;
+        if (idx < editing.items.length) {
+          item = editing.items[idx];
+          item._status = 'modified';
+        } else {
+          item = editing.addItems[idx - editing.items.length];
+        }
+      }
+      if (item) {
+        item.image_id = data.data.id;
+        item.image_path = data.data.path;
+        item.thumb = URL.createObjectURL(compressed);
+        saveSessions();
+        if (context === 'cart') renderCart();
+        else renderEditOrder();
+      }
+    } catch (err) {
+      addMessage('ai', 'Lỗi upload: ' + err.message);
+    }
+    closeImgUploader();
+  }
+  // ===== END IMAGE UPLOADER MODAL =====
 
   function openEditModal(title, value, callback) {
     _editModalCallback = callback;
@@ -3160,6 +3295,33 @@
     <div class="edit-modal-btns">
       <button class="edit-modal-btn edit-modal-btn-cancel" onclick="closeEditModal()">Hủy</button>
       <button class="edit-modal-btn edit-modal-btn-save" onclick="saveEditModal()">Lưu</button>
+    </div>
+  </div>
+</div>
+
+<!-- Image Uploader Modal -->
+<div class="edit-modal-overlay" id="imgUploaderModal">
+  <div class="edit-modal" style="max-width:420px">
+    <div class="edit-modal-title">Đổi ảnh sản phẩm</div>
+    <div class="img-uploader-tabs">
+      <div class="img-uploader-tab active" data-tab="paste" onclick="switchImgUploaderTab('paste')">📋 Paste ảnh</div>
+      <div class="img-uploader-tab" data-tab="file" onclick="switchImgUploaderTab('file')">📁 Từ máy</div>
+    </div>
+    <div class="img-uploader-panel active" id="imgUploaderPanelPaste">
+      <div class="img-uploader-dropzone" id="imgUploaderPasteZone" tabindex="0">Paste ảnh vào đây (Ctrl+V)</div>
+      <div class="img-uploader-hint">Copy ảnh ở nơi khác rồi paste vào khung</div>
+    </div>
+    <div class="img-uploader-panel" id="imgUploaderPanelFile">
+      <div class="img-uploader-dropzone" id="imgUploaderFileZone">
+        <div>
+          <button class="img-uploader-file-btn" onclick="document.getElementById('imgUploaderFile').click()">Chọn ảnh từ máy</button>
+        </div>
+      </div>
+      <input type="file" id="imgUploaderFile" accept="image/*" style="display:none" onchange="onImgUploaderFile(event)" />
+    </div>
+    <div class="edit-modal-btns">
+      <button class="edit-modal-btn edit-modal-btn-cancel" onclick="closeImgUploader()">Hủy</button>
+      <button class="edit-modal-btn edit-modal-btn-save" onclick="confirmImgUploader()">Lựa chọn</button>
     </div>
   </div>
 </div>
