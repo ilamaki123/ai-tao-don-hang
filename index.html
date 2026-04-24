@@ -1496,12 +1496,12 @@
         : '';
       const linkShow = item.link ? item.link.substring(0, 35) + '...' : '⚠️ chưa có link';
       const thumbSrc = item.thumb || (item.image_path ? (item.image_path.startsWith('http') ? item.image_path : 'https://basso.vn' + item.image_path) : '');
+      const canEdit = status !== 'deleted';
       const thumbClick = canEdit ? `onclick="event.stopPropagation();openImageUploader('editOrder',${i})"` : '';
       const thumbHtml = thumbSrc
         ? `<img class="cart-card-thumb" src="${thumbSrc}" ${thumbClick} style="cursor:${canEdit ? 'pointer' : 'default'}" title="${canEdit ? 'Bấm để đổi ảnh' : ''}" />`
         : (canEdit ? `<div class="cart-card-thumb" ${thumbClick} style="cursor:pointer;display:flex;align-items:center;justify-content:center;background:#f3eeff;color:#7c5cbf;font-size:18px" title="Bấm để thêm ảnh">+</div>` : '');
       const shortName = item.name;
-      const canEdit = status !== 'deleted';
       return `<div class="cart-card" style="${opacity}" id="editCard${i}">
         <div class="cart-card-compact" onclick="toggleCardExpand(${i},'editCard')">
           <span class="cart-card-num">${i+1}.${badge}</span>
