@@ -2145,14 +2145,14 @@
 
       const c = data.data.customer;
       session.customer = c;
-      session.state = 'WAITING_IMAGE';
+      session.state = 'DONE';
       session.title = c.name;
       renderHistory();
       saveSessions();
       updateHint();
 
       addMessage('ai',
-        `Mon tìm thấy khách hàng:\n👤 ${c.name}\n📞 ${c.phone}\n📍 ${c.address}, ${c.district}, ${c.city}${c.brand ? '\n🏷️ Brand: ' + formatBrand(c.brand) : ''}\n\nVui lòng upload ảnh giỏ hàng kèm link sản phẩm (mỗi link 1 dòng, theo thứ tự từ trên xuống).`
+        `Mon tìm thấy khách hàng:\n👤 ${c.name}\n📞 ${c.phone}\n📍 ${c.address}, ${c.district}, ${c.city}${c.brand ? '\n🏷️ Brand: ' + formatBrand(c.brand) : ''}\n\nBấm "Tạo đơn mới" để bắt đầu hoặc "Tình trạng đơn" để xem các đơn đã có.`
       );
       return;
     }
