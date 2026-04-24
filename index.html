@@ -1444,7 +1444,7 @@
   }
 
   async function cancelOrder(orderCode) {
-    openConfirmModal(`Bạn muốn hủy đơn hàng ${orderCode}?`, () => doCancelOrder(orderCode), { title: 'Hủy đơn hàng', okText: 'Hủy đơn' });
+    openConfirmModal(`Bạn muốn hủy đơn hàng ${orderCode}?`, () => doCancelOrder(orderCode), { title: 'Hủy đơn hàng', okText: 'Đồng ý' });
   }
 
   async function doCancelOrder(orderCode) {
