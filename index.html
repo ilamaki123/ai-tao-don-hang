@@ -1919,6 +1919,8 @@
   // Ctrl+V paste ảnh (1 hoặc nhiều ảnh)
   document.addEventListener('paste', (e) => {
     if (!activeSessionId) return;
+    // Skip if image uploader modal is open — it handles paste there
+    if (document.getElementById('imgUploaderModal')?.classList.contains('show')) return;
     const items = e.clipboardData?.items;
     if (!items) return;
     const pastedImages = [];
