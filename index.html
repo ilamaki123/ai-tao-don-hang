@@ -1249,17 +1249,41 @@
   }
 
   function renderOrderCard(data) {
-    const items = (data.items || []).map((i, idx) => {
-      return `${idx + 1}. ${i.name} x${i.quantity || 1}${i.price ? ' — ' + formatPrice(i) : ''}`;
-    }).join('\n');
     const code = data.orderCode || '';
     const firstLink = (data.items || []).find(i => i.link)?.link || '';
     const site = getWebsiteName(firstLink);
     const siteSuffix = site ? ` — ${site}` : '';
+    const itemsHtml = (data.items || []).map((it, idx) => {
+      const price = parseFloat(it.price ?? it.price_origin ?? 0) || 0;
+      const cur = (it.currency || '$').trim();
+      const qty = parseInt(it.quantity) || 1;
+      const priceStr = price > 0 ? `${cur}${price}${qty > 1 ? ` x${qty}` : ''}` : '';
+      const img = it.image_path || it.thumb || '';
+      const imgUrl = img && (img.startsWith('http') || img.startsWith('data:')) ? img : (img ? 'https://basso.vn' + img : '');
+      const thumb = imgUrl ? `<img src="${imgUrl}" style="width:36px;height:36px;object-fit:cover;border-radius:6px;flex-shrink:0" />` : `<div style="width:36px;height:36px;flex-shrink:0"></div>`;
+      const fullName = it.name || '';
+      let vars = it.variations;
+      if (typeof vars === 'string') { try { vars = JSON.parse(vars); } catch { vars = []; } }
+      const varsStr = (Array.isArray(vars) ? vars : [])
+        .filter(v => v && v.value)
+        .map(v => `${escapeHtml(v.name)}: ${escapeHtml(v.value)}`)
+        .join(' • ');
+      return `
+        <div style="display:flex;align-items:center;gap:8px;padding:4px 0;min-width:0">
+          <span style="flex-shrink:0;color:#666;min-width:18px">${idx + 1}.</span>
+          ${thumb}
+          <div style="flex:1;min-width:0;overflow:hidden">
+            <div title="${escapeHtml(fullName)}" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px">${escapeHtml(fullName)}</div>
+            ${varsStr ? `<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:#888;margin-top:2px">${varsStr}</div>` : ''}
+          </div>
+          ${priceStr ? `<span style="flex-shrink:0;font-weight:600;color:#7c5cbf;font-size:13px">${priceStr}</span>` : ''}
+        </div>
+      `;
+    }).join('');
     return `
       <div class="order-card">
         <div class="order-title">${data.title || 'Đơn hàng đã tạo'} — ${code}${siteSuffix}</div>
-        <pre>${items}</pre>
+        <div style="margin:8px 0;padding:8px 10px;background:#fafafa;border-radius:6px">${itemsHtml}</div>
         <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">
           <div><a class="order-link" href="${data.order_url || '#'}" target="_blank">Xem đơn hàng &rarr;</a></div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
