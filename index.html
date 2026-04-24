@@ -687,6 +687,7 @@
       .cart-card-fields { font-size: 12px; }
       .cart-field { max-width: 100%; }
       .cart-field-value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100px; }
+      .cart-field-link { min-width: 80px !important; }
       .cart-card-fields { padding-right: 28px; }
       .cart-header { font-size: 13px; }
       .cart-actions { flex-direction: column !important; align-items: stretch; flex-wrap: wrap; gap: 8px; padding: 0 4px; }
@@ -1477,7 +1478,7 @@
             </span>
             ${(salePct > 0 && canEdit && !item.noSale && !item.itemSalePct) ? `<span class="cart-field" onclick="toggleEditNoSale(${i})" style="color:#e55;font-size:11px;cursor:pointer"><span class="cart-field-value">Miễn sale</span></span>` : ''}
             ${(item.noSale && canEdit) ? `<span class="cart-field" onclick="toggleEditNoSale(${i})" style="color:#28a745;font-size:11px;cursor:pointer"><span class="cart-field-value">Áp sale lại</span></span>` : ''}
-            <span class="cart-field" ${canEdit ? `onclick="editOrderItemField(${i},'link')"` : ''} style="flex:1;min-width:0;max-width:calc(100% - 40px)">
+            <span class="cart-field cart-field-link" ${canEdit ? `onclick="editOrderItemField(${i},'link')"` : ''} style="flex:1;min-width:0;max-width:calc(100% - 40px)">
               <span class="cart-field-label">Link</span>
               <span class="cart-field-value" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(linkShow)}</span>
             </span>
@@ -2735,7 +2736,7 @@
           </span>
           ${(session.salePct > 0 && !item.noSale && !item.itemSalePct) ? `<span class="cart-field" onclick="toggleNoSale(${i})" style="color:#e55;font-size:11px;cursor:pointer"><span class="cart-field-value">Miễn sale</span></span>` : ''}
           ${item.noSale ? `<span class="cart-field" onclick="toggleNoSale(${i})" style="color:#28a745;font-size:11px;cursor:pointer"><span class="cart-field-value">Áp sale lại</span></span>` : ''}
-          <span class="cart-field" onclick="editCartField(${i},'link')" style="flex:1;min-width:0;max-width:calc(100% - 40px)">
+          <span class="cart-field cart-field-link" onclick="editCartField(${i},'link')" style="flex:1;min-width:0;max-width:calc(100% - 40px)">
             <span class="cart-field-label">Link</span>
             <span class="cart-field-value" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(linkShow)}</span>
           </span>
