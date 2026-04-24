@@ -1096,8 +1096,10 @@
       if (m.cartView) {
         return `<div class="message ai" style="max-width:100%;width:100%"><div id="inlineCart">${buildInlineCartHtml()}</div></div>`;
       }
+      const wideMsg = !!(m.orderData || m.orderStatusResult);
+      const widthStyle = wideMsg ? ' style="max-width:100%;width:100%"' : '';
       return `
-        <div class="message ai">
+        <div class="message ai"${widthStyle}>
           ${m.text ? `<div class="message-bubble" style="white-space:pre-wrap">${escapeHtml(m.text)}</div>` : ''}
           ${m.orderData ? renderOrderCard(m.orderData) : ''}
           ${m.orderStatusMenu ? renderOrderStatusMenu() : ''}
