@@ -240,6 +240,10 @@
     .message { display: flex; flex-direction: column; max-width: 70%; }
     .message.user { align-self: flex-end; align-items: flex-end; }
     .message.ai { align-self: flex-start; align-items: flex-start; }
+    .message.ai.wide-message { width: 100%; max-width: 70%; }
+    @media (max-width: 768px) {
+      .message.ai.wide-message { max-width: 100%; }
+    }
 
     .message-bubble {
       padding: 12px 16px;
@@ -1093,15 +1097,14 @@
     } else {
       // Cart view — render interactive cards inline
       if (m.editOrderView) {
-        return `<div class="message ai" style="max-width:100%;width:100%"><div id="inlineEditOrder">${buildInlineEditOrderHtml()}</div></div>`;
+        return `<div class="message ai wide-message"><div id="inlineEditOrder">${buildInlineEditOrderHtml()}</div></div>`;
       }
       if (m.cartView) {
-        return `<div class="message ai" style="max-width:100%;width:100%"><div id="inlineCart">${buildInlineCartHtml()}</div></div>`;
+        return `<div class="message ai wide-message"><div id="inlineCart">${buildInlineCartHtml()}</div></div>`;
       }
-      const wideMsg = !!(m.orderData || m.orderStatusResult);
-      const widthStyle = wideMsg ? ' style="max-width:100%;width:100%"' : '';
+      const wideCls = (m.orderData || m.orderStatusResult) ? ' wide-message' : '';
       return `
-        <div class="message ai"${widthStyle}>
+        <div class="message ai${wideCls}">
           ${m.text ? `<div class="message-bubble" style="white-space:pre-wrap">${escapeHtml(m.text)}</div>` : ''}
           ${m.orderData ? renderOrderCard(m.orderData) : ''}
           ${m.orderStatusMenu ? renderOrderStatusMenu() : ''}
