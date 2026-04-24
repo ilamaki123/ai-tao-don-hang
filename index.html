@@ -1444,7 +1444,10 @@
   }
 
   async function cancelOrder(orderCode) {
-    if (!confirm(`Xác nhận hủy đơn hàng ${orderCode}?`)) return;
+    openConfirmModal(`Bạn muốn hủy đơn hàng ${orderCode}?`, () => doCancelOrder(orderCode), { title: 'Hủy đơn hàng', okText: 'Hủy đơn' });
+  }
+
+  async function doCancelOrder(orderCode) {
     const session = getActiveSession();
     if (!session) return;
     showTyping();
@@ -2897,6 +2900,22 @@
     });
   }
 
+  // ===== CONFIRM MODAL =====
+  var _confirmCallback = null;
+  function openConfirmModal(message, onConfirm, opts = {}) {
+    _confirmCallback = onConfirm;
+    document.getElementById('confirmModalTitle').textContent = opts.title || 'Xác nhận';
+    document.getElementById('confirmModalMessage').textContent = message;
+    document.getElementById('confirmModalOk').textContent = opts.okText || 'Xác nhận';
+    document.getElementById('confirmModal').classList.add('show');
+  }
+  function closeConfirmModal(confirmed) {
+    document.getElementById('confirmModal').classList.remove('show');
+    const cb = _confirmCallback;
+    _confirmCallback = null;
+    if (confirmed && typeof cb === 'function') cb();
+  }
+
   // ===== IMAGE UPLOADER MODAL =====
   var _imgUploaderCtx = null; // { context: 'cart'|'editOrder', idx: N }
   var _imgUploaderBlob = null;
@@ -3297,6 +3316,18 @@
     <div class="edit-modal-btns">
       <button class="edit-modal-btn edit-modal-btn-cancel" onclick="closeEditModal()">Hủy</button>
       <button class="edit-modal-btn edit-modal-btn-save" onclick="saveEditModal()">Lưu</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Modal -->
+<div class="edit-modal-overlay" id="confirmModal">
+  <div class="edit-modal">
+    <div class="edit-modal-title" id="confirmModalTitle">Xác nhận</div>
+    <div id="confirmModalMessage" style="font-size:14px;color:#444;margin-bottom:8px"></div>
+    <div class="edit-modal-btns">
+      <button class="edit-modal-btn edit-modal-btn-cancel" onclick="closeConfirmModal(false)">Hủy</button>
+      <button class="edit-modal-btn edit-modal-btn-danger" id="confirmModalOk" onclick="closeConfirmModal(true)">Xác nhận</button>
     </div>
   </div>
 </div>
