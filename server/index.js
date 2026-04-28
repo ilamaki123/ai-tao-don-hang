@@ -38,14 +38,19 @@ const DEFAULT_HELP = `📖 **Hướng dẫn sử dụng**
 async function initConfigTables() {
   try {
     const db = await getDb();
-    await db.execute(`
-      CREATE TABLE IF NOT EXISTS app_config (
-        config_key VARCHAR(100) PRIMARY KEY,
-        config_value LONGTEXT,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-    `);
-    // Seed defaults if empty
+    try {
+      await db.execute(`
+        CREATE TABLE IF NOT EXISTS app_config (
+          config_key VARCHAR(100) PRIMARY KEY,
+          config_value LONGTEXT,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+      `);
+      console.log('[mysql] table app_config ready');
+    } catch (e) {
+      console.error('[mysql] CREATE TABLE app_config FAILED:', { message: e.message, code: e.code, errno: e.errno, sqlState: e.sqlState, sqlMessage: e.sqlMessage });
+      return;
+    }
     const [rows] = await db.execute("SELECT config_key FROM app_config WHERE config_key IN ('price_rules','help_content')");
     const keys = rows.map(r => r.config_key);
     if (!keys.includes('price_rules')) {
@@ -56,7 +61,7 @@ async function initConfigTables() {
     }
     console.log('[config] MySQL tables ready');
   } catch (e) {
-    console.error('[config] Init error:', e.message);
+    console.error('[config] Init error:', { message: e.message, code: e.code, errno: e.errno, sqlState: e.sqlState });
   }
 }
 
@@ -138,44 +143,63 @@ let dbPool = null;
 
 async function getDb() {
   if (!dbPool) {
-    dbPool = mysql.createPool({
+    const cfg = {
       host: process.env.MYSQL_HOST || 'localhost',
       port: parseInt(process.env.MYSQL_PORT) || 3306,
       user: process.env.MYSQL_USER || 'root',
-      password: process.env.MYSQL_PASSWORD || '',
       database: process.env.MYSQL_DATABASE || 'basso_platform',
+    };
+    console.log('[mysql] connecting to', `${cfg.user}@${cfg.host}:${cfg.port}/${cfg.database}`);
+    dbPool = mysql.createPool({
+      ...cfg,
+      password: process.env.MYSQL_PASSWORD || '',
       waitForConnections: true,
       connectionLimit: 5,
       charset: 'utf8mb4',
     });
-    // Auto-create table if not exists
-    await dbPool.execute(`
-      CREATE TABLE IF NOT EXISTS user_sessions (
-        id BIGINT PRIMARY KEY,
-        user_id INT NOT NULL,
-        title VARCHAR(255) DEFAULT '',
-        date VARCHAR(50) DEFAULT '',
-        state VARCHAR(50) DEFAULT 'INIT',
-        customer_id INT DEFAULT NULL,
-        customer_json LONGTEXT DEFAULT NULL,
-        items_json LONGTEXT DEFAULT NULL,
-        messages_json LONGTEXT DEFAULT NULL,
-        sale_pct FLOAT DEFAULT 0,
-        editing_order_json LONGTEXT DEFAULT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        INDEX idx_user_id (user_id)
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-    `);
-    await dbPool.execute(`
-      CREATE TABLE IF NOT EXISTS daily_order_stats (
-        user_id INT NOT NULL,
-        stat_date DATE NOT NULL,
-        order_count INT DEFAULT 0,
-        PRIMARY KEY (user_id, stat_date)
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-    `);
-    console.log('[mysql] Connected to', process.env.MYSQL_HOST || 'localhost');
+    try {
+      const [r] = await dbPool.execute('SELECT VERSION() AS v, DATABASE() AS db, CURRENT_USER() AS u');
+      console.log('[mysql] connected OK — version:', r[0].v, '| database:', r[0].db, '| as:', r[0].u);
+    } catch (e) {
+      console.error('[mysql] connection test FAILED:', { message: e.message, code: e.code, errno: e.errno, sqlState: e.sqlState });
+      throw e;
+    }
+    try {
+      await dbPool.execute(`
+        CREATE TABLE IF NOT EXISTS user_sessions (
+          id BIGINT PRIMARY KEY,
+          user_id INT NOT NULL,
+          title VARCHAR(255) DEFAULT '',
+          date VARCHAR(50) DEFAULT '',
+          state VARCHAR(50) DEFAULT 'INIT',
+          customer_id INT DEFAULT NULL,
+          customer_json LONGTEXT DEFAULT NULL,
+          items_json LONGTEXT DEFAULT NULL,
+          messages_json LONGTEXT DEFAULT NULL,
+          sale_pct FLOAT DEFAULT 0,
+          editing_order_json LONGTEXT DEFAULT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          INDEX idx_user_id (user_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+      `);
+      console.log('[mysql] table user_sessions ready');
+    } catch (e) {
+      console.error('[mysql] CREATE TABLE user_sessions FAILED:', { message: e.message, code: e.code, errno: e.errno, sqlState: e.sqlState, sqlMessage: e.sqlMessage });
+    }
+    try {
+      await dbPool.execute(`
+        CREATE TABLE IF NOT EXISTS daily_order_stats (
+          user_id INT NOT NULL,
+          stat_date DATE NOT NULL,
+          order_count INT DEFAULT 0,
+          PRIMARY KEY (user_id, stat_date)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+      `);
+      console.log('[mysql] table daily_order_stats ready');
+    } catch (e) {
+      console.error('[mysql] CREATE TABLE daily_order_stats FAILED:', { message: e.message, code: e.code, errno: e.errno, sqlState: e.sqlState, sqlMessage: e.sqlMessage });
+    }
   }
   return dbPool;
 }
