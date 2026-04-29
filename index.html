@@ -788,7 +788,12 @@
 <div class="sidebar" id="sidebar">
   <div style="display:flex;align-items:center;justify-content:space-between;">
     <div class="sidebar-logo">Doraemon</div>
-    <button class="btn-close-sidebar" onclick="closeSidebar()">&times;</button>
+    <div style="display:flex;gap:6px;align-items:center">
+      <button class="btn-close-sidebar" onclick="reloadApp()" title="Tải lại trang" style="font-size:22px">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+      </button>
+      <button class="btn-close-sidebar" onclick="closeSidebar()">&times;</button>
+    </div>
   </div>
   <div class="sidebar-welcome">Welcome, Vinh Pham</div>
   <input type="text" class="search-sessions" id="searchSessions" placeholder="Tìm tên, SĐT..." oninput="filterSessions()" />
@@ -3136,6 +3141,22 @@
 
   function sleep(ms) {
     return new Promise(r => setTimeout(r, ms));
+  }
+
+  async function reloadApp() {
+    try {
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k => caches.delete(k)));
+      }
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(r => r.update().catch(() => null)));
+      }
+    } catch {}
+    const url = new URL(window.location.href);
+    url.searchParams.set('_r', Date.now());
+    window.location.replace(url.toString());
   }
 
   function toggleSidebar() {
