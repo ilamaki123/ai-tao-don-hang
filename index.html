@@ -3077,24 +3077,6 @@
 
   var _confirmCallback = null;
 
-  function showConfirm(title, text, btnText, callback) {
-    _confirmCallback = callback;
-    document.getElementById('confirmModalTitle').textContent = title;
-    document.getElementById('confirmModalText').textContent = text;
-    document.getElementById('confirmModalBtn').textContent = btnText;
-    document.getElementById('confirmModal').classList.add('show');
-  }
-
-  function closeConfirmModal() {
-    document.getElementById('confirmModal').classList.remove('show');
-    _confirmCallback = null;
-  }
-
-  function doConfirmModal() {
-    if (_confirmCallback) _confirmCallback();
-    closeConfirmModal();
-  }
-
   function toggleCardExpand(idx, prefix) {
     const id = (prefix || 'cartCard') + idx;
     const card = document.getElementById(id);
@@ -3132,7 +3114,7 @@
   function clearCartUI() {
     const session = getActiveSession();
     if (!session || session.items.length === 0) return;
-    showConfirm('Xóa giỏ hàng', `Bạn có chắc muốn xóa toàn bộ ${session.items.length} sản phẩm khỏi giỏ hàng?`, 'Xóa', () => {
+    openConfirmModal(`Bạn có chắc muốn xóa toàn bộ ${session.items.length} sản phẩm khỏi giỏ hàng?`, () => {
       addMessage('user', 'Xóa giỏ hàng');
       invalidateOldCarts();
       session.items = [];
@@ -3140,7 +3122,7 @@
       saveSessions();
       renderMessages();
       addMessage('ai', 'Mon đã xóa toàn bộ giỏ hàng.');
-    });
+    }, { title: 'Xóa giỏ hàng', okText: 'Xóa' });
   }
 
   // ===== UTILS =====
@@ -3408,17 +3390,6 @@
   </div>
 </div>
 
-<!-- Confirm Modal -->
-<div class="edit-modal-overlay" id="confirmModal">
-  <div class="edit-modal">
-    <div class="edit-modal-title" id="confirmModalTitle"></div>
-    <div class="confirm-modal-text" id="confirmModalText"></div>
-    <div class="edit-modal-btns">
-      <button class="edit-modal-btn edit-modal-btn-cancel" onclick="closeConfirmModal()">Không</button>
-      <button class="edit-modal-btn edit-modal-btn-danger" id="confirmModalBtn" onclick="doConfirmModal()">Xóa</button>
-    </div>
-  </div>
-</div>
 
 <script>
   // Set exact viewport height for all platforms
