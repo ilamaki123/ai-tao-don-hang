@@ -1234,6 +1234,7 @@
   function openOrderStatusMenu() {
     const session = getActiveSession();
     if (!session) return;
+    addMessage('user', 'Tình trạng đơn');
     session.messages.push({ role: 'ai', text: '', orderStatusMenu: true, timestamp: Date.now() });
     renderMessages();
     saveSessions();
@@ -1253,6 +1254,7 @@
     };
     const cfg = statusMap[status];
     if (!cfg) return;
+    addMessage('user', `Xem đơn ${cfg.label}`);
     showTyping();
     try {
       const url = `${API_BASE}/api/orders-by-item-status?customer_id=${encodeURIComponent(session.customer.id)}&item_status=${encodeURIComponent(cfg.itemStatus)}`;
@@ -1376,6 +1378,7 @@
   function cancelNewOrder() {
     const session = getActiveSession();
     if (!session) return;
+    addMessage('user', 'Hủy tạo đơn');
     invalidateOldCarts();
     session.state = 'DONE';
     session.items = [];
@@ -1389,6 +1392,7 @@
   function startNewOrder() {
     const session = getActiveSession();
     if (!session) return;
+    addMessage('user', 'Tạo đơn mới');
     invalidateOldCarts();
     session.state = 'WAITING_IMAGE';
     session.items = [];
@@ -1401,6 +1405,7 @@
   async function enterEditOrder(orderCode) {
     const session = getActiveSession();
     if (!session) return;
+    addMessage('user', `Chỉnh sửa đơn ${orderCode}`);
     showTyping();
     try {
       const res = await fetch(`${API_BASE}/api/get-order?order_code=${orderCode}`, { headers: getAuthHeaders() });
@@ -1457,6 +1462,7 @@
   async function doCancelOrder(orderCode) {
     const session = getActiveSession();
     if (!session) return;
+    addMessage('user', `Hủy đơn hàng ${orderCode}`);
     showTyping();
     try {
       const res = await fetch(`${API_BASE}/api/cancel-order`, {
@@ -1710,6 +1716,7 @@
     const session = getActiveSession();
     if (!session || !session.editingOrder) return;
     const orderCode = session.editingOrder.orderCode;
+    addMessage('user', 'Hủy chỉnh sửa');
     session.state = 'DONE';
     session.items = [];
     session.salePct = 0;
@@ -1723,6 +1730,7 @@
   async function submitOrderUpdate(session) {
     const editing = session.editingOrder;
     if (!editing) return;
+    addMessage('user', 'Cập nhật đơn');
     const salePct = editing.salePct || 0;
     const deleteIds = editing.items.filter(i => i._status === 'deleted').map(i => i.id);
     const updateItems = [];
@@ -2364,6 +2372,7 @@
       addMessage('ai', 'Giỏ hàng trống. Vui lòng thêm sản phẩm trước.');
       return;
     }
+    addMessage('user', 'Tạo đơn');
     _orderSubmitting = true;
     showTyping();
     try {
@@ -3123,6 +3132,7 @@
     const session = getActiveSession();
     if (!session || session.items.length === 0) return;
     showConfirm('Xóa giỏ hàng', `Bạn có chắc muốn xóa toàn bộ ${session.items.length} sản phẩm khỏi giỏ hàng?`, 'Xóa', () => {
+      addMessage('user', 'Xóa giỏ hàng');
       invalidateOldCarts();
       session.items = [];
       session.salePct = 0;
