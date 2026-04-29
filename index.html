@@ -1560,6 +1560,7 @@
               <span class="cart-field-label">Note</span>
               <span class="cart-field-value" style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.note ? escapeHtml(item.note) : '—'}</span>
             </span>
+            ${canEdit ? `<span class="cart-field" onclick="cloneOrderItem(${i})" style="color:#7c5cbf;cursor:pointer;font-size:12px"><span class="cart-field-value">+ Copy</span></span>` : ''}
           </div>
           ${status !== 'deleted' ? `<button class="cart-card-delete" onclick="markDeleteOrderItem(${i})" title="Xóa"><svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>` : `<button class="cart-card-delete" onclick="unmarkDeleteOrderItem(${i})" title="Hoàn tác" style="color:#28a745">↩</button>`}
         </div>
@@ -2829,6 +2830,9 @@
           <span class="cart-field" onclick="addCartVariation(${i})" style="color:#7c5cbf;cursor:pointer;font-size:12px">
             <span class="cart-field-value">+ Variant</span>
           </span>
+          <span class="cart-field" onclick="cloneCartItem(${i})" style="color:#7c5cbf;cursor:pointer;font-size:12px">
+            <span class="cart-field-value">+ Copy</span>
+          </span>
         </div>
         <button class="cart-card-delete" onclick="deleteCartItem(${i})" title="Xóa"><svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>
       </div>
@@ -3066,6 +3070,30 @@
     if (e.key === 'Enter') { e.preventDefault(); saveEditModal(); }
     if (e.key === 'Escape') closeEditModal();
   });
+
+  function cloneCartItem(idx) {
+    const session = getActiveSession();
+    if (!session?.items?.[idx]) return;
+    const clone = JSON.parse(JSON.stringify(session.items[idx]));
+    session.items.push(clone);
+    saveSessions();
+    renderCart();
+  }
+
+  function cloneOrderItem(idx) {
+    const session = getActiveSession();
+    const editing = session?.editingOrder;
+    if (!editing) return;
+    const src = idx < editing.items.length ? editing.items[idx] : editing.addItems[idx - editing.items.length];
+    if (!src) return;
+    const clone = JSON.parse(JSON.stringify(src));
+    delete clone.id;
+    delete clone._original;
+    delete clone._status;
+    editing.addItems.push(clone);
+    saveSessions();
+    renderEditOrder();
+  }
 
   function deleteCartItem(idx) {
     const session = getActiveSession();
