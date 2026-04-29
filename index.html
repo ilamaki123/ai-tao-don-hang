@@ -706,6 +706,7 @@
     .cart-btn {
       border: none; border-radius: 8px; padding: 10px 20px;
       font-size: 14px; cursor: pointer; font-weight: 500;
+      flex-shrink: 0; white-space: nowrap;
     }
 
     .cart-btn-order { background: #7c5cbf; color: #fff; }
@@ -1588,7 +1589,7 @@
               <span class="cart-field-value" style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${editing.adminNote ? escapeHtml(editing.adminNote) : '—'}</span>
             </span>
           </div>
-          <div class="cart-action-buttons" style="display:flex;gap:10px;justify-content:flex-end">
+          <div class="cart-action-buttons" style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap">
             <button class="cart-btn" style="background:#f0f0f0;color:#666" onclick="cancelEditOrderUI()">Hủy chỉnh sửa</button>
             <button class="cart-btn cart-btn-order" onclick="submitOrderUpdate(getActiveSession())">Cập nhật đơn</button>
           </div>
@@ -2733,7 +2734,7 @@
               <span class="cart-field-value" style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${session.adminNote ? escapeHtml(session.adminNote) : '—'}</span>
             </span>
           </div>
-          <div class="cart-action-buttons" style="display:flex;gap:10px;justify-content:flex-end">
+          <div class="cart-action-buttons" style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap">
             <button class="cart-btn cart-btn-clear" onclick="clearCartUI()">Xóa giỏ hàng</button>
             <button class="cart-btn cart-btn-order" onclick="submitOrder(getActiveSession())">Tạo đơn</button>
           </div>
