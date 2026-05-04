@@ -399,8 +399,8 @@ app.get('/health', (req, res) => {
 });
 
 // ===== GET ROLES BY TOKEN =====
-app.get('/api/get-roles', (req, res) => {
-  const user = resolveUser(req);
+app.get('/api/get-roles', async (req, res) => {
+  const user = await resolveUserFull(req);
   if (!user) return res.json({ success: false, roles: [] });
   res.json({ success: true, roles: user.roles || [] });
 });

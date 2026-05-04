@@ -1010,8 +1010,8 @@
     return origin;
   })();
 
-  // Nếu session thiếu roles, fetch từ server (fallback cho session cũ)
-  if (sessionUser && !sessionUser.roles) {
+  // Nếu session thiếu roles HOẶC roles rỗng, fetch từ server (fallback cho session cũ)
+  if (sessionUser && (!sessionUser.roles || sessionUser.roles.length === 0)) {
     fetch(`${API_BASE}/api/get-roles`, { headers: { 'Authorization': `Bearer ${sessionUser.token}` } })
       .then(r => r.json()).then(d => {
         if (d.success && d.roles.length) {
