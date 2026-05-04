@@ -838,7 +838,7 @@ app.post('/api/create-order', async (req, res) => {
     // Log vào order_log nếu thành công
     if (data?.success && data?.data?.orderCode) {
       try {
-        const user = resolveUser(req);
+        const user = await resolveUserFull(req);
         let totalAmount = 0;
         let currency = '$';
         try {
@@ -1051,8 +1051,15 @@ app.get('/api/dashboard-users', async (req, res) => {
     if (!isAdmin) return res.json({ success: true, isAdmin: false, users: [] });
     const db = await getDb();
     const [rows] = await db.execute(
-      `SELECT user_id, MAX(user_email) AS user_email, MAX(user_name) AS user_name, COUNT(*) AS order_count
-       FROM order_log GROUP BY user_id ORDER BY order_count DESC`
+      `SELECT
+         ol.user_id,
+         COALESCE(NULLIF(MAX(ol.user_email), ''), MAX(pt.email), '') AS user_email,
+         COALESCE(NULLIF(MAX(ol.user_name), ''), MAX(pt.name), '') AS user_name,
+         COUNT(*) AS order_count
+       FROM order_log ol
+       LEFT JOIN partner_tokens pt ON pt.user_id = ol.user_id
+       GROUP BY ol.user_id
+       ORDER BY order_count DESC`
     );
     res.json({
       success: true,
