@@ -1002,8 +1002,10 @@ app.get('/api/dashboard-stats', async (req, res) => {
     const user = await resolveUserFull(req);
     if (!user) return res.status(401).json({ success: false, message: 'Unauthorized' });
     const isAdmin = (user.roles || []).some(r => /admin/i.test(r));
-    let targetUserId = parseInt(req.query.user_id) || user.id;
+    const reqUserId = req.query.user_id;
+    let targetUserId = (reqUserId && parseInt(reqUserId)) || user.id;
     if (!isAdmin) targetUserId = user.id; // non-admin chỉ xem mình
+    console.log('[dashboard-stats] caller=', user.id, 'isAdmin=', isAdmin, 'reqUserId=', reqUserId, 'targetUserId=', targetUserId, 'from=', req.query.from, 'to=', req.query.to);
     const from = req.query.from; // YYYY-MM-DD
     const to = req.query.to;     // YYYY-MM-DD
     const db = await getDb();
