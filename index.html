@@ -48,7 +48,17 @@
       font-size: 13px;
       color: #888;
       margin-bottom: 18px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
+    .sidebar-logout-btn {
+      background: none; border: none; cursor: pointer;
+      color: #aaa; padding: 2px 4px; border-radius: 4px;
+      display: flex; align-items: center; justify-content: center;
+      transition: color 0.15s, background 0.15s;
+    }
+    .sidebar-logout-btn:hover { color: #D95C5C; background: #FDEBEC; }
 
     .btn-new-chat {
       background: #00354E;
@@ -850,7 +860,12 @@
       </button>
     </div>
   </div>
-  <div class="sidebar-welcome">Welcome, Vinh Pham</div>
+  <div class="sidebar-welcome">
+    <span id="sidebarWelcomeText">Welcome, Vinh Pham</span>
+    <button class="sidebar-logout-btn" onclick="logoutBot()" title="Đăng xuất">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+    </button>
+  </div>
   <button class="btn-dashboard" id="btnDashboard" onclick="toggleDashboard()">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
     Dashboard
@@ -983,7 +998,7 @@
   if (!sessionUser) {
     window.location.href = 'login.html';
   } else {
-    document.querySelector('.sidebar-welcome').textContent = 'Welcome, ' + sessionUser.name;
+    document.getElementById('sidebarWelcomeText').textContent = 'Welcome, ' + sessionUser.name;
   }
 
   const API_BASE = (function () {
@@ -3457,6 +3472,16 @@
     });
   }
   // ===== END DASHBOARD =====
+
+  function logoutBot() {
+    openConfirmModal('Bạn muốn đăng xuất khỏi Doraemon và quay về dashboard?', () => {
+      try {
+        localStorage.removeItem('ai_chat_user');
+        sessionStorage.removeItem('ai_chat_user');
+      } catch {}
+      window.location.replace('https://ai.basso.vn/');
+    }, { title: 'Đăng xuất', okText: 'Đăng xuất' });
+  }
 
   async function reloadApp() {
     try {
