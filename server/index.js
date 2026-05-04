@@ -251,20 +251,41 @@ async function resolveUserFull(req) {
   const cached = resolveUser(req);
   if (cached && cached.roles && cached.roles.length > 0) return cached;
   const token = (req.headers['authorization'] || '').replace('Bearer ', '').trim();
-  if (token) {
-    try {
-      const db = await getDb();
+  try {
+    const db = await getDb();
+    // 1) Lookup by exact token first
+    if (token) {
       const [rows] = await db.execute('SELECT user_id, email, name, roles_json FROM partner_tokens WHERE token = ?', [token]);
       if (rows.length > 0) {
         const r = rows[0];
         let roles = [];
         try { roles = JSON.parse(r.roles_json || '[]'); } catch {}
+        if (roles.length > 0) {
+          const userInfo = { id: r.user_id, email: r.email || '', name: r.name || '', roles };
+          tokenUserMap.set(token, userInfo);
+          return userInfo;
+        }
+      }
+    }
+    // 2) Token unknown or its row has empty roles → fall back to user_id lookup
+    const userId = cached?.id || req.headers['x-user-id'];
+    if (userId) {
+      const [rows] = await db.execute(
+        `SELECT user_id, email, name, roles_json FROM partner_tokens
+         WHERE user_id = ? AND roles_json IS NOT NULL AND roles_json != '[]'
+         ORDER BY created_at DESC LIMIT 1`,
+        [userId]
+      );
+      if (rows.length > 0) {
+        const r = rows[0];
+        let roles = [];
+        try { roles = JSON.parse(r.roles_json || '[]'); } catch {}
         const userInfo = { id: r.user_id, email: r.email || '', name: r.name || '', roles };
-        tokenUserMap.set(token, userInfo);
+        if (token) tokenUserMap.set(token, userInfo);
         return userInfo;
       }
-    } catch (e) { console.error('[resolveUserFull] DB error:', e.message); }
-  }
+    }
+  } catch (e) { console.error('[resolveUserFull] DB error:', e.message); }
   return cached;
 }
 
