@@ -540,7 +540,10 @@ app.post('/api/basso-login', async (req, res) => {
     // Lưu token → user info
     if (data?.data?.access_token && data?.data?.user) {
       const u = data.data.user;
-      const userInfo = { id: u.id, email: u.email || u.username, name: u.name || u.full_name || u.email || u.username, roles: u.roles || [] };
+      const composedName = u.name || u.full_name
+        || [u.first_name, u.last_name].filter(Boolean).join(' ').trim()
+        || u.email || u.username;
+      const userInfo = { id: u.id, email: u.email || u.username, name: composedName, roles: u.roles || [] };
       tokenUserMap.set(data.data.access_token, userInfo);
       // Persist to DB so cache survives restart
       try {
