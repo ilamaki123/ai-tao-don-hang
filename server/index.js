@@ -629,7 +629,11 @@ Nếu ảnh không chứa sản phẩm nào, trả về {"items":[]}.
 
     const model = genAI.getGenerativeModel({
       model: VISION_MODEL,
-      generationConfig: { maxOutputTokens: 2048, temperature: 0 },
+      generationConfig: {
+        maxOutputTokens: 4096,
+        temperature: 0,
+        thinkingConfig: { thinkingBudget: 0 },
+      },
     });
     const response = await model.generateContent([
       { inlineData: { mimeType, data: imageBase64 } },
@@ -701,7 +705,11 @@ Use REAL numbers from the image, not the example values. Include EVERY product t
 
     const model = genAI.getGenerativeModel({
       model: VISION_MODEL,
-      generationConfig: { maxOutputTokens: 600, temperature: 0 },
+      generationConfig: {
+        maxOutputTokens: 2048,
+        temperature: 0,
+        thinkingConfig: { thinkingBudget: 0 },
+      },
     });
     const response = await model.generateContent([
       { inlineData: { mimeType, data: imageBase64 } },
