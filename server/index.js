@@ -1079,13 +1079,25 @@ app.get('/api/dashboard-users', async (req, res) => {
     const [rows] = await db.execute(
       `SELECT
          ol.user_id,
-         COALESCE(NULLIF(MAX(ol.user_email), ''), MAX(pt.email), '') AS user_email,
-         COALESCE(NULLIF(MAX(ol.user_name), ''), MAX(pt.name), '') AS user_name,
-         COUNT(*) AS order_count
-       FROM order_log ol
-       LEFT JOIN partner_tokens pt ON pt.user_id = ol.user_id
-       GROUP BY ol.user_id
-       ORDER BY order_count DESC`
+         COALESCE(NULLIF(ol.user_email, ''), pt.email, '') AS user_email,
+         COALESCE(NULLIF(ol.user_name, ''), pt.name, '') AS user_name,
+         ol.order_count
+       FROM (
+         SELECT user_id,
+                MAX(user_email) AS user_email,
+                MAX(user_name)  AS user_name,
+                COUNT(*) AS order_count
+         FROM order_log
+         GROUP BY user_id
+       ) ol
+       LEFT JOIN (
+         SELECT user_id,
+                MAX(email) AS email,
+                MAX(name)  AS name
+         FROM partner_tokens
+         GROUP BY user_id
+       ) pt ON pt.user_id = ol.user_id
+       ORDER BY ol.order_count DESC`
     );
     res.json({
       success: true,
