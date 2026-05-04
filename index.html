@@ -2256,6 +2256,7 @@
           const extractSrcFile = await preCropMobileChrome(compressedFile);
           const extractForm = new FormData();
           extractForm.append('image', extractSrcFile);
+          extractForm.append('expected_count', String(newItems.length));
           const extractRes = await fetch(`${API_BASE}/api/extract-product-images`, { method: 'POST', headers: getAuthHeaders(), body: extractForm });
           const extractData = await extractRes.json();
           if (extractData.success && extractData.data.products?.length > 0) {
@@ -2391,6 +2392,7 @@
           const extractSrcFile = await preCropMobileChrome(compressedFile);
           const extractForm = new FormData();
           extractForm.append('image', extractSrcFile);
+          extractForm.append('expected_count', String(newItems.length));
           const extractRes = await fetch(`${API_BASE}/api/extract-product-images`, { method: 'POST', headers: getAuthHeaders(), body: extractForm });
           const extractData = await extractRes.json();
           console.log('[extract] response:', extractData);

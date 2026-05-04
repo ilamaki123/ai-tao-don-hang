@@ -663,15 +663,25 @@ app.post('/api/extract-product-images', upload.single('image'), async (req, res)
         role: 'user',
         content: [
           { type: 'image', source: { type: 'base64', media_type: mimeType, data: imageBase64 } },
-          { type: 'text', text: `Locate every product thumbnail in this shopping cart screenshot by giving its CENTER POINT.
+          { type: 'text', text: (() => {
+            const expected = parseInt(req.body.expected_count) || 0;
+            const isSingleProduct = expected === 1;
+            const isMulti = expected > 1;
+            const countHint = isSingleProduct
+              ? `EXPECTED: exactly 1 product photo. This image is likely a SINGLE PRODUCT DETAIL PAGE: 1 large hero/main product photo, plus possibly a row of small color/variant swatches and/or 'related products'. Find ONLY the LARGEST main hero photo. Treat color swatches, size pickers, and related-products thumbnails as NOT products — ignore them entirely. Output exactly 1 entry in products[].`
+              : isMulti
+              ? `EXPECTED: about ${expected} product photos. This is likely a SHOPPING CART or LIST. Find ${expected} similar-sized thumbnails. If you also see small variant swatches (a row of color circles or related-product thumbnails), IGNORE them — they are not separate products.`
+              : `Find every product photo. If the image shows a single product detail page (one large hero + variant swatches), output only the hero. If it's a cart/list with multiple items, output all of them.`;
+            return `Locate product thumbnail(s) in this image by giving CENTER POINT(s).
 
-A "product thumbnail" = the photo of the actual item (jar, bottle, box, clothing, shoe, device, or model wearing the item). NOT: app icons, store logos, checkout buttons, payment icons (Apple Pay/PayPal/Klarna/Venmo), nav icons, badges, qty/delete buttons, edit/save links.
+${countHint}
 
-Cart layouts vary:
-- VERTICAL LIST (most common): thumbnails stacked vertically in a left column.
-- HORIZONTAL GRID: thumbnails arranged side-by-side in a row.
-- MIXED GRID: thumbnails in a 2D grid (rows + columns).
-All layouts are handled the same way — just give the center of each thumbnail.
+A "product thumbnail" = the photo of the actual item (jar, bottle, box, clothing, shoe, device, or model wearing the item). NOT: app icons, store logos, checkout buttons, payment icons (Apple Pay/PayPal/Klarna/Venmo), nav icons, badges, qty/delete buttons, edit/save links, color swatches/picker (small uniform color circles), variant size pickers, "related products", "customers also bought", logos, banner ads.
+
+Hint about page types:
+- SHOPPING CART: multiple similar-sized product photos arranged in a list or grid. Output all of them.
+- PRODUCT DETAIL PAGE: ONE large hero photo dominates the layout, surrounded by variant pickers, price, "Add to cart" button. Output only the hero photo.
+- The MAIN/HERO photo is usually the LARGEST single photo on the page. Smaller uniform thumbnails (e.g., 6-8 color swatches in a row) are typically variant pickers, not separate products.
 
 For each product, report:
 - xCenter: x-coordinate of the center of this product's thumbnail (percent of full image width)
@@ -685,8 +695,9 @@ All values are percentages (0-100) of the FULL uploaded image file.
 
 Output ONLY this JSON inside <json> tags, no other text:
 <json>
-{"thumbWidth":20,"thumbHeight":15,"products":[{"index":0,"xCenter":15,"yCenter":35},{"index":1,"xCenter":15,"yCenter":60}]}
-</json>
+{"thumbWidth":20,"thumbHeight":15,"products":[{"index":0,"xCenter":15,"yCenter":35}]}
+</json>`;
+          })() }
 
 Use REAL numbers from the image, not the example values. Include EVERY product thumbnail.` }
         ]
