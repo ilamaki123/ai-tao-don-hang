@@ -82,7 +82,6 @@
       transition: background 0.2s;
     }
     .btn-dashboard:hover { background: #004d72; }
-    .btn-dashboard.active { background: #7C5ACB; }
 
     .dashboard-view {
       flex: 1;
@@ -1143,6 +1142,7 @@
   }
 
   function selectSession(id) {
+    if (_dashboardOpen) closeDashboard();
     activeSessionId = id;
     renderHistory();
     document.getElementById('emptyState').style.display = 'none';
@@ -3274,15 +3274,31 @@
   var _dashboardCustomTo = null;
 
   function toggleDashboard() {
-    _dashboardOpen = !_dashboardOpen;
-    document.getElementById('btnDashboard').classList.toggle('active', _dashboardOpen);
-    document.getElementById('dashboardView').classList.toggle('show', _dashboardOpen);
-    document.getElementById('messageList').style.display = _dashboardOpen ? 'none' : (activeSessionId ? '' : 'none');
-    document.getElementById('emptyState').style.display = _dashboardOpen ? 'none' : (activeSessionId ? 'none' : '');
-    document.getElementById('inputArea').style.display = _dashboardOpen ? 'none' : (activeSessionId ? '' : 'none');
+    if (_dashboardOpen) closeDashboard();
+    else openDashboard();
+  }
+
+  function openDashboard() {
+    _dashboardOpen = true;
+    document.getElementById('dashboardView').classList.add('show');
+    document.getElementById('messageList').style.display = 'none';
+    document.getElementById('emptyState').style.display = 'none';
+    document.getElementById('inputArea').style.display = 'none';
     closeSidebar();
-    if (_dashboardOpen) {
-      initDashboard();
+    initDashboard();
+  }
+
+  function closeDashboard() {
+    _dashboardOpen = false;
+    document.getElementById('dashboardView').classList.remove('show');
+    if (activeSessionId) {
+      document.getElementById('messageList').style.display = 'flex';
+      document.getElementById('inputArea').style.display = 'flex';
+      document.getElementById('emptyState').style.display = 'none';
+    } else {
+      document.getElementById('emptyState').style.display = '';
+      document.getElementById('messageList').style.display = 'none';
+      document.getElementById('inputArea').style.display = 'none';
     }
   }
 
