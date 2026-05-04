@@ -541,6 +541,10 @@ app.post('/api/basso-login', async (req, res) => {
     if (data?.data?.access_token && data?.data?.user) {
       const u = data.data.user;
       const userInfo = { id: u.id, email: u.email || u.username, name: u.name || u.full_name || u.email || u.username, roles: u.roles || [] };
+      // Compose proper name from first_name + last_name when name field absent
+      if (!u.name && !u.full_name && (u.first_name || u.last_name)) {
+        userInfo.name = [u.first_name, u.last_name].filter(Boolean).join(' ').trim();
+      }
       tokenUserMap.set(data.data.access_token, userInfo);
       // Persist to DB so cache survives restart
       try {
@@ -1000,6 +1004,60 @@ Chỉ trả về đúng 1 câu, không giải thích, không markdown.`;
   }
 });
 
+// ===== EMAIL ALIASES =====
+async function loadEmailAliases() {
+  try {
+    const db = await getDb();
+    const [rows] = await db.execute("SELECT config_value FROM app_config WHERE config_key = 'email_aliases'");
+    if (rows.length === 0) return {};
+    const v = rows[0].config_value;
+    if (!v) return {};
+    return JSON.parse(v) || {};
+  } catch { return {}; }
+}
+
+async function saveEmailAliases(aliases) {
+  const db = await getDb();
+  await db.execute(
+    `INSERT INTO app_config (config_key, config_value) VALUES ('email_aliases', ?)
+     ON DUPLICATE KEY UPDATE config_value = VALUES(config_value)`,
+    [JSON.stringify(aliases)]
+  );
+}
+
+app.get('/api/email-aliases', async (req, res) => {
+  try {
+    const user = await resolveUserFull(req);
+    if (!user) return res.status(401).json({ success: false, message: 'Unauthorized' });
+    const isAdmin = (user.roles || []).some(r => /admin/i.test(r));
+    if (!isAdmin) return res.status(403).json({ success: false, message: 'Forbidden' });
+    const aliases = await loadEmailAliases();
+    res.json({ success: true, data: aliases });
+  } catch (err) { res.status(500).json({ success: false, message: err.message }); }
+});
+
+app.post('/api/email-aliases', async (req, res) => {
+  try {
+    const user = await resolveUserFull(req);
+    if (!user) return res.status(401).json({ success: false, message: 'Unauthorized' });
+    const isAdmin = (user.roles || []).some(r => /admin/i.test(r));
+    if (!isAdmin) return res.status(403).json({ success: false, message: 'Forbidden' });
+    const { action, email, name } = req.body || {};
+    const aliases = await loadEmailAliases();
+    const key = String(email || '').trim().toLowerCase();
+    if (action === 'add' || action === 'set') {
+      if (!key || !name) return res.status(400).json({ success: false, message: 'Missing email or name' });
+      aliases[key] = String(name).trim();
+    } else if (action === 'remove' || action === 'delete') {
+      delete aliases[key];
+    } else {
+      return res.status(400).json({ success: false, message: 'Invalid action' });
+    }
+    await saveEmailAliases(aliases);
+    res.json({ success: true, data: aliases });
+  } catch (err) { res.status(500).json({ success: false, message: err.message }); }
+});
+
 // ===== DEBUG: who am I =====
 app.get('/api/me', async (req, res) => {
   const fromCache = resolveUser(req);
@@ -1074,15 +1132,20 @@ app.get('/api/dashboard-users', async (req, res) => {
        GROUP BY ol.user_id
        ORDER BY order_count DESC`
     );
+    const aliases = await loadEmailAliases();
     res.json({
       success: true,
       isAdmin: true,
-      users: rows.map(r => ({
-        user_id: Number(r.user_id),
-        user_email: r.user_email,
-        user_name: r.user_name,
-        order_count: Number(r.order_count),
-      })),
+      users: rows.map(r => {
+        const email = (r.user_email || '').toLowerCase();
+        const aliasName = aliases[email];
+        return {
+          user_id: Number(r.user_id),
+          user_email: r.user_email,
+          user_name: aliasName || r.user_name,
+          order_count: Number(r.order_count),
+        };
+      }),
     });
   } catch (err) {
     console.error('[dashboard-users] error:', err.message);

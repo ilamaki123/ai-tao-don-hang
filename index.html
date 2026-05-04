@@ -2178,6 +2178,46 @@
       return;
     }
 
+    // ===== ADMIN: QUẢN LÝ EMAIL ALIASES =====
+    if (isAdmin && !file) {
+      const addAliasMatch = text.match(/^(?:thêm|them|add|set)\s+alias\s+(\S+@\S+)\s*[=:]\s*(.+)$/i);
+      const removeAliasMatch = text.match(/^(?:xóa|xoa|bỏ|bo|remove|del|delete)\s+alias\s+(\S+@\S+)$/i);
+      const listAliasMatch = /^(?:xem|list|danh\s*sách|show)\s+alias$/i.test(text);
+      if (addAliasMatch || removeAliasMatch || listAliasMatch) {
+        if (listAliasMatch) {
+          const r = await fetch(`${API_BASE}/api/email-aliases`, { headers: getAuthHeaders() });
+          const d = await r.json();
+          removeTyping();
+          const aliases = d.data || {};
+          const entries = Object.entries(aliases);
+          addMessage('ai', `📋 Danh sách alias (${entries.length}):\n` +
+            (entries.length ? entries.map(([e, n], i) => `${i + 1}. ${e} → ${n}`).join('\n') : '(trống)') +
+            '\n\n💡 Lệnh: thêm alias email@x.com=Tên · xóa alias email@x.com');
+          return;
+        }
+        const email = (addAliasMatch || removeAliasMatch)[1].toLowerCase();
+        const action = addAliasMatch ? 'add' : 'remove';
+        const body = action === 'add'
+          ? { action, email, name: addAliasMatch[2].trim() }
+          : { action, email };
+        const r = await fetch(`${API_BASE}/api/email-aliases`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+          body: JSON.stringify(body),
+        });
+        const d = await r.json();
+        removeTyping();
+        if (!d.success) { addMessage('ai', '❌ Lỗi: ' + (d.message || 'không rõ')); return; }
+        const entries = Object.entries(d.data || {});
+        addMessage('ai', (action === 'add'
+          ? `✅ Đã đặt alias **${email}** → **${body.name}**`
+          : `✅ Đã xóa alias cho **${email}**`) +
+          `\n\nDanh sách hiện tại (${entries.length}):\n` +
+          (entries.length ? entries.map(([e, n], i) => `${i + 1}. ${e} → ${n}`).join('\n') : '(trống)'));
+        return;
+      }
+    }
+
     // ===== ADMIN: QUẢN LÝ PRICE RULES =====
     if (isAdmin && !file) {
       const addRuleMatch = text.match(/(?:thêm|them|add)\s+rule\s+([a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/i);
