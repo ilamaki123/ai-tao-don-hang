@@ -3,13 +3,15 @@ const express = require('express');
 const cors = require('cors');
 const mysql = require('mysql2/promise');
 const multer = require('multer');
-const Anthropic = require('@anthropic-ai/sdk');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 const fs = require('fs');
 const path = require('path');
 
 const app = express();
 const upload = multer({ storage: multer.memoryStorage() });
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const VISION_MODEL = 'gemini-2.5-flash';
+const TEXT_MODEL = 'gemini-2.5-flash';
 
 // ===== PRICE RULES + HELP (MySQL) =====
 let rulesCache = null;
@@ -606,20 +608,7 @@ app.post('/api/analyze-image', upload.single('image'), async (req, res) => {
       ? `- price: QUAN TRỌNG - Website ${domain} hiển thị TỔNG GIÁ (tổng tiền cho toàn bộ quantity). Bắt buộc phải chia: price = số_tiền_hiển_thị / quantity để ra ĐƠN GIÁ. KHÔNG được dùng số tiền hiển thị trực tiếp làm price.`
       : `- price: LUÔN LUÔN là ĐƠN GIÁ (giá cho 1 sản phẩm). Nếu ảnh hiển thị tổng giá (ví dụ qty=5, hiển thị $165) thì chia ngược: price = 165/5 = 33. Nếu ảnh hiển thị đơn giá (ví dụ $33/item hoặc $33 each) thì giữ nguyên. Kiểm tra: quantity × price phải bằng tổng giá hiển thị trong ảnh.`;
 
-    const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 2048,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'image',
-              source: { type: 'base64', media_type: mimeType, data: imageBase64 },
-            },
-            {
-              type: 'text',
-              text: `Trích xuất thông tin sản phẩm từ ảnh và trả về JSON THUẦN (không markdown, không code fence, không giải thích).
+    const promptText = `Trích xuất thông tin sản phẩm từ ảnh và trả về JSON THUẦN (không markdown, không code fence, không giải thích).
 
 Ảnh có thể là:
 - Giỏ hàng: lấy TẤT CẢ sản phẩm từ trên xuống dưới.
@@ -636,14 +625,17 @@ ${priceRule}
 Nếu ảnh không chứa sản phẩm nào, trả về {"items":[]}.
 
 Định dạng trả về duy nhất:
-{"items":[{"name":"","quantity":1,"price":0,"currency":"","variations":[{"name":"Size","value":""},{"name":"Color","value":""}]}]}`,
-            },
-          ],
-        },
-      ],
-    });
+{"items":[{"name":"","quantity":1,"price":0,"currency":"","variations":[{"name":"Size","value":""},{"name":"Color","value":""}]}]}`;
 
-    const rawText = (response.content || []).map(c => c.text || '').join('\n').trim();
+    const model = genAI.getGenerativeModel({
+      model: VISION_MODEL,
+      generationConfig: { maxOutputTokens: 2048, temperature: 0 },
+    });
+    const response = await model.generateContent([
+      { inlineData: { mimeType, data: imageBase64 } },
+      promptText,
+    ]);
+    const rawText = (response.response.text() || '').trim();
     console.log('[analyze-image] raw response:', rawText.slice(0, 2000));
     const jsonMatch = rawText.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
@@ -680,14 +672,7 @@ app.post('/api/extract-product-images', upload.single('image'), async (req, res)
     if (!req.file) return res.status(400).json({ success: false, message: 'Thiếu file ảnh' });
     const imageBase64 = req.file.buffer.toString('base64');
     const mimeType = req.file.mimetype;
-    const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 600,
-      messages: [{
-        role: 'user',
-        content: [
-          { type: 'image', source: { type: 'base64', media_type: mimeType, data: imageBase64 } },
-          { type: 'text', text: `Locate every product thumbnail in this shopping cart screenshot by giving its CENTER POINT.
+    const promptText = `Locate every product thumbnail in this shopping cart screenshot by giving its CENTER POINT.
 
 A "product thumbnail" = the photo of the actual item (jar, bottle, box, clothing, shoe, device, or model wearing the item). NOT: app icons, store logos, checkout buttons, payment icons (Apple Pay/PayPal/Klarna/Venmo), nav icons, badges, qty/delete buttons, edit/save links.
 
@@ -712,11 +697,17 @@ Output ONLY this JSON inside <json> tags, no other text:
 {"thumbWidth":20,"thumbHeight":15,"products":[{"index":0,"xCenter":15,"yCenter":35},{"index":1,"xCenter":15,"yCenter":60}]}
 </json>
 
-Use REAL numbers from the image, not the example values. Include EVERY product thumbnail.` }
-        ]
-      }]
+Use REAL numbers from the image, not the example values. Include EVERY product thumbnail.`;
+
+    const model = genAI.getGenerativeModel({
+      model: VISION_MODEL,
+      generationConfig: { maxOutputTokens: 600, temperature: 0 },
     });
-    const rawText = (response.content || []).map(c => c.text || '').join('\n').trim();
+    const response = await model.generateContent([
+      { inlineData: { mimeType, data: imageBase64 } },
+      promptText,
+    ]);
+    const rawText = (response.response.text() || '').trim();
     console.log('[extract-product-images] raw:', rawText.slice(0, 2000));
 
     const jsonTagMatch = rawText.match(/<json>([\s\S]*?)<\/json>/i);
@@ -739,7 +730,7 @@ Use REAL numbers from the image, not the example values. Include EVERY product t
     const tw = typeof parsed.thumbWidth === 'number' ? parsed.thumbWidth : 20;
     let th = typeof parsed.thumbHeight === 'number' ? parsed.thumbHeight : 0;
 
-    // If Claude didn't give thumbHeight, derive from spacing
+    // If model didn't give thumbHeight, derive from spacing
     if (!th && rawProducts.length >= 2) {
       // Use max of vertical or horizontal spacing (handles both grid and list)
       const yVals = rawProducts.map(p => p.yCenter).filter(v => typeof v === 'number');
@@ -999,12 +990,12 @@ Viết 1 câu NGẮN (≤ 20 từ), tiếng Việt, vui nhộn, khích lệ. Có
 KHÔNG nói "Đã tạo đơn thành công" (đã nói rồi).
 Chỉ trả về đúng 1 câu, không giải thích, không markdown.`;
 
-    const response = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 100,
-      messages: [{ role: 'user', content: prompt }],
+    const model = genAI.getGenerativeModel({
+      model: TEXT_MODEL,
+      generationConfig: { maxOutputTokens: 100, temperature: 0.9 },
     });
-    const text = (response.content || []).map(c => c.text || '').join('').trim();
+    const response = await model.generateContent(prompt);
+    const text = (response.response.text() || '').trim();
     console.log(`[encouragement] user=${user.id} count=${count} msg="${text}"`);
     res.json({ success: true, data: { message: text, count } });
   } catch (err) {
