@@ -676,32 +676,32 @@ app.post('/api/extract-product-images', upload.single('image'), async (req, res)
     if (!req.file) return res.status(400).json({ success: false, message: 'Thiếu file ảnh' });
     const imageBase64 = req.file.buffer.toString('base64');
     const mimeType = req.file.mimetype;
-    const promptText = `Locate every product thumbnail in this shopping cart screenshot by giving its CENTER POINT.
+    const promptText = `Detect every PRODUCT THUMBNAIL in this shopping cart screenshot.
 
-A "product thumbnail" = the photo of the actual item (jar, bottle, box, clothing, shoe, device, or model wearing the item). NOT: app icons, store logos, checkout buttons, payment icons (Apple Pay/PayPal/Klarna/Venmo), nav icons, badges, qty/delete buttons, edit/save links.
+A "product thumbnail" = the photo of the actual item being purchased
+(jar, bottle, box, clothing, shoe, device, model wearing the item).
+EXCLUDE: app icons, store logos, checkout buttons, payment icons
+(Apple Pay/PayPal/Klarna/Venmo/Shop Pay), nav icons, rating stars,
+trust badges, qty/delete/edit buttons, save-for-later links.
 
-Cart layouts vary:
-- VERTICAL LIST (most common): thumbnails stacked vertically in a left column.
-- HORIZONTAL GRID: thumbnails arranged side-by-side in a row.
-- MIXED GRID: thumbnails in a 2D grid (rows + columns).
-All layouts are handled the same way — just give the center of each thumbnail.
+Order: top to bottom, then left to right. Index starts at 0.
 
-For each product, report:
-- xCenter: x-coordinate of the center of this product's thumbnail (percent of full image width)
-- yCenter: y-coordinate of the center of this product's thumbnail (percent of full image height)
+For each thumbnail, give a TIGHT bounding box that wraps just the
+photo — no surrounding text/price/whitespace, but include the entire
+visible image (don't cut off product edges).
 
-Also report (shared for all products):
-- thumbWidth: approximate width of one thumbnail (percent of full image width)
-- thumbHeight: approximate height of one thumbnail (percent of full image height)
+Output ONLY this JSON array (no markdown, no code fences, no commentary):
+[
+  {"index": 0, "box_2d": [ymin, xmin, ymax, xmax]},
+  {"index": 1, "box_2d": [ymin, xmin, ymax, xmax]}
+]
 
-All values are percentages (0-100) of the FULL uploaded image file.
+Coordinates are NORMALIZED 0-1000 of the full uploaded image:
+- y axis: top=0, bottom=1000
+- x axis: left=0, right=1000
+- Always: ymin < ymax and xmin < xmax
 
-Output ONLY this JSON inside <json> tags, no other text:
-<json>
-{"thumbWidth":20,"thumbHeight":15,"products":[{"index":0,"xCenter":15,"yCenter":35},{"index":1,"xCenter":15,"yCenter":60}]}
-</json>
-
-Use REAL numbers from the image, not the example values. Include EVERY product thumbnail.`;
+If no thumbnails are visible, output [].`;
 
     const model = genAI.getGenerativeModel({
       model: VISION_MODEL,
@@ -709,6 +709,7 @@ Use REAL numbers from the image, not the example values. Include EVERY product t
         maxOutputTokens: 2048,
         temperature: 0,
         thinkingConfig: { thinkingBudget: 0 },
+        responseMimeType: 'application/json',
       },
     });
     const response = await model.generateContent([
@@ -718,8 +719,11 @@ Use REAL numbers from the image, not the example values. Include EVERY product t
     const rawText = (response.response.text() || '').trim();
     console.log('[extract-product-images] raw:', rawText.slice(0, 2000));
 
-    const jsonTagMatch = rawText.match(/<json>([\s\S]*?)<\/json>/i);
-    const jsonCandidate = jsonTagMatch ? jsonTagMatch[1].trim() : (rawText.match(/\{[\s\S]*\}/) || [''])[0];
+    // Strip optional ```json fences, then look for a JSON array (or object fallback)
+    const cleaned = rawText.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim();
+    const arrMatch = cleaned.match(/\[[\s\S]*\]/);
+    const objMatch = cleaned.match(/\{[\s\S]*\}/);
+    const jsonCandidate = arrMatch ? arrMatch[0] : (objMatch ? objMatch[0] : '');
     if (!jsonCandidate) {
       console.error('[extract-product-images] no JSON in response');
       return res.status(500).json({ success: false, message: 'Cannot parse', debug: rawText.slice(0, 500) });
@@ -733,39 +737,30 @@ Use REAL numbers from the image, not the example values. Include EVERY product t
       return res.status(500).json({ success: false, message: 'JSON invalid', debug: jsonCandidate.slice(0, 500) });
     }
 
-    // Normalize: per-product (xCenter, yCenter) + shared (thumbWidth, thumbHeight)
-    const rawProducts = Array.isArray(parsed.products) ? parsed.products : [];
-    const tw = typeof parsed.thumbWidth === 'number' ? parsed.thumbWidth : 20;
-    let th = typeof parsed.thumbHeight === 'number' ? parsed.thumbHeight : 0;
-
-    // If model didn't give thumbHeight, derive from spacing
-    if (!th && rawProducts.length >= 2) {
-      // Use max of vertical or horizontal spacing (handles both grid and list)
-      const yVals = rawProducts.map(p => p.yCenter).filter(v => typeof v === 'number');
-      const xVals = rawProducts.map(p => p.xCenter).filter(v => typeof v === 'number');
-      const ySpacings = [], xSpacings = [];
-      for (let i = 1; i < yVals.length; i++) ySpacings.push(Math.abs(yVals[i] - yVals[i - 1]));
-      for (let i = 1; i < xVals.length; i++) xSpacings.push(Math.abs(xVals[i] - xVals[i - 1]));
-      const avgYSpacing = ySpacings.length > 0 ? ySpacings.reduce((a, b) => a + b, 0) / ySpacings.length : 0;
-      const avgXSpacing = xSpacings.length > 0 ? xSpacings.reduce((a, b) => a + b, 0) / xSpacings.length : 0;
-      const maxSpacing = Math.max(avgYSpacing, avgXSpacing);
-      th = maxSpacing > 0 ? maxSpacing * 0.65 : Math.min(tw * 1.3, 25);
-    }
-    if (!th) th = Math.min(tw * 1.3, 25); // single product fallback
+    // Accept either bare array [...] or { products: [...] } shape.
+    const rawProducts = Array.isArray(parsed) ? parsed : (Array.isArray(parsed.products) ? parsed.products : []);
 
     const normalized = rawProducts.map((p, i) => {
-      const xc = typeof p.xCenter === 'number' ? p.xCenter : (typeof parsed.thumbXCenter === 'number' ? parsed.thumbXCenter : 15);
-      const yc = typeof p.yCenter === 'number' ? p.yCenter : 50;
+      // Gemini native bbox: [ymin, xmin, ymax, xmax] in 0-1000 normalized coords.
+      const box = Array.isArray(p.box_2d) ? p.box_2d : (Array.isArray(p.box) ? p.box : null);
+      if (!box || box.length !== 4) return null;
+      const [ymin, xmin, ymax, xmax] = box.map(Number);
+      if ([ymin, xmin, ymax, xmax].some(v => !Number.isFinite(v))) return null;
+      // Convert 0-1000 → 0-100 percentage of full image
+      const xPct = Math.max(0, Math.min(100, xmin / 10));
+      const yPct = Math.max(0, Math.min(100, ymin / 10));
+      const widthPct = Math.max(0, Math.min(100 - xPct, (xmax - xmin) / 10));
+      const heightPct = Math.max(0, Math.min(100 - yPct, (ymax - ymin) / 10));
       return {
         index: p.index ?? i,
-        xPct: Math.max(0, xc - tw / 2),
-        yPct: Math.max(0, yc - th / 2),
-        widthPct: tw,
-        heightPct: th,
+        xPct,
+        yPct,
+        widthPct,
+        heightPct,
       };
-    });
-    console.log('[extract-product-images] shared:', JSON.stringify({ thumbWidth: tw, thumbHeight: th }));
-    console.log('[extract-product-images] products (absolute):', JSON.stringify(normalized));
+    }).filter(Boolean);
+
+    console.log('[extract-product-images] products:', JSON.stringify(normalized));
     res.json({ success: true, data: { products: normalized } });
   } catch (err) {
     console.error('[extract-product-images] error:', err.message, err.stack);
