@@ -3338,7 +3338,7 @@
 
   function getDashboardRange() {
     const now = new Date();
-    const fmt = d => d.toISOString().slice(0, 10);
+    const fmt = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     let from, to;
     switch (_dashboardPreset) {
@@ -3412,18 +3412,19 @@
     // Build day labels in range
     const labels = [];
     const counts = {};
+    const fmt = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     if (from && to) {
-      const d = new Date(from);
-      const end = new Date(to);
+      const d = new Date(from + 'T00:00:00');
+      const end = new Date(to + 'T00:00:00');
       while (d <= end) {
-        const key = d.toISOString().slice(0, 10);
+        const key = fmt(d);
         labels.push(key);
         counts[key] = 0;
         d.setDate(d.getDate() + 1);
       }
     }
     for (const r of byDay) {
-      const key = (typeof r.day === 'string' ? r.day : new Date(r.day).toISOString().slice(0, 10));
+      const key = (typeof r.day === 'string' ? r.day.slice(0, 10) : fmt(new Date(r.day)));
       counts[key] = (counts[key] || 0) + r.count;
     }
     const data = labels.map(l => counts[l] || 0);
@@ -3434,7 +3435,7 @@
     _dashboardChart = new Chart(ctx, {
       type: 'bar',
       data: {
-        labels: labels.map(l => `${l.slice(8, 10)}-${l.slice(5, 7)}-${l.slice(2, 4)}`),
+        labels: labels.map(l => `${l.slice(8, 10)}-${l.slice(5, 7)}`),
         datasets: [{
           label: 'Số đơn',
           data,
