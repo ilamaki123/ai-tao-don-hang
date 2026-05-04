@@ -989,6 +989,13 @@ Chỉ trả về đúng 1 câu, không giải thích, không markdown.`;
   }
 });
 
+// ===== DEBUG: who am I =====
+app.get('/api/me', async (req, res) => {
+  const fromCache = resolveUser(req);
+  const fromDb = await resolveUserFull(req);
+  res.json({ success: true, fromCache, fromDb, isAdmin: !!(fromDb?.roles || []).some(r => /admin/i.test(r)) });
+});
+
 // ===== DASHBOARD =====
 app.get('/api/dashboard-stats', async (req, res) => {
   try {
