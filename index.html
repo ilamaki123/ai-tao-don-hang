@@ -3303,7 +3303,6 @@
   }
 
   async function initDashboard() {
-    // Load users (admin) hoặc lock cho non-admin
     try {
       const res = await fetch(`${API_BASE}/api/dashboard-users`, { headers: getAuthHeaders() });
       const data = await res.json();
@@ -3313,17 +3312,16 @@
       optMine.value = '';
       optMine.textContent = (sessionUser?.name || sessionUser?.email || 'Tôi') + ' (Tôi)';
       sel.appendChild(optMine);
-      if (data.success && Array.isArray(data.data) && data.data.length > 0) {
-        sel.disabled = false;
-        for (const u of data.data) {
+      const isAdmin = !!(data && data.isAdmin);
+      sel.disabled = !isAdmin;
+      if (isAdmin && Array.isArray(data.users)) {
+        for (const u of data.users) {
           if (u.user_id === sessionUser?.id) continue;
           const opt = document.createElement('option');
           opt.value = String(u.user_id);
           opt.textContent = `${u.user_name || u.user_email || 'User #' + u.user_id} (${u.order_count} đơn)`;
           sel.appendChild(opt);
         }
-      } else {
-        sel.disabled = true;
       }
     } catch {}
     loadDashboard();

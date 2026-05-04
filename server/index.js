@@ -993,7 +993,8 @@ app.get('/api/dashboard-users', async (req, res) => {
     const user = resolveUser(req);
     if (!user) return res.status(401).json({ success: false, message: 'Unauthorized' });
     const isAdmin = (user.roles || []).some(r => /admin/i.test(r));
-    if (!isAdmin) return res.json({ success: true, data: [] });
+    console.log('[dashboard-users] user:', { id: user.id, email: user.email, roles: user.roles, isAdmin });
+    if (!isAdmin) return res.json({ success: true, isAdmin: false, users: [] });
     const db = await getDb();
     const [rows] = await db.execute(
       `SELECT user_id, MAX(user_email) AS user_email, MAX(user_name) AS user_name, COUNT(*) AS order_count
@@ -1001,7 +1002,8 @@ app.get('/api/dashboard-users', async (req, res) => {
     );
     res.json({
       success: true,
-      data: rows.map(r => ({
+      isAdmin: true,
+      users: rows.map(r => ({
         user_id: Number(r.user_id),
         user_email: r.user_email,
         user_name: r.user_name,
