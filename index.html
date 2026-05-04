@@ -3365,15 +3365,22 @@
     if (from) params.set('from', from);
     if (to) params.set('to', to);
     if (userId) params.set('user_id', userId);
+    params.set('_t', Date.now());
+    console.log('[dashboard] preset=', _dashboardPreset, 'from=', from, 'to=', to, 'userId=', userId);
     try {
-      const res = await fetch(`${API_BASE}/api/dashboard-stats?${params.toString()}`, { headers: getAuthHeaders() });
+      const res = await fetch(`${API_BASE}/api/dashboard-stats?${params.toString()}`, {
+        headers: getAuthHeaders(),
+        cache: 'no-store',
+      });
       const data = await res.json();
+      console.log('[dashboard] response totalOrders=', data?.data?.totalOrders, 'byDay len=', (data?.data?.byDay || []).length);
       if (!data.success) {
         document.getElementById('dashboardTotalOrders').textContent = 'Lỗi';
         return;
       }
       renderDashboardStats(data.data, from, to);
     } catch (err) {
+      console.error('[dashboard] error:', err);
       document.getElementById('dashboardTotalOrders').textContent = 'Lỗi';
     }
   }
