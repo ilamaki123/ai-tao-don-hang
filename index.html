@@ -897,9 +897,9 @@
     <div class="dashboard-section">
       <h3>Khoảng thời gian</h3>
       <div class="dashboard-presets" id="dashboardPresets">
-        <button class="dashboard-preset" data-preset="today" onclick="setDashboardPreset('today')">Hôm nay</button>
+        <button class="dashboard-preset active" data-preset="today" onclick="setDashboardPreset('today')">Hôm nay</button>
         <button class="dashboard-preset" data-preset="yesterday" onclick="setDashboardPreset('yesterday')">Hôm qua</button>
-        <button class="dashboard-preset active" data-preset="7d" onclick="setDashboardPreset('7d')">7 ngày</button>
+        <button class="dashboard-preset" data-preset="7d" onclick="setDashboardPreset('7d')">7 ngày</button>
         <button class="dashboard-preset" data-preset="30d" onclick="setDashboardPreset('30d')">30 ngày</button>
         <button class="dashboard-preset" data-preset="month" onclick="setDashboardPreset('month')">Tháng này</button>
         <button class="dashboard-preset" data-preset="year" onclick="setDashboardPreset('year')">Năm nay</button>
@@ -3269,7 +3269,7 @@
   // ===== DASHBOARD =====
   var _dashboardOpen = false;
   var _dashboardChart = null;
-  var _dashboardPreset = '7d';
+  var _dashboardPreset = 'today';
   var _dashboardCustomFrom = null;
   var _dashboardCustomTo = null;
 
@@ -3434,7 +3434,7 @@
     _dashboardChart = new Chart(ctx, {
       type: 'bar',
       data: {
-        labels: labels.map(l => l.slice(5)),
+        labels: labels.map(l => `${l.slice(8, 10)}-${l.slice(5, 7)}-${l.slice(2, 4)}`),
         datasets: [{
           label: 'Số đơn',
           data,
