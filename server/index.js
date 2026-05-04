@@ -219,6 +219,21 @@ async function getDb() {
     } catch (e) {
       console.error('[mysql] CREATE TABLE order_log FAILED:', { message: e.message, code: e.code });
     }
+    try {
+      await dbPool.execute(`
+        CREATE TABLE IF NOT EXISTS partner_tokens (
+          token VARCHAR(255) PRIMARY KEY,
+          user_id INT NOT NULL,
+          email VARCHAR(255) DEFAULT '',
+          name VARCHAR(255) DEFAULT '',
+          roles_json TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+      `);
+      console.log('[mysql] table partner_tokens ready');
+    } catch (e) {
+      console.error('[mysql] CREATE TABLE partner_tokens FAILED:', { message: e.message, code: e.code });
+    }
   }
   return dbPool;
 }
@@ -229,6 +244,28 @@ function resolveUser(req) {
   const userId = req.headers['x-user-id'];
   if (userId) return { id: parseInt(userId) || userId, email: '', roles: [] };
   return null;
+}
+
+// Async resolveUser that falls back to DB if cache miss — use for endpoints that need roles
+async function resolveUserFull(req) {
+  const cached = resolveUser(req);
+  if (cached && cached.roles && cached.roles.length > 0) return cached;
+  const token = (req.headers['authorization'] || '').replace('Bearer ', '').trim();
+  if (token) {
+    try {
+      const db = await getDb();
+      const [rows] = await db.execute('SELECT user_id, email, name, roles_json FROM partner_tokens WHERE token = ?', [token]);
+      if (rows.length > 0) {
+        const r = rows[0];
+        let roles = [];
+        try { roles = JSON.parse(r.roles_json || '[]'); } catch {}
+        const userInfo = { id: r.user_id, email: r.email || '', name: r.name || '', roles };
+        tokenUserMap.set(token, userInfo);
+        return userInfo;
+      }
+    } catch (e) { console.error('[resolveUserFull] DB error:', e.message); }
+  }
+  return cached;
 }
 
 async function loadUserSessions(userId) {
@@ -503,7 +540,17 @@ app.post('/api/basso-login', async (req, res) => {
     // Lưu token → user info
     if (data?.data?.access_token && data?.data?.user) {
       const u = data.data.user;
-      tokenUserMap.set(data.data.access_token, { id: u.id, email: u.email || u.username, name: u.name || u.full_name || u.email || u.username, roles: u.roles || [] });
+      const userInfo = { id: u.id, email: u.email || u.username, name: u.name || u.full_name || u.email || u.username, roles: u.roles || [] };
+      tokenUserMap.set(data.data.access_token, userInfo);
+      // Persist to DB so cache survives restart
+      try {
+        const db = await getDb();
+        await db.execute(
+          `INSERT INTO partner_tokens (token, user_id, email, name, roles_json) VALUES (?, ?, ?, ?, ?)
+           ON DUPLICATE KEY UPDATE user_id=VALUES(user_id), email=VALUES(email), name=VALUES(name), roles_json=VALUES(roles_json)`,
+          [data.data.access_token, userInfo.id, userInfo.email, userInfo.name, JSON.stringify(userInfo.roles)]
+        );
+      } catch (e) { console.error('[partner_tokens] save error:', e.message); }
     }
     res.json(data);
   } catch (err) {
@@ -945,7 +992,7 @@ Chỉ trả về đúng 1 câu, không giải thích, không markdown.`;
 // ===== DASHBOARD =====
 app.get('/api/dashboard-stats', async (req, res) => {
   try {
-    const user = resolveUser(req);
+    const user = await resolveUserFull(req);
     if (!user) return res.status(401).json({ success: false, message: 'Unauthorized' });
     const isAdmin = (user.roles || []).some(r => /admin/i.test(r));
     let targetUserId = parseInt(req.query.user_id) || user.id;
@@ -990,7 +1037,7 @@ app.get('/api/dashboard-stats', async (req, res) => {
 
 app.get('/api/dashboard-users', async (req, res) => {
   try {
-    const user = resolveUser(req);
+    const user = await resolveUserFull(req);
     if (!user) return res.status(401).json({ success: false, message: 'Unauthorized' });
     const isAdmin = (user.roles || []).some(r => /admin/i.test(r));
     console.log('[dashboard-users] user:', { id: user.id, email: user.email, roles: user.roles, isAdmin });
