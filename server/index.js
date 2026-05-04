@@ -200,6 +200,40 @@ async function getDb() {
     } catch (e) {
       console.error('[mysql] CREATE TABLE daily_order_stats FAILED:', { message: e.message, code: e.code, errno: e.errno, sqlState: e.sqlState, sqlMessage: e.sqlMessage });
     }
+    try {
+      await dbPool.execute(`
+        CREATE TABLE IF NOT EXISTS order_log (
+          id BIGINT AUTO_INCREMENT PRIMARY KEY,
+          user_id INT NOT NULL,
+          user_email VARCHAR(255) DEFAULT '',
+          user_name VARCHAR(255) DEFAULT '',
+          order_code VARCHAR(50) DEFAULT '',
+          total_amount DECIMAL(14,2) DEFAULT 0,
+          currency VARCHAR(10) DEFAULT '$',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          INDEX idx_user_date (user_id, created_at),
+          INDEX idx_created_at (created_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+      `);
+      console.log('[mysql] table order_log ready');
+    } catch (e) {
+      console.error('[mysql] CREATE TABLE order_log FAILED:', { message: e.message, code: e.code });
+    }
+    try {
+      await dbPool.execute(`
+        CREATE TABLE IF NOT EXISTS partner_tokens (
+          token VARCHAR(255) PRIMARY KEY,
+          user_id INT NOT NULL,
+          email VARCHAR(255) DEFAULT '',
+          name VARCHAR(255) DEFAULT '',
+          roles_json TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+      `);
+      console.log('[mysql] table partner_tokens ready');
+    } catch (e) {
+      console.error('[mysql] CREATE TABLE partner_tokens FAILED:', { message: e.message, code: e.code });
+    }
   }
   return dbPool;
 }
@@ -210,6 +244,28 @@ function resolveUser(req) {
   const userId = req.headers['x-user-id'];
   if (userId) return { id: parseInt(userId) || userId, email: '', roles: [] };
   return null;
+}
+
+// Async resolveUser that falls back to DB if cache miss — use for endpoints that need roles
+async function resolveUserFull(req) {
+  const cached = resolveUser(req);
+  if (cached && cached.roles && cached.roles.length > 0) return cached;
+  const token = (req.headers['authorization'] || '').replace('Bearer ', '').trim();
+  if (token) {
+    try {
+      const db = await getDb();
+      const [rows] = await db.execute('SELECT user_id, email, name, roles_json FROM partner_tokens WHERE token = ?', [token]);
+      if (rows.length > 0) {
+        const r = rows[0];
+        let roles = [];
+        try { roles = JSON.parse(r.roles_json || '[]'); } catch {}
+        const userInfo = { id: r.user_id, email: r.email || '', name: r.name || '', roles };
+        tokenUserMap.set(token, userInfo);
+        return userInfo;
+      }
+    } catch (e) { console.error('[resolveUserFull] DB error:', e.message); }
+  }
+  return cached;
 }
 
 async function loadUserSessions(userId) {
@@ -484,7 +540,17 @@ app.post('/api/basso-login', async (req, res) => {
     // Lưu token → user info
     if (data?.data?.access_token && data?.data?.user) {
       const u = data.data.user;
-      tokenUserMap.set(data.data.access_token, { id: u.id, email: u.email || u.username, roles: u.roles || [] });
+      const userInfo = { id: u.id, email: u.email || u.username, name: u.name || u.full_name || u.email || u.username, roles: u.roles || [] };
+      tokenUserMap.set(data.data.access_token, userInfo);
+      // Persist to DB so cache survives restart
+      try {
+        const db = await getDb();
+        await db.execute(
+          `INSERT INTO partner_tokens (token, user_id, email, name, roles_json) VALUES (?, ?, ?, ?, ?)
+           ON DUPLICATE KEY UPDATE user_id=VALUES(user_id), email=VALUES(email), name=VALUES(name), roles_json=VALUES(roles_json)`,
+          [data.data.access_token, userInfo.id, userInfo.email, userInfo.name, JSON.stringify(userInfo.roles)]
+        );
+      } catch (e) { console.error('[partner_tokens] save error:', e.message); }
     }
     res.json(data);
   } catch (err) {
@@ -769,6 +835,31 @@ app.post('/api/create-order', async (req, res) => {
     });
     const data = await response.json();
     console.log('[create-order] Basso response:', JSON.stringify(data));
+    // Log vào order_log nếu thành công
+    if (data?.success && data?.data?.orderCode) {
+      try {
+        const user = await resolveUserFull(req);
+        let totalAmount = 0;
+        let currency = '$';
+        try {
+          const items = JSON.parse(req.body.items || '[]');
+          for (const it of items) {
+            const p = parseFloat(it.price ?? 0) || 0;
+            const q = parseInt(it.quantity) || 1;
+            totalAmount += p * q;
+            if (it.currency) currency = it.currency;
+          }
+          totalAmount += Number(req.body.web_shipping_fee) || 0;
+        } catch {}
+        const db = await getDb();
+        await db.execute(
+          'INSERT INTO order_log (user_id, user_email, user_name, order_code, total_amount, currency) VALUES (?, ?, ?, ?, ?, ?)',
+          [user?.id || 0, user?.email || '', user?.name || '', data.data.orderCode, totalAmount, currency]
+        );
+      } catch (logErr) {
+        console.error('[order_log] insert error:', logErr.message);
+      }
+    }
     res.json(data);
   } catch (err) {
     console.error('[create-order] error:', err.message);
@@ -894,6 +985,96 @@ Chỉ trả về đúng 1 câu, không giải thích, không markdown.`;
     res.json({ success: true, data: { message: text, count } });
   } catch (err) {
     console.error('[encouragement] error:', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ===== DEBUG: who am I =====
+app.get('/api/me', async (req, res) => {
+  const fromCache = resolveUser(req);
+  const fromDb = await resolveUserFull(req);
+  res.json({ success: true, fromCache, fromDb, isAdmin: !!(fromDb?.roles || []).some(r => /admin/i.test(r)) });
+});
+
+// ===== DASHBOARD =====
+app.get('/api/dashboard-stats', async (req, res) => {
+  try {
+    const user = await resolveUserFull(req);
+    if (!user) return res.status(401).json({ success: false, message: 'Unauthorized' });
+    const isAdmin = (user.roles || []).some(r => /admin/i.test(r));
+    const reqUserId = req.query.user_id;
+    let targetUserId = (reqUserId && parseInt(reqUserId)) || user.id;
+    if (!isAdmin) targetUserId = user.id; // non-admin chỉ xem mình
+    console.log('[dashboard-stats] caller=', user.id, 'isAdmin=', isAdmin, 'reqUserId=', reqUserId, 'targetUserId=', targetUserId, 'from=', req.query.from, 'to=', req.query.to);
+    const from = req.query.from; // YYYY-MM-DD
+    const to = req.query.to;     // YYYY-MM-DD
+    const db = await getDb();
+    const where = ['user_id = ?'];
+    const params = [targetUserId];
+    if (from) { where.push('DATE(created_at) >= ?'); params.push(from); }
+    if (to) { where.push('DATE(created_at) <= ?'); params.push(to); }
+    const whereSql = where.join(' AND ');
+    const [totalRows] = await db.execute(
+      `SELECT currency, COUNT(*) AS cnt, SUM(total_amount) AS total FROM order_log WHERE ${whereSql} GROUP BY currency`,
+      params
+    );
+    const [byDayRows] = await db.execute(
+      `SELECT DATE(created_at) AS day, currency, COUNT(*) AS cnt, SUM(total_amount) AS total
+       FROM order_log WHERE ${whereSql}
+       GROUP BY DATE(created_at), currency
+       ORDER BY day ASC`,
+      params
+    );
+    const totalOrders = totalRows.reduce((s, r) => s + Number(r.cnt), 0);
+    const byCurrency = {};
+    for (const r of totalRows) byCurrency[r.currency] = { count: Number(r.cnt), total: Number(r.total) };
+    res.json({
+      success: true,
+      data: {
+        targetUserId,
+        isAdmin,
+        totalOrders,
+        byCurrency,
+        byDay: byDayRows.map(r => ({ day: r.day, currency: r.currency, count: Number(r.cnt), total: Number(r.total) })),
+      },
+    });
+  } catch (err) {
+    console.error('[dashboard-stats] error:', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+app.get('/api/dashboard-users', async (req, res) => {
+  try {
+    const user = await resolveUserFull(req);
+    if (!user) return res.status(401).json({ success: false, message: 'Unauthorized' });
+    const isAdmin = (user.roles || []).some(r => /admin/i.test(r));
+    console.log('[dashboard-users] user:', { id: user.id, email: user.email, roles: user.roles, isAdmin });
+    if (!isAdmin) return res.json({ success: true, isAdmin: false, users: [] });
+    const db = await getDb();
+    const [rows] = await db.execute(
+      `SELECT
+         ol.user_id,
+         COALESCE(NULLIF(MAX(ol.user_email), ''), MAX(pt.email), '') AS user_email,
+         COALESCE(NULLIF(MAX(ol.user_name), ''), MAX(pt.name), '') AS user_name,
+         COUNT(*) AS order_count
+       FROM order_log ol
+       LEFT JOIN partner_tokens pt ON pt.user_id = ol.user_id
+       GROUP BY ol.user_id
+       ORDER BY order_count DESC`
+    );
+    res.json({
+      success: true,
+      isAdmin: true,
+      users: rows.map(r => ({
+        user_id: Number(r.user_id),
+        user_email: r.user_email,
+        user_name: r.user_name,
+        order_count: Number(r.order_count),
+      })),
+    });
+  } catch (err) {
+    console.error('[dashboard-users] error:', err.message);
     res.status(500).json({ success: false, message: err.message });
   }
 });
