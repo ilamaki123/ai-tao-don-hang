@@ -12,6 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -47,7 +48,17 @@
       font-size: 13px;
       color: #888;
       margin-bottom: 18px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
+    .sidebar-logout-btn {
+      background: none; border: none; cursor: pointer;
+      color: #aaa; padding: 2px 4px; border-radius: 4px;
+      display: flex; align-items: center; justify-content: center;
+      transition: color 0.15s, background 0.15s;
+    }
+    .sidebar-logout-btn:hover { color: #D95C5C; background: #FDEBEC; }
 
     .btn-new-chat {
       background: #00354E;
@@ -65,6 +76,57 @@
     }
 
     .btn-new-chat:hover { background: #004d72; }
+
+    .btn-dashboard {
+      background: #00354E;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 12px;
+      transition: background 0.2s;
+    }
+    .btn-dashboard:hover { background: #004d72; }
+
+    .dashboard-view {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+      display: none;
+    }
+    .dashboard-view.show { display: block; }
+    .dashboard-section { margin-bottom: 20px; background: #fff; border: 1px solid #e8d8ff; border-radius: 12px; padding: 16px; }
+    .dashboard-section h3 { font-size: 14px; color: #00354E; margin-bottom: 12px; font-weight: 600; }
+    .dashboard-presets { display: flex; gap: 6px; flex-wrap: wrap; }
+    .dashboard-preset {
+      padding: 6px 12px; border: 1px solid #e0d8f0; background: #fff; color: #666;
+      border-radius: 6px; cursor: pointer; font-size: 13px; transition: all 0.15s;
+    }
+    .dashboard-preset.active { background: #7C5ACB; color: #fff; border-color: #7C5ACB; }
+    .dashboard-preset:hover:not(.active) { background: #EFE7FF; color: #7C5ACB; }
+    .dashboard-custom { display: flex; gap: 8px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
+    .dashboard-date {
+      padding: 6px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px;
+    }
+    .dashboard-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+    .dashboard-stat-card {
+      background: #fafafa; border: 1px solid #e8d8ff; border-radius: 10px; padding: 14px;
+    }
+    .dashboard-stat-label { font-size: 12px; color: #888; margin-bottom: 6px; }
+    .dashboard-stat-value { font-size: 22px; font-weight: 700; color: #00354E; }
+    .dashboard-stat-sub { font-size: 11px; color: #999; margin-top: 4px; }
+    .dashboard-chart-wrap { position: relative; width: 100%; height: 240px; margin-top: 8px; }
+    .dashboard-chart { width: 100% !important; height: 100% !important; display: block; }
+    .dashboard-user-select {
+      width: 100%; padding: 8px 12px; border: 1px solid #e0d8f0; border-radius: 8px;
+      font-size: 14px; background: #fff; color: #333;
+    }
+    .dashboard-user-select:disabled { background: #f5f5f5; cursor: not-allowed; opacity: 0.7; }
 
 
     .search-sessions {
@@ -798,7 +860,16 @@
       </button>
     </div>
   </div>
-  <div class="sidebar-welcome">Welcome, Vinh Pham</div>
+  <div class="sidebar-welcome">
+    <span id="sidebarWelcomeText">Welcome, Vinh Pham</span>
+    <button class="sidebar-logout-btn" onclick="logoutBot()" title="Đăng xuất">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+    </button>
+  </div>
+  <button class="btn-dashboard" id="btnDashboard" onclick="toggleDashboard()">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+    Dashboard
+  </button>
   <input type="text" class="search-sessions" id="searchSessions" placeholder="Tìm tên, SĐT..." oninput="filterSessions()" />
   <button class="btn-new-chat" onclick="newChat()">
     <span>+</span> New Chat
@@ -829,6 +900,47 @@
 
   <!-- Messages (ẩn khi chưa có chat) -->
   <div class="messages" id="messageList" style="display:none;"></div>
+
+  <!-- Dashboard view (ẩn mặc định) -->
+  <div class="dashboard-view" id="dashboardView">
+    <div class="dashboard-section">
+      <h3>Người dùng</h3>
+      <select class="dashboard-user-select" id="dashboardUserSelect" onchange="onDashboardUserChange()" disabled>
+        <option value="">— Đang tải —</option>
+      </select>
+    </div>
+    <div class="dashboard-section">
+      <h3>Khoảng thời gian</h3>
+      <div class="dashboard-presets" id="dashboardPresets">
+        <button class="dashboard-preset active" data-preset="today" onclick="setDashboardPreset('today')">Hôm nay</button>
+        <button class="dashboard-preset" data-preset="7d" onclick="setDashboardPreset('7d')">7 ngày</button>
+        <button class="dashboard-preset" data-preset="month" onclick="setDashboardPreset('month')">Tháng này</button>
+        <button class="dashboard-preset" data-preset="year" onclick="setDashboardPreset('year')">Năm nay</button>
+        <button class="dashboard-preset" data-preset="custom" onclick="setDashboardPreset('custom')">Tùy chọn</button>
+      </div>
+      <div class="dashboard-custom" id="dashboardCustom" style="display:none">
+        <span style="font-size:13px;color:#666">Từ:</span>
+        <input type="date" class="dashboard-date" id="dashboardFrom" onchange="loadDashboard()" />
+        <span style="font-size:13px;color:#666">đến:</span>
+        <input type="date" class="dashboard-date" id="dashboardTo" onchange="loadDashboard()" />
+      </div>
+    </div>
+    <div class="dashboard-section">
+      <h3>Tổng quan</h3>
+      <div class="dashboard-stats" id="dashboardStatsCards">
+        <div class="dashboard-stat-card">
+          <div class="dashboard-stat-label">Tổng số đơn</div>
+          <div class="dashboard-stat-value" id="dashboardTotalOrders">—</div>
+        </div>
+      </div>
+    </div>
+    <div class="dashboard-section">
+      <h3>Số đơn theo ngày</h3>
+      <div class="dashboard-chart-wrap">
+        <canvas class="dashboard-chart" id="dashboardChart"></canvas>
+      </div>
+    </div>
+  </div>
 
   <!-- Input bar -->
   <div class="input-bar-wrap" id="inputArea" style="display:none;">
@@ -886,7 +998,7 @@
   if (!sessionUser) {
     window.location.href = 'login.html';
   } else {
-    document.querySelector('.sidebar-welcome').textContent = 'Welcome, ' + sessionUser.name;
+    document.getElementById('sidebarWelcomeText').textContent = 'Welcome, ' + sessionUser.name;
   }
 
   const API_BASE = (function () {
@@ -1043,6 +1155,7 @@
   }
 
   function selectSession(id) {
+    if (_dashboardOpen) closeDashboard();
     activeSessionId = id;
     renderHistory();
     document.getElementById('emptyState').style.display = 'none';
@@ -2143,6 +2256,7 @@
           const extractSrcFile = await preCropMobileChrome(compressedFile);
           const extractForm = new FormData();
           extractForm.append('image', extractSrcFile);
+          extractForm.append('expected_count', String(newItems.length));
           const extractRes = await fetch(`${API_BASE}/api/extract-product-images`, { method: 'POST', headers: getAuthHeaders(), body: extractForm });
           const extractData = await extractRes.json();
           if (extractData.success && extractData.data.products?.length > 0) {
@@ -2278,6 +2392,7 @@
           const extractSrcFile = await preCropMobileChrome(compressedFile);
           const extractForm = new FormData();
           extractForm.append('image', extractSrcFile);
+          extractForm.append('expected_count', String(newItems.length));
           const extractRes = await fetch(`${API_BASE}/api/extract-product-images`, { method: 'POST', headers: getAuthHeaders(), body: extractForm });
           const extractData = await extractRes.json();
           console.log('[extract] response:', extractData);
@@ -3164,6 +3279,212 @@
 
   function sleep(ms) {
     return new Promise(r => setTimeout(r, ms));
+  }
+
+  // ===== DASHBOARD =====
+  var _dashboardOpen = false;
+  var _dashboardChart = null;
+  var _dashboardPreset = 'today';
+  var _dashboardCustomFrom = null;
+  var _dashboardCustomTo = null;
+
+  function toggleDashboard() {
+    if (_dashboardOpen) closeDashboard();
+    else openDashboard();
+  }
+
+  function openDashboard() {
+    _dashboardOpen = true;
+    document.getElementById('dashboardView').classList.add('show');
+    document.getElementById('messageList').style.display = 'none';
+    document.getElementById('emptyState').style.display = 'none';
+    document.getElementById('inputArea').style.display = 'none';
+    closeSidebar();
+    initDashboard();
+  }
+
+  function closeDashboard() {
+    _dashboardOpen = false;
+    document.getElementById('dashboardView').classList.remove('show');
+    if (activeSessionId) {
+      document.getElementById('messageList').style.display = 'flex';
+      document.getElementById('inputArea').style.display = 'flex';
+      document.getElementById('emptyState').style.display = 'none';
+    } else {
+      document.getElementById('emptyState').style.display = '';
+      document.getElementById('messageList').style.display = 'none';
+      document.getElementById('inputArea').style.display = 'none';
+    }
+  }
+
+  async function initDashboard() {
+    try {
+      const res = await fetch(`${API_BASE}/api/dashboard-users`, { headers: getAuthHeaders() });
+      const data = await res.json();
+      const sel = document.getElementById('dashboardUserSelect');
+      sel.innerHTML = '';
+      const optMine = document.createElement('option');
+      optMine.value = '';
+      optMine.textContent = (sessionUser?.name || sessionUser?.email || 'Tôi') + ' (Tôi)';
+      sel.appendChild(optMine);
+      const isAdmin = !!(data && data.isAdmin);
+      sel.disabled = !isAdmin;
+      if (isAdmin && Array.isArray(data.users)) {
+        for (const u of data.users) {
+          if (u.user_id === sessionUser?.id) continue;
+          const opt = document.createElement('option');
+          opt.value = String(u.user_id);
+          opt.textContent = `${u.user_name || u.user_email || 'User #' + u.user_id} (${u.order_count} đơn)`;
+          sel.appendChild(opt);
+        }
+      }
+    } catch {}
+    loadDashboard();
+  }
+
+  function setDashboardPreset(preset) {
+    _dashboardPreset = preset;
+    document.querySelectorAll('.dashboard-preset').forEach(b => b.classList.toggle('active', b.dataset.preset === preset));
+    document.getElementById('dashboardCustom').style.display = preset === 'custom' ? 'flex' : 'none';
+    if (preset !== 'custom') loadDashboard();
+  }
+
+  function getDashboardRange() {
+    const now = new Date();
+    const fmt = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    let from, to;
+    switch (_dashboardPreset) {
+      case 'today': from = today; to = today; break;
+      case 'yesterday': {
+        const y = new Date(today); y.setDate(y.getDate() - 1);
+        from = y; to = y; break;
+      }
+      case '7d': from = new Date(today); from.setDate(from.getDate() - 6); to = today; break;
+      case '30d': from = new Date(today); from.setDate(from.getDate() - 29); to = today; break;
+      case 'month': from = new Date(now.getFullYear(), now.getMonth(), 1); to = today; break;
+      case 'year': from = new Date(now.getFullYear(), 0, 1); to = today; break;
+      case 'custom': {
+        const fInp = document.getElementById('dashboardFrom').value;
+        const tInp = document.getElementById('dashboardTo').value;
+        return { from: fInp || '', to: tInp || '' };
+      }
+    }
+    return { from: from ? fmt(from) : '', to: to ? fmt(to) : '' };
+  }
+
+  function onDashboardUserChange() { loadDashboard(); }
+
+  async function loadDashboard() {
+    const { from, to } = getDashboardRange();
+    const userId = document.getElementById('dashboardUserSelect').value;
+    const params = new URLSearchParams();
+    if (from) params.set('from', from);
+    if (to) params.set('to', to);
+    if (userId) params.set('user_id', userId);
+    params.set('_t', Date.now());
+    console.log('[dashboard] preset=', _dashboardPreset, 'from=', from, 'to=', to, 'userId=', userId);
+    try {
+      const res = await fetch(`${API_BASE}/api/dashboard-stats?${params.toString()}`, {
+        headers: getAuthHeaders(),
+        cache: 'no-store',
+      });
+      const data = await res.json();
+      console.log('[dashboard] response totalOrders=', data?.data?.totalOrders, 'byDay len=', (data?.data?.byDay || []).length);
+      if (!data.success) {
+        document.getElementById('dashboardTotalOrders').textContent = 'Lỗi';
+        return;
+      }
+      renderDashboardStats(data.data, from, to);
+    } catch (err) {
+      console.error('[dashboard] error:', err);
+      document.getElementById('dashboardTotalOrders').textContent = 'Lỗi';
+    }
+  }
+
+  function renderDashboardStats(stats, from, to) {
+    // Cards: total orders + per currency
+    const cardsEl = document.getElementById('dashboardStatsCards');
+    let html = `
+      <div class="dashboard-stat-card">
+        <div class="dashboard-stat-label">Tổng số đơn</div>
+        <div class="dashboard-stat-value">${stats.totalOrders}</div>
+      </div>
+    `;
+    for (const [cur, info] of Object.entries(stats.byCurrency || {})) {
+      html += `
+        <div class="dashboard-stat-card">
+          <div class="dashboard-stat-label">Tổng giá trị (${cur})</div>
+          <div class="dashboard-stat-value">${cur}${(info.total || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
+          <div class="dashboard-stat-sub">${info.count} đơn</div>
+        </div>
+      `;
+    }
+    cardsEl.innerHTML = html;
+    renderDashboardChart(stats.byDay || [], from, to);
+  }
+
+  function renderDashboardChart(byDay, from, to) {
+    if (!window.Chart) return;
+    const ctx = document.getElementById('dashboardChart');
+    if (!ctx) return;
+    // Build day labels in range
+    const labels = [];
+    const counts = {};
+    const fmt = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    if (from && to) {
+      const d = new Date(from + 'T00:00:00');
+      const end = new Date(to + 'T00:00:00');
+      while (d <= end) {
+        const key = fmt(d);
+        labels.push(key);
+        counts[key] = 0;
+        d.setDate(d.getDate() + 1);
+      }
+    }
+    for (const r of byDay) {
+      const key = (typeof r.day === 'string' ? r.day.slice(0, 10) : fmt(new Date(r.day)));
+      counts[key] = (counts[key] || 0) + r.count;
+    }
+    const data = labels.map(l => counts[l] || 0);
+    if (_dashboardChart) {
+      try { _dashboardChart.destroy(); } catch {}
+      _dashboardChart = null;
+    }
+    _dashboardChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels.map(l => `${l.slice(8, 10)}-${l.slice(5, 7)}`),
+        datasets: [{
+          label: 'Số đơn',
+          data,
+          backgroundColor: '#7C5ACB',
+          borderRadius: 4,
+          maxBarThickness: 60,
+          categoryPercentage: 0.7,
+          barPercentage: 0.9,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        resizeDelay: 100,
+        scales: { y: { beginAtZero: true, ticks: { stepSize: 1, precision: 0 } } },
+        plugins: { legend: { display: false } },
+      },
+    });
+  }
+  // ===== END DASHBOARD =====
+
+  function logoutBot() {
+    openConfirmModal('Bạn muốn đăng xuất khỏi Doraemon và quay về dashboard?', () => {
+      try {
+        localStorage.removeItem('ai_chat_user');
+        sessionStorage.removeItem('ai_chat_user');
+      } catch {}
+      window.location.replace('https://ai.basso.vn/');
+    }, { title: 'Đăng xuất', okText: 'Đăng xuất' });
   }
 
   async function reloadApp() {
