@@ -1140,7 +1140,13 @@ app.get('/api/dashboard-users', async (req, res) => {
       `SELECT
          ol.user_id,
          COALESCE(NULLIF(ol.user_email, ''), pt.email, '') AS user_email,
-         COALESCE(NULLIF(ol.user_name, ''), pt.name, '') AS user_name,
+         COALESCE(
+           CASE WHEN pt.name        <> '' AND pt.name        NOT LIKE '%@%' THEN pt.name END,
+           CASE WHEN ol.user_name   <> '' AND ol.user_name   NOT LIKE '%@%' THEN ol.user_name END,
+           NULLIF(pt.name, ''),
+           NULLIF(ol.user_name, ''),
+           ''
+         ) AS user_name,
          ol.order_count
        FROM (
          SELECT user_id,
