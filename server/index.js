@@ -1023,7 +1023,11 @@ Chỉ trả về đúng 1 câu, không giải thích, không markdown.`;
 
     const model = genAI.getGenerativeModel({
       model: TEXT_MODEL,
-      generationConfig: { maxOutputTokens: 100, temperature: 0.9 },
+      generationConfig: {
+        maxOutputTokens: 100,
+        temperature: 0.9,
+        thinkingConfig: { thinkingBudget: 0 },
+      },
     });
     const response = await model.generateContent(prompt);
     const text = (response.response.text() || '').trim();
