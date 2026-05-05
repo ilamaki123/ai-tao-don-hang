@@ -3426,8 +3426,8 @@
       }
       el.innerHTML = list.map((d, i) =>
         `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:#f9f7ff;border-radius:6px">
-          <span><span style="color:#7c5cbf;font-weight:600;margin-right:8px">${i + 1}.</span>${escapeHtml(d.domain)}</span>
-          <span style="font-weight:600;color:#28a745">$${Number(d.amount).toFixed(2)}</span>
+          <span><span style="color:#00354E;font-weight:600;margin-right:8px">${i + 1}.</span>${escapeHtml(d.domain)}</span>
+          <span style="font-weight:600;color:#00354E">$${Number(d.amount).toFixed(2)}</span>
         </div>`
       ).join('');
     } catch (err) {
