@@ -1631,12 +1631,15 @@
       const thumbHtml = thumbSrc
         ? `<img class="cart-card-thumb" src="${thumbSrc}" ${thumbClick} style="cursor:${canEdit ? 'pointer' : 'default'}" title="${canEdit ? 'Bấm để đổi ảnh' : ''}" />`
         : (canEdit ? `<div class="cart-card-thumb" ${thumbClick} style="cursor:pointer;display:flex;align-items:center;justify-content:center;background:#f3eeff;color:#7c5cbf;font-size:18px" title="Bấm để thêm ảnh">+</div>` : '');
-      const shortName = item.name;
+      const NAME_MAX = 75;
+      const displayName = item.name && item.name.length > NAME_MAX
+        ? item.name.slice(0, NAME_MAX).trim() + '…'
+        : (item.name || '');
       return `<div class="cart-card" style="${opacity}" id="editCard${i}">
         <div class="cart-card-compact" onclick="toggleCardExpand(${i},'editCard')">
           <span class="cart-card-num">${i+1}.${badge}</span>
           ${thumbHtml}
-          <span class="cart-card-compact-name">${escapeHtml(shortName)}</span>
+          <span class="cart-card-compact-name">${escapeHtml(displayName)}</span>
           <span class="cart-card-compact-price">${priceShow}</span>
           <span class="cart-card-compact-arrow">▼</span>
         </div>
@@ -1644,9 +1647,9 @@
           <div class="cart-card-fields" style="margin-top:0">
             <span class="cart-card-num hide-mobile">${i+1}.${badge}</span>
             ${thumbHtml ? `<span class="hide-mobile">${thumbHtml}</span>` : ''}
-            <span class="cart-field" ${canEdit ? `onclick="editOrderItemField(${i},'name')"` : ''} style="flex:1;min-width:0;margin-right:28px">
+            <span class="cart-field" ${canEdit ? `onclick="editOrderItemField(${i},'name')"` : ''} style="flex:1;min-width:0;margin-right:28px" title="${escapeHtml(item.name || '')}">
               <span class="cart-field-label">Tên</span>
-              <span class="cart-field-value" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(item.name)}</span>
+              <span class="cart-field-value" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(displayName)}</span>
             </span>
           </div>
           <div class="cart-card-fields">
@@ -2899,12 +2902,15 @@
     const thumbHtml = thumbSrc
       ? `<img class="cart-card-thumb" src="${thumbSrc}" onclick="event.stopPropagation();openImageUploader('cart',${i})" style="cursor:pointer" title="Bấm để đổi ảnh" />`
       : `<div class="cart-card-thumb" onclick="event.stopPropagation();openImageUploader('cart',${i})" style="cursor:pointer;display:flex;align-items:center;justify-content:center;background:#f3eeff;color:#7c5cbf;font-size:18px" title="Bấm để thêm ảnh">+</div>`;
-    const shortName = item.name;
+    const NAME_MAX = 75;
+    const displayName = item.name && item.name.length > NAME_MAX
+      ? item.name.slice(0, NAME_MAX).trim() + '…'
+      : (item.name || '');
     return `<div class="cart-card" id="cartCard${i}">
       <div class="cart-card-compact" onclick="toggleCardExpand(${i})">
         <span class="cart-card-num">${i+1}.</span>
         ${thumbHtml}
-        <span class="cart-card-compact-name">${escapeHtml(shortName)}</span>
+        <span class="cart-card-compact-name">${escapeHtml(displayName)}</span>
         <span class="cart-card-compact-price">${priceShow}</span>
         <span class="cart-card-compact-arrow">▼</span>
       </div>
@@ -2912,9 +2918,9 @@
         <div class="cart-card-fields" style="margin-top:0">
           <span class="cart-card-num hide-mobile">${i+1}.</span>
           ${thumbHtml ? `<span class="hide-mobile">${thumbHtml}</span>` : ''}
-          <span class="cart-field" onclick="editCartField(${i},'name')" style="flex:1;min-width:0;margin-right:28px">
+          <span class="cart-field" onclick="editCartField(${i},'name')" style="flex:1;min-width:0;margin-right:28px" title="${escapeHtml(item.name || '')}">
             <span class="cart-field-label">Tên</span>
-            <span class="cart-field-value" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(item.name)}</span>
+            <span class="cart-field-value" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(displayName)}</span>
           </span>
         </div>
         <div class="cart-card-fields">
