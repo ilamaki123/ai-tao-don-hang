@@ -1153,7 +1153,10 @@ app.get('/api/dashboard-users', async (req, res) => {
        LEFT JOIN (
          SELECT user_id,
                 MAX(email) AS email,
-                MAX(name)  AS name
+                COALESCE(
+                  MAX(CASE WHEN name <> '' AND name NOT LIKE '%@%' THEN name END),
+                  MAX(name)
+                ) AS name
          FROM partner_tokens
          GROUP BY user_id
        ) pt ON pt.user_id = ol.user_id
