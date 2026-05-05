@@ -142,6 +142,13 @@ console.log('Mock mode:', IS_MOCK);
 // token → user info map (in-memory, refreshed on login)
 const tokenUserMap = new Map();
 
+function extractDomain(url) {
+  try {
+    const u = new URL(url);
+    return u.hostname.toLowerCase().replace(/^www\./, '');
+  } catch { return ''; }
+}
+
 // ===== SESSION STORAGE (MySQL) =====
 const SIXTY_DAYS_MS = 60 * 24 * 60 * 60 * 1000;
 let dbPool = null;
@@ -215,12 +222,22 @@ async function getDb() {
           order_code VARCHAR(50) DEFAULT '',
           total_amount DECIMAL(14,2) DEFAULT 0,
           currency VARCHAR(10) DEFAULT '$',
+          domains_json TEXT NULL,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           INDEX idx_user_date (user_id, created_at),
           INDEX idx_created_at (created_at)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
       `);
       console.log('[mysql] table order_log ready');
+      // Migration for existing databases — add column if missing
+      try {
+        await dbPool.execute('ALTER TABLE order_log ADD COLUMN domains_json TEXT NULL');
+        console.log('[mysql] order_log.domains_json column added');
+      } catch (e) {
+        if (e.code !== 'ER_DUP_FIELDNAME') {
+          console.error('[mysql] ALTER order_log domains_json FAILED:', e.message);
+        }
+      }
     } catch (e) {
       console.error('[mysql] CREATE TABLE order_log FAILED:', { message: e.message, code: e.code });
     }
@@ -862,20 +879,28 @@ app.post('/api/create-order', async (req, res) => {
         const user = await resolveUserFull(req);
         let totalAmount = 0;
         let currency = '$';
+        const domainMap = {};
         try {
           const items = JSON.parse(req.body.items || '[]');
           for (const it of items) {
             const p = parseFloat(it.price ?? 0) || 0;
             const q = parseInt(it.quantity) || 1;
-            totalAmount += p * q;
+            const itemTotal = p * q;
+            totalAmount += itemTotal;
             if (it.currency) currency = it.currency;
+            const domain = extractDomain(it.link || '');
+            if (domain) domainMap[domain] = (domainMap[domain] || 0) + itemTotal;
           }
           totalAmount += Number(req.body.web_shipping_fee) || 0;
         } catch {}
+        const domainsArr = Object.entries(domainMap)
+          .map(([domain, amount]) => ({ domain, amount: Math.round(amount * 100) / 100 }))
+          .sort((a, b) => b.amount - a.amount);
+        const domainsJson = domainsArr.length ? JSON.stringify(domainsArr) : null;
         const db = await getDb();
         await db.execute(
-          'INSERT INTO order_log (user_id, user_email, user_name, order_code, total_amount, currency) VALUES (?, ?, ?, ?, ?, ?)',
-          [user?.id || 0, user?.email || '', user?.name || '', data.data.orderCode, totalAmount, currency]
+          'INSERT INTO order_log (user_id, user_email, user_name, order_code, total_amount, currency, domains_json) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [user?.id || 0, user?.email || '', user?.name || '', data.data.orderCode, totalAmount, currency, domainsJson]
         );
       } catch (logErr) {
         console.error('[order_log] insert error:', logErr.message);
@@ -1060,6 +1085,46 @@ app.get('/api/dashboard-stats', async (req, res) => {
     });
   } catch (err) {
     console.error('[dashboard-stats] error:', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ===== TOP 10 DOMAINS BY USD REVENUE =====
+app.get('/api/dashboard-top-domains', async (req, res) => {
+  try {
+    const user = await resolveUserFull(req);
+    if (!user) return res.status(401).json({ success: false, message: 'Unauthorized' });
+    const reqUserId = req.query.user_id;
+    const targetUserId = (reqUserId && parseInt(reqUserId)) || user.id;
+    const from = req.query.from;
+    const to = req.query.to;
+    const where = ["user_id = ?", "currency = '$'", "domains_json IS NOT NULL"];
+    const params = [targetUserId];
+    if (from) { where.push('DATE(created_at) >= ?'); params.push(from); }
+    if (to) { where.push('DATE(created_at) <= ?'); params.push(to); }
+    const db = await getDb();
+    const [rows] = await db.execute(
+      `SELECT domains_json FROM order_log WHERE ${where.join(' AND ')}`,
+      params
+    );
+    const totals = {};
+    for (const r of rows) {
+      let arr;
+      try { arr = JSON.parse(r.domains_json || '[]'); } catch { continue; }
+      if (!Array.isArray(arr)) continue;
+      for (const e of arr) {
+        if (!e?.domain) continue;
+        const amt = Number(e.amount) || 0;
+        totals[e.domain] = (totals[e.domain] || 0) + amt;
+      }
+    }
+    const top = Object.entries(totals)
+      .map(([domain, amount]) => ({ domain, amount: Math.round(amount * 100) / 100 }))
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 10);
+    res.json({ success: true, data: { domains: top } });
+  } catch (err) {
+    console.error('[dashboard-top-domains] error:', err.message);
     res.status(500).json({ success: false, message: err.message });
   }
 });

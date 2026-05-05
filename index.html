@@ -939,6 +939,10 @@
         <canvas class="dashboard-chart" id="dashboardChart"></canvas>
       </div>
     </div>
+    <div class="dashboard-section">
+      <h3>Top 10 web doanh thu (USD)</h3>
+      <div id="dashboardTopDomains" style="display:flex;flex-direction:column;gap:6px;font-size:14px"></div>
+    </div>
   </div>
 
   <!-- Input bar -->
@@ -3399,9 +3403,36 @@
         return;
       }
       renderDashboardStats(data.data, from, to);
+      loadDashboardTopDomains(params);
     } catch (err) {
       console.error('[dashboard] error:', err);
       document.getElementById('dashboardTotalOrders').textContent = 'Lỗi';
+    }
+  }
+
+  async function loadDashboardTopDomains(params) {
+    const el = document.getElementById('dashboardTopDomains');
+    if (!el) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/dashboard-top-domains?${params.toString()}`, {
+        headers: getAuthHeaders(),
+        cache: 'no-store',
+      });
+      const data = await res.json();
+      const list = (data?.data?.domains) || [];
+      if (!list.length) {
+        el.innerHTML = '<div style="color:#999;font-size:13px">Chưa có dữ liệu (chỉ tính đơn USD có link)</div>';
+        return;
+      }
+      el.innerHTML = list.map((d, i) =>
+        `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:#f9f7ff;border-radius:6px">
+          <span><span style="color:#7c5cbf;font-weight:600;margin-right:8px">${i + 1}.</span>${escapeHtml(d.domain)}</span>
+          <span style="font-weight:600;color:#28a745">$${Number(d.amount).toFixed(2)}</span>
+        </div>`
+      ).join('');
+    } catch (err) {
+      console.error('[dashboard-top-domains] error:', err);
+      el.innerHTML = '<div style="color:#e55;font-size:13px">Lỗi load top domains</div>';
     }
   }
 
