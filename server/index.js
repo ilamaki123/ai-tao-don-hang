@@ -693,24 +693,6 @@ For each thumbnail, give a TIGHT bounding box that wraps just the
 photo — no surrounding text/price/whitespace, but include the entire
 visible image (don't cut off product edges).
 
-EXCEPTION 1 — flat/wide products: if the product is at least 2x
-wider than it is tall (flip-flops viewed from the side, watches,
-pens, books seen edge-on, mouse, pencil case, sunglasses), the
-photo's natural background is much taller than the object. Include
-the WHOLE photo rectangle, including whitespace above and below
-the silhouette — do NOT crop tight to just the object's pixels.
-Result should look like a complete product photo, not a zoom on
-its middle stripe.
-
-EXCEPTION 2 — multi-element compositions: if the product image
-shows several objects together as one display (e.g. a single can
-next to its 12-pack box, a pair of shoes side by side, a phone
-with its accessories), include ALL elements inside ONE bounding
-box. Do not crop to just the most salient element.
-
-For all OTHER products (single jar, bottle, single shoe, single
-piece of clothing, single device), keep the tight crop.
-
 Output ONLY this JSON array (no markdown, no code fences, no commentary):
 [
   {"index": 0, "box_2d": [ymin, xmin, ymax, xmax]},
