@@ -912,8 +912,7 @@
     <div class="dashboard-section">
       <h3>Khoảng thời gian</h3>
       <div class="dashboard-presets" id="dashboardPresets">
-        <button class="dashboard-preset active" data-preset="today" onclick="setDashboardPreset('today')">Hôm nay</button>
-        <button class="dashboard-preset" data-preset="7d" onclick="setDashboardPreset('7d')">7 ngày</button>
+        <button class="dashboard-preset active" data-preset="7d" onclick="setDashboardPreset('7d')">7 ngày</button>
         <button class="dashboard-preset" data-preset="month" onclick="setDashboardPreset('month')">Tháng này</button>
         <button class="dashboard-preset" data-preset="year" onclick="setDashboardPreset('year')">Năm nay</button>
         <button class="dashboard-preset" data-preset="custom" onclick="setDashboardPreset('custom')">Tùy chọn</button>
@@ -3289,7 +3288,7 @@
   // ===== DASHBOARD =====
   var _dashboardOpen = false;
   var _dashboardChart = null;
-  var _dashboardPreset = 'today';
+  var _dashboardPreset = '7d';
   var _dashboardCustomFrom = null;
   var _dashboardCustomTo = null;
 
@@ -3332,9 +3331,8 @@
       optMine.value = '';
       optMine.textContent = (sessionUser?.name || sessionUser?.email || 'Tôi') + ' (Tôi)';
       sel.appendChild(optMine);
-      const isAdmin = !!(data && data.isAdmin);
-      sel.disabled = !isAdmin;
-      if (isAdmin && Array.isArray(data.users)) {
+      sel.disabled = false;
+      if (Array.isArray(data?.users)) {
         for (const u of data.users) {
           if (u.user_id === sessionUser?.id) continue;
           const opt = document.createElement('option');

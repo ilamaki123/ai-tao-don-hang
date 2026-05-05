@@ -1024,8 +1024,7 @@ app.get('/api/dashboard-stats', async (req, res) => {
     if (!user) return res.status(401).json({ success: false, message: 'Unauthorized' });
     const isAdmin = (user.roles || []).some(r => /admin/i.test(r));
     const reqUserId = req.query.user_id;
-    let targetUserId = (reqUserId && parseInt(reqUserId)) || user.id;
-    if (!isAdmin) targetUserId = user.id; // non-admin chỉ xem mình
+    const targetUserId = (reqUserId && parseInt(reqUserId)) || user.id;
     console.log('[dashboard-stats] caller=', user.id, 'isAdmin=', isAdmin, 'reqUserId=', reqUserId, 'targetUserId=', targetUserId, 'from=', req.query.from, 'to=', req.query.to);
     const from = req.query.from; // YYYY-MM-DD
     const to = req.query.to;     // YYYY-MM-DD
@@ -1071,7 +1070,6 @@ app.get('/api/dashboard-users', async (req, res) => {
     if (!user) return res.status(401).json({ success: false, message: 'Unauthorized' });
     const isAdmin = (user.roles || []).some(r => /admin/i.test(r));
     console.log('[dashboard-users] user:', { id: user.id, email: user.email, roles: user.roles, isAdmin });
-    if (!isAdmin) return res.json({ success: true, isAdmin: false, users: [] });
     const db = await getDb();
     const [rows] = await db.execute(
       `SELECT
@@ -1098,7 +1096,7 @@ app.get('/api/dashboard-users', async (req, res) => {
     );
     res.json({
       success: true,
-      isAdmin: true,
+      isAdmin,
       users: rows.map(r => ({
         user_id: Number(r.user_id),
         user_email: r.user_email,
