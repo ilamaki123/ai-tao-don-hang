@@ -8,7 +8,10 @@ const fs = require('fs');
 const path = require('path');
 
 const app = express();
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 6 * 1024 * 1024 }, // 6MB — well under Nginx ~15-20MB cap
+});
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const VISION_MODEL = 'gemini-2.5-flash';
 const TEXT_MODEL = 'gemini-2.5-flash';

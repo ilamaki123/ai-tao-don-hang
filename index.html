@@ -2618,10 +2618,11 @@
   }
 
 
-  // Compress image to stay under nginx body limit (~1MB default)
-  async function compressImage(file, maxSizeKB = 900, maxDim = 1600) {
+  // Compress image only when needed. Nginx cap is generous (~15-20MB) and
+  // server multer cap is 6MB, so files ≤ 5MB pass through untouched.
+  async function compressImage(file, maxSizeKB = 5000, maxDim = 2400) {
     return new Promise((resolve) => {
-      // Skip if already small enough
+      // Skip if already small enough — bytes stay deterministic across uploads
       if (file.size <= maxSizeKB * 1024) { resolve(file); return; }
       const img = new Image();
       const url = URL.createObjectURL(file);
@@ -2635,13 +2636,13 @@
         const canvas = document.createElement('canvas');
         canvas.width = w; canvas.height = h;
         canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-        // Try quality levels until under limit
+        // Try quality levels until under limit, start higher than before
         const tryQuality = (q) => {
           canvas.toBlob((blob) => {
             URL.revokeObjectURL(url);
             if (!blob) { resolve(file); return; }
-            if (blob.size > maxSizeKB * 1024 && q > 0.3) {
-              tryQuality(q - 0.1);
+            if (blob.size > maxSizeKB * 1024 && q > 0.6) {
+              tryQuality(q - 0.05);
               return;
             }
             try {
@@ -2652,7 +2653,7 @@
             }
           }, 'image/jpeg', q);
         };
-        tryQuality(0.85);
+        tryQuality(0.92);
       };
       img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
       img.src = url;
@@ -3119,7 +3120,7 @@
     const fileName = _imgUploaderBlob.name || 'image.jpg';
     const blob = _imgUploaderBlob;
     try {
-      const compressed = await compressImage(new File([blob], fileName, { type: blob.type || 'image/jpeg' }), 900, 1600);
+      const compressed = await compressImage(new File([blob], fileName, { type: blob.type || 'image/jpeg' }));
       const formData = new FormData();
       formData.append('file', compressed);
       const res = await fetch(`${API_BASE}/api/upload-image`, { method: 'POST', headers: getAuthHeaders(), body: formData });
