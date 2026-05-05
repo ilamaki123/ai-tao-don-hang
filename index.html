@@ -883,7 +883,7 @@
   <!-- Topbar -->
   <div class="topbar">
     <button class="btn-hamburger" onclick="toggleSidebar()">&#9776;</button>
-    <div class="topbar-search">
+    <div class="topbar-search" id="topbarSearch">
       <input type="text" id="msgSearch" placeholder="Tìm tin nhắn..." oninput="searchMessages()" />
       <span class="topbar-search-count" id="msgSearchCount"></span>
       <button class="topbar-search-clear" id="msgSearchClear" onclick="clearMsgSearch()" style="display:none">&times;</button>
@@ -3299,6 +3299,8 @@
     document.getElementById('messageList').style.display = 'none';
     document.getElementById('emptyState').style.display = 'none';
     document.getElementById('inputArea').style.display = 'none';
+    const topSearch = document.getElementById('topbarSearch');
+    if (topSearch) topSearch.style.visibility = 'hidden';
     closeSidebar();
     initDashboard();
   }
@@ -3306,6 +3308,8 @@
   function closeDashboard() {
     _dashboardOpen = false;
     document.getElementById('dashboardView').classList.remove('show');
+    const topSearch = document.getElementById('topbarSearch');
+    if (topSearch) topSearch.style.visibility = '';
     if (activeSessionId) {
       document.getElementById('messageList').style.display = 'flex';
       document.getElementById('inputArea').style.display = 'flex';
