@@ -1049,15 +1049,17 @@ app.get('/api/dashboard-stats', async (req, res) => {
     if (!user) return res.status(401).json({ success: false, message: 'Unauthorized' });
     const isAdmin = (user.roles || []).some(r => /admin/i.test(r));
     const reqUserId = req.query.user_id;
-    const targetUserId = (reqUserId && parseInt(reqUserId)) || user.id;
+    const targetUserId = (reqUserId && parseInt(reqUserId)) || null;
     console.log('[dashboard-stats] caller=', user.id, 'isAdmin=', isAdmin, 'reqUserId=', reqUserId, 'targetUserId=', targetUserId, 'from=', req.query.from, 'to=', req.query.to);
-    const from = req.query.from; // YYYY-MM-DD
-    const to = req.query.to;     // YYYY-MM-DD
+    const from = req.query.from;
+    const to = req.query.to;
     const db = await getDb();
-    const where = ['user_id = ?'];
-    const params = [targetUserId];
+    const where = [];
+    const params = [];
+    if (targetUserId) { where.push('user_id = ?'); params.push(targetUserId); }
     if (from) { where.push('DATE(created_at) >= ?'); params.push(from); }
     if (to) { where.push('DATE(created_at) <= ?'); params.push(to); }
+    if (!where.length) where.push('1=1');
     const whereSql = where.join(' AND ');
     const [totalRows] = await db.execute(
       `SELECT currency, COUNT(*) AS cnt, SUM(total_amount) AS total FROM order_log WHERE ${whereSql} GROUP BY currency`,
@@ -1089,17 +1091,82 @@ app.get('/api/dashboard-stats', async (req, res) => {
   }
 });
 
+// ===== ORDERS GROUPED BY USER (for dashboard horizontal bar chart) =====
+app.get('/api/dashboard-orders-by-user', async (req, res) => {
+  try {
+    const user = await resolveUserFull(req);
+    if (!user) return res.status(401).json({ success: false, message: 'Unauthorized' });
+    const from = req.query.from;
+    const to = req.query.to;
+    const where = [];
+    const params = [];
+    if (from) { where.push('DATE(ol.created_at) >= ?'); params.push(from); }
+    if (to) { where.push('DATE(ol.created_at) <= ?'); params.push(to); }
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    const db = await getDb();
+    const [rows] = await db.execute(
+      `SELECT
+         agg.user_id,
+         COALESCE(
+           CASE WHEN pt.name      <> '' AND pt.name      NOT LIKE '%@%' THEN pt.name END,
+           CASE WHEN agg.user_name <> '' AND agg.user_name NOT LIKE '%@%' THEN agg.user_name END,
+           NULLIF(pt.name, ''),
+           NULLIF(agg.user_name, ''),
+           ''
+         ) AS user_name,
+         COALESCE(NULLIF(agg.user_email, ''), pt.email, '') AS user_email,
+         agg.order_count
+       FROM (
+         SELECT ol.user_id,
+                MAX(ol.user_email) AS user_email,
+                MAX(ol.user_name)  AS user_name,
+                COUNT(*) AS order_count
+         FROM order_log ol
+         ${whereSql}
+         GROUP BY ol.user_id
+       ) agg
+       LEFT JOIN (
+         SELECT user_id,
+                MAX(email) AS email,
+                COALESCE(
+                  MAX(CASE WHEN name <> '' AND name NOT LIKE '%@%' THEN name END),
+                  MAX(name)
+                ) AS name
+         FROM partner_tokens
+         GROUP BY user_id
+       ) pt ON pt.user_id = agg.user_id
+       ORDER BY agg.order_count DESC`,
+      params
+    );
+    res.json({
+      success: true,
+      data: {
+        users: rows.map(r => ({
+          user_id: Number(r.user_id),
+          user_name: r.user_name,
+          user_email: r.user_email,
+          order_count: Number(r.order_count),
+        })),
+      },
+    });
+  } catch (err) {
+    console.error('[dashboard-orders-by-user] error:', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // ===== TOP 10 DOMAINS BY USD REVENUE =====
 app.get('/api/dashboard-top-domains', async (req, res) => {
   try {
     const user = await resolveUserFull(req);
     if (!user) return res.status(401).json({ success: false, message: 'Unauthorized' });
     const reqUserId = req.query.user_id;
-    const targetUserId = (reqUserId && parseInt(reqUserId)) || user.id;
+    const targetUserId = (reqUserId && parseInt(reqUserId)) || null;
     const from = req.query.from;
     const to = req.query.to;
-    const where = ["user_id = ?", "currency = '$'", "domains_json IS NOT NULL"];
-    const params = [targetUserId];
+    const where = ["currency = '$'", "domains_json IS NOT NULL"];
+    const params = [];
+    if (targetUserId) { where.push('user_id = ?'); params.push(targetUserId); }
     if (from) { where.push('DATE(created_at) >= ?'); params.push(from); }
     if (to) { where.push('DATE(created_at) <= ?'); params.push(to); }
     const db = await getDb();

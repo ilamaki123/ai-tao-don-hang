@@ -904,12 +904,6 @@
   <!-- Dashboard view (ẩn mặc định) -->
   <div class="dashboard-view" id="dashboardView">
     <div class="dashboard-section">
-      <h3>Người dùng</h3>
-      <select class="dashboard-user-select" id="dashboardUserSelect" onchange="onDashboardUserChange()" disabled>
-        <option value="">— Đang tải —</option>
-      </select>
-    </div>
-    <div class="dashboard-section">
       <h3>Khoảng thời gian</h3>
       <div class="dashboard-presets" id="dashboardPresets">
         <button class="dashboard-preset active" data-preset="7d" onclick="setDashboardPreset('7d')">7 ngày</button>
@@ -925,7 +919,7 @@
       </div>
     </div>
     <div class="dashboard-section">
-      <h3>Tổng quan</h3>
+      <h3 id="dashboardOverviewTitle">Tổng quan</h3>
       <div class="dashboard-stats" id="dashboardStatsCards">
         <div class="dashboard-stat-card">
           <div class="dashboard-stat-label">Tổng số đơn</div>
@@ -934,14 +928,12 @@
       </div>
     </div>
     <div class="dashboard-section">
-      <h3>Top 10 web doanh thu (USD)</h3>
+      <h3 id="dashboardTopDomainsTitle">Top 10 web doanh thu (USD)</h3>
       <div id="dashboardTopDomains" style="display:flex;flex-direction:column;gap:6px;font-size:14px"></div>
     </div>
     <div class="dashboard-section">
-      <h3>Số đơn theo ngày</h3>
-      <div class="dashboard-chart-wrap">
-        <canvas class="dashboard-chart" id="dashboardChart"></canvas>
-      </div>
+      <h3>Số đơn theo người dùng <span id="dashboardSelectedHint" style="font-size:13px;color:#7c5cbf;font-weight:500"></span></h3>
+      <div id="dashboardOrdersByUser" style="display:flex;flex-direction:column;gap:8px"></div>
     </div>
   </div>
 
@@ -3291,10 +3283,10 @@
 
   // ===== DASHBOARD =====
   var _dashboardOpen = false;
-  var _dashboardChart = null;
   var _dashboardPreset = '7d';
   var _dashboardCustomFrom = null;
   var _dashboardCustomTo = null;
+  var _dashboardSelectedUser = null; // { id: number, name: string } | null
 
   function toggleDashboard() {
     if (_dashboardOpen) closeDashboard();
@@ -3326,26 +3318,7 @@
   }
 
   async function initDashboard() {
-    try {
-      const res = await fetch(`${API_BASE}/api/dashboard-users`, { headers: getAuthHeaders() });
-      const data = await res.json();
-      const sel = document.getElementById('dashboardUserSelect');
-      sel.innerHTML = '';
-      const optMine = document.createElement('option');
-      optMine.value = '';
-      optMine.textContent = (sessionUser?.name || sessionUser?.email || 'Tôi') + ' (Tôi)';
-      sel.appendChild(optMine);
-      sel.disabled = false;
-      if (Array.isArray(data?.users)) {
-        for (const u of data.users) {
-          if (u.user_id === sessionUser?.id) continue;
-          const opt = document.createElement('option');
-          opt.value = String(u.user_id);
-          opt.textContent = `${u.user_name || u.user_email || 'User #' + u.user_id} (${u.order_count} đơn)`;
-          sel.appendChild(opt);
-        }
-      }
-    } catch {}
+    _dashboardSelectedUser = null;
     loadDashboard();
   }
 
@@ -3380,24 +3353,26 @@
     return { from: from ? fmt(from) : '', to: to ? fmt(to) : '' };
   }
 
-  function onDashboardUserChange() { loadDashboard(); }
-
-  async function loadDashboard() {
+  function buildDashboardParams() {
     const { from, to } = getDashboardRange();
-    const userId = document.getElementById('dashboardUserSelect').value;
     const params = new URLSearchParams();
     if (from) params.set('from', from);
     if (to) params.set('to', to);
-    if (userId) params.set('user_id', userId);
+    if (_dashboardSelectedUser) params.set('user_id', String(_dashboardSelectedUser.id));
     params.set('_t', Date.now());
-    console.log('[dashboard] preset=', _dashboardPreset, 'from=', from, 'to=', to, 'userId=', userId);
+    return { params, from, to };
+  }
+
+  async function loadDashboard() {
+    const { params, from, to } = buildDashboardParams();
+    console.log('[dashboard] preset=', _dashboardPreset, 'from=', from, 'to=', to, 'selectedUser=', _dashboardSelectedUser);
+    updateDashboardSelectedTitles();
     try {
       const res = await fetch(`${API_BASE}/api/dashboard-stats?${params.toString()}`, {
         headers: getAuthHeaders(),
         cache: 'no-store',
       });
       const data = await res.json();
-      console.log('[dashboard] response totalOrders=', data?.data?.totalOrders, 'byDay len=', (data?.data?.byDay || []).length);
       if (!data.success) {
         document.getElementById('dashboardTotalOrders').textContent = 'Lỗi';
         return;
@@ -3408,6 +3383,77 @@
       console.error('[dashboard] error:', err);
       document.getElementById('dashboardTotalOrders').textContent = 'Lỗi';
     }
+    // Per-user bar chart always shows ALL users (independent of selection)
+    loadDashboardOrdersByUser(from, to);
+  }
+
+  function updateDashboardSelectedTitles() {
+    const suffix = _dashboardSelectedUser
+      ? ` <span style="font-weight:500;color:#7c5cbf;font-size:14px"> — ${escapeHtml(_dashboardSelectedUser.name)}</span>`
+      : '';
+    const ov = document.getElementById('dashboardOverviewTitle');
+    const td = document.getElementById('dashboardTopDomainsTitle');
+    const hint = document.getElementById('dashboardSelectedHint');
+    if (ov) ov.innerHTML = 'Tổng quan' + suffix;
+    if (td) td.innerHTML = 'Top 10 web doanh thu (USD)' + suffix;
+    if (hint) hint.textContent = _dashboardSelectedUser ? '(click lại tên để bỏ lọc)' : '';
+  }
+
+  async function loadDashboardOrdersByUser(from, to) {
+    const el = document.getElementById('dashboardOrdersByUser');
+    if (!el) return;
+    const params = new URLSearchParams();
+    if (from) params.set('from', from);
+    if (to) params.set('to', to);
+    params.set('_t', Date.now());
+    try {
+      const res = await fetch(`${API_BASE}/api/dashboard-orders-by-user?${params.toString()}`, {
+        headers: getAuthHeaders(),
+        cache: 'no-store',
+      });
+      const data = await res.json();
+      const users = (data?.data?.users) || [];
+      renderOrdersByUser(users);
+    } catch (err) {
+      console.error('[dashboard-orders-by-user] error:', err);
+      el.innerHTML = '<div style="color:#e55;font-size:13px">Lỗi load</div>';
+    }
+  }
+
+  function renderOrdersByUser(users) {
+    const el = document.getElementById('dashboardOrdersByUser');
+    if (!el) return;
+    if (!users.length) {
+      el.innerHTML = '<div style="color:#999;font-size:13px">Chưa có đơn nào trong khoảng này</div>';
+      return;
+    }
+    const max = Math.max(...users.map(u => u.order_count));
+    const selectedId = _dashboardSelectedUser?.id;
+    el.innerHTML = users.map(u => {
+      const pct = max > 0 ? Math.round((u.order_count / max) * 100) : 0;
+      const isSelected = selectedId === u.user_id;
+      const isDimmed = selectedId && !isSelected;
+      const opacity = isDimmed ? '0.35' : '1';
+      const barColor = isSelected ? '#5b3fa3' : '#7C5ACB';
+      const labelText = u.user_name || u.user_email || ('User #' + u.user_id);
+      return `<div onclick="onDashboardUserBarClick(${u.user_id}, ${JSON.stringify(labelText).replace(/"/g, '&quot;')})"
+        style="display:grid;grid-template-columns:140px 1fr auto;gap:10px;align-items:center;cursor:pointer;opacity:${opacity};transition:opacity .15s">
+        <span style="font-size:14px;font-weight:600;color:#00354E;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(labelText)}">${escapeHtml(labelText)}</span>
+        <div style="background:#eee;border-radius:6px;height:22px;overflow:hidden">
+          <div style="background:${barColor};height:100%;width:${pct}%;transition:width .2s"></div>
+        </div>
+        <span style="font-size:14px;font-weight:600;color:#00354E;min-width:36px;text-align:right">${u.order_count}</span>
+      </div>`;
+    }).join('');
+  }
+
+  function onDashboardUserBarClick(userId, name) {
+    if (_dashboardSelectedUser?.id === userId) {
+      _dashboardSelectedUser = null;
+    } else {
+      _dashboardSelectedUser = { id: userId, name };
+    }
+    loadDashboard();
   }
 
   async function loadDashboardTopDomains(params) {
@@ -3455,59 +3501,6 @@
       `;
     }
     cardsEl.innerHTML = html;
-    renderDashboardChart(stats.byDay || [], from, to);
-  }
-
-  function renderDashboardChart(byDay, from, to) {
-    if (!window.Chart) return;
-    const ctx = document.getElementById('dashboardChart');
-    if (!ctx) return;
-    // Build day labels in range
-    const labels = [];
-    const counts = {};
-    const fmt = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-    if (from && to) {
-      const d = new Date(from + 'T00:00:00');
-      const end = new Date(to + 'T00:00:00');
-      while (d <= end) {
-        const key = fmt(d);
-        labels.push(key);
-        counts[key] = 0;
-        d.setDate(d.getDate() + 1);
-      }
-    }
-    for (const r of byDay) {
-      const key = (typeof r.day === 'string' ? r.day.slice(0, 10) : fmt(new Date(r.day)));
-      counts[key] = (counts[key] || 0) + r.count;
-    }
-    const data = labels.map(l => counts[l] || 0);
-    if (_dashboardChart) {
-      try { _dashboardChart.destroy(); } catch {}
-      _dashboardChart = null;
-    }
-    _dashboardChart = new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels: labels.map(l => `${l.slice(8, 10)}-${l.slice(5, 7)}`),
-        datasets: [{
-          label: 'Số đơn',
-          data,
-          backgroundColor: '#7C5ACB',
-          borderRadius: 4,
-          maxBarThickness: 60,
-          categoryPercentage: 0.7,
-          barPercentage: 0.9,
-        }],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        animation: false,
-        resizeDelay: 100,
-        scales: { y: { beginAtZero: true, ticks: { stepSize: 1, precision: 0 } } },
-        plugins: { legend: { display: false } },
-      },
-    });
   }
   // ===== END DASHBOARD =====
 
