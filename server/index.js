@@ -657,6 +657,7 @@ Nếu ảnh không chứa sản phẩm nào, trả về {"items":[]}.
         maxOutputTokens: 4096,
         temperature: 0,
         thinkingConfig: { thinkingBudget: 0 },
+        responseMimeType: 'application/json',
       },
     });
     const response = await model.generateContent([
@@ -665,20 +666,33 @@ Nếu ảnh không chứa sản phẩm nào, trả về {"items":[]}.
     ]);
     const rawText = (response.response.text() || '').trim();
     console.log('[analyze-image] raw response:', rawText.slice(0, 2000));
-    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      console.error('[analyze-image] no JSON in response. Full text:', rawText);
-      return res.status(500).json({ success: false, message: 'Không thể trích xuất thông tin từ ảnh', debug: rawText.slice(0, 500) });
-    }
+
+    // Strip optional ```json fences
+    const cleaned = rawText.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim();
 
     let extracted;
     try {
-      extracted = JSON.parse(jsonMatch[0]);
+      extracted = JSON.parse(cleaned);
     } catch (parseErr) {
-      console.error('[analyze-image] JSON parse failed:', parseErr.message);
-      console.error('[analyze-image] JSON candidate:', jsonMatch[0].slice(0, 2000));
-      return res.status(500).json({ success: false, message: 'JSON không hợp lệ: ' + parseErr.message, debug: jsonMatch[0].slice(0, 500) });
+      // Fallback: try to extract a balanced array OR object substring
+      const arrMatch = cleaned.match(/\[[\s\S]*\]/);
+      const objMatch = cleaned.match(/\{[\s\S]*\}/);
+      const candidate = arrMatch ? arrMatch[0] : (objMatch ? objMatch[0] : '');
+      if (!candidate) {
+        console.error('[analyze-image] no JSON in response. Full text:', rawText);
+        return res.status(500).json({ success: false, message: 'Không thể trích xuất thông tin từ ảnh', debug: rawText.slice(0, 500) });
+      }
+      try {
+        extracted = JSON.parse(candidate);
+      } catch (parseErr2) {
+        console.error('[analyze-image] JSON parse failed:', parseErr2.message);
+        console.error('[analyze-image] JSON candidate:', candidate.slice(0, 2000));
+        return res.status(500).json({ success: false, message: 'JSON không hợp lệ: ' + parseErr2.message, debug: candidate.slice(0, 500) });
+      }
     }
+
+    // Accept both `{"items":[...]}` and bare array `[{...},{...}]` shapes
+    if (Array.isArray(extracted)) extracted = { items: extracted };
 
     const items = (extracted.items || []).map((item, i) => ({
       ...item,
