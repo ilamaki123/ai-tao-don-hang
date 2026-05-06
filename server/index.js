@@ -821,14 +821,18 @@ If no thumbnails are visible, output [].`;
         }
       }
     } else if (rawProducts.length > 1) {
-      // Multiple bboxes → Pattern 1 (cart). Only widen vertically when the
-      // object is FLAT (w > h * 1.3), to recover the natural top/bottom
-      // whitespace that gets dropped by Gemini's tight crop on side-view
-      // sandals, watches, pens, etc. Tall objects (model wearing a shirt,
-      // standing shoe) already fit the cart's tall thumbnail tile — forcing
-      // a square there extends horizontally and bleeds into the product
-      // name/price text on the right.
-      let modified = 0;
+      // Multiple bboxes → Pattern 1 (cart). Two transforms:
+      //   - Wide/flat object (w > h * 1.3) → force square by extending y,
+      //     to recover the natural top/bottom whitespace (sandals viewed
+      //     side-on, watches, pens).
+      //   - Tall/square object → add 10% padding on every side so the
+      //     subject isn't glued to the thumbnail edges. Gives shirts /
+      //     bottles breathing room and visually centers them in the
+      //     thumbnail tile.
+      // 10% is small enough that text-bleed risk on tight cart layouts
+      // stays minor (a few pixels), but noticeably rounds out the
+      // composition.
+      let widened = 0, padded = 0;
       for (const p of rawProducts) {
         const b = Array.isArray(p.box_2d) ? p.box_2d : null;
         if (!b || b.length !== 4) continue;
@@ -843,10 +847,20 @@ If no thumbnails are visible, output [].`;
             Math.min(1000, Math.round(cy + half)),
             b[3],
           ];
-          modified++;
+          widened++;
+        } else {
+          const padY = Math.round(h * 0.1);
+          const padX = Math.round(w * 0.1);
+          p.box_2d = [
+            Math.max(0, b[0] - padY),
+            Math.max(0, b[1] - padX),
+            Math.min(1000, b[2] + padY),
+            Math.min(1000, b[3] + padX),
+          ];
+          padded++;
         }
       }
-      console.log('[extract-product-images] post-process: Pattern 1 → squared', modified, 'of', rawProducts.length, 'wide bboxes');
+      console.log('[extract-product-images] post-process: Pattern 1 →', widened, 'widened,', padded, 'padded of', rawProducts.length);
     }
 
     const normalized = rawProducts.map((p, i) => {
