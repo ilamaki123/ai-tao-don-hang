@@ -2700,24 +2700,40 @@
     });
   }
 
-  // If the bbox sits on a non-white "cell" background (typical e-commerce
-  // product cells that use grey or beige tiles), expand the crop to the
-  // edges of that colored region. Stops at the page background — defined
-  // as a contiguous run of white pixels — so light-coloured products
-  // (bone-white cap, light dress) don't trigger a false stop on their own
-  // pixels.
+  // Walk outward from bbox center in 4 directions; stop where the pixel
+  // matches the PAGE background colour (which we sample directly from the
+  // image perimeter, instead of assuming pure white). The detected stop
+  // points define the colour cell boundary.
   function expandToColoredCell(imgData, imgW, imgH, x, y, w, h) {
-    const WHITE_THRESH = 248;
-    const RUN_LEN = 10; // require 10 contiguous white pixels to call it page bg
     const idx = (px, py) => (py * imgW + px) * 4;
-    const isWhite = (px, py) => {
-      if (px < 0 || px >= imgW || py < 0 || py >= imgH) return true; // outside image == page edge
+
+    // 1) Sample the page-bg colour from the image perimeter (top + bottom
+    //    edges, away from extreme corners). Median R/G/B across samples.
+    const perimRs = [], perimGs = [], perimBs = [];
+    const stride = Math.max(1, Math.floor(imgW / 30));
+    for (let px = 10; px < imgW - 10; px += stride) {
+      // top edge
+      let i = idx(px, 2);
+      perimRs.push(imgData[i]); perimGs.push(imgData[i + 1]); perimBs.push(imgData[i + 2]);
+      // bottom edge
+      i = idx(px, imgH - 3);
+      perimRs.push(imgData[i]); perimGs.push(imgData[i + 1]); perimBs.push(imgData[i + 2]);
+    }
+    const median = arr => { const s = [...arr].sort((a, b) => a - b); return s[Math.floor(s.length / 2)]; };
+    const pageR = median(perimRs), pageG = median(perimGs), pageB = median(perimBs);
+
+    const TOL = 8; // tolerance per channel for "matches page bg"
+    const isPageBg = (px, py) => {
+      if (px < 0 || px >= imgW || py < 0 || py >= imgH) return true;
       const i = idx(px, py);
-      return imgData[i] > WHITE_THRESH && imgData[i + 1] > WHITE_THRESH && imgData[i + 2] > WHITE_THRESH;
+      return Math.abs(imgData[i] - pageR) <= TOL
+          && Math.abs(imgData[i + 1] - pageG) <= TOL
+          && Math.abs(imgData[i + 2] - pageB) <= TOL;
     };
 
-    // Quick reject: sample 8 points around the bbox boundary. If too few
-    // are non-white, the surrounding is page bg, not a coloured cell.
+    // 2) Quick reject: sample 8 points around the bbox edge. If most are
+    //    page-bg, the product cell is the same colour as the page (e.g.
+    //    polo on white) and there's no cell boundary to find.
     const ix = Math.round(x), iy = Math.round(y);
     const iw = Math.round(w), ih = Math.round(h);
     const offX = Math.max(2, Math.round(iw * 0.05));
@@ -2728,21 +2744,22 @@
       [ix + Math.round(iw / 2), iy + offY], [ix + Math.round(iw / 2), iy + ih - offY],
       [ix + offX, iy + Math.round(ih / 2)], [ix + iw - offX, iy + Math.round(ih / 2)],
     ];
-    let nonWhite = 0;
+    let nonPageBg = 0;
     for (const [sx, sy] of samplePts) {
-      if (!isWhite(sx, sy)) nonWhite++;
+      if (!isPageBg(sx, sy)) nonPageBg++;
     }
-    if (nonWhite < 3) return null; // mostly white surroundings — skip
+    if (nonPageBg < 3) return null;
 
-    // Anchor at bbox center. The walk passes through the product object
-    // (whatever colour it is) and stops only when it hits a long run of
-    // white pixels — i.e. the page background outside the cell.
+    // 3) Walk from bbox center in 4 directions. Stop when pixel matches
+    //    page-bg AND the next 8 pixels also match (avoid stopping inside
+    //    a near-white object pixel by accident).
     const cx = Math.round(x + w / 2);
     const cy = Math.round(y + h / 2);
 
-    function isPageBgRun(startX, startY, dx, dy) {
+    const RUN_LEN = 8;
+    function isPageBgRun(sx, sy, dx, dy) {
       for (let i = 0; i < RUN_LEN; i++) {
-        if (!isWhite(startX + dx * i, startY + dy * i)) return false;
+        if (!isPageBg(sx + dx * i, sy + dy * i)) return false;
       }
       return true;
     }
@@ -2753,7 +2770,7 @@
       const limit = Math.max(imgW, imgH);
       for (let step = 0; step < limit; step++) {
         if (px < 0 || px >= imgW || py < 0 || py >= imgH) return lastInside;
-        if (isWhite(px, py) && isPageBgRun(px, py, dx, dy)) return lastInside;
+        if (isPageBg(px, py) && isPageBgRun(px, py, dx, dy)) return lastInside;
         lastInside = [px, py];
         px += dx; py += dy;
       }
@@ -2769,8 +2786,6 @@
     const newY = Math.max(0, topY);
     const newW = Math.min(imgW - newX, rightX - leftX + 1);
     const newH = Math.min(imgH - newY, botY - topY + 1);
-    // Sanity: cell expansion should not make the bbox dramatically smaller
-    // and must be at least 30 px in either dim
     if (newW < 30 || newH < 30) return null;
     if (newW < w * 0.5 || newH < h * 0.5) return null;
     return { x: newX, y: newY, w: newW, h: newH };
