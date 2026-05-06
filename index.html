@@ -2701,30 +2701,43 @@
   }
 
   // Walk outward from bbox center in 4 directions; stop where the pixel
-  // matches the PAGE background colour (which we sample directly from the
-  // image perimeter, instead of assuming pure white). The detected stop
-  // points define the colour cell boundary.
+  // matches the PAGE background colour. Sampled from image perimeter,
+  // filtered to near-white only so a screenshot's black border or
+  // off-white row separators don't pollute the median.
   function expandToColoredCell(imgData, imgW, imgH, x, y, w, h) {
     const idx = (px, py) => (py * imgW + px) * 4;
 
-    // 1) Sample the page-bg colour from the image perimeter (top + bottom
-    //    edges, away from extreme corners). Median R/G/B across samples.
-    const perimRs = [], perimGs = [], perimBs = [];
-    const stride = Math.max(1, Math.floor(imgW / 30));
-    for (let px = 10; px < imgW - 10; px += stride) {
-      // top edge
-      let i = idx(px, 2);
-      perimRs.push(imgData[i]); perimGs.push(imgData[i + 1]); perimBs.push(imgData[i + 2]);
-      // bottom edge
-      i = idx(px, imgH - 3);
-      perimRs.push(imgData[i]); perimGs.push(imgData[i + 1]); perimBs.push(imgData[i + 2]);
+    // 1) Sample many perimeter points at 5% inset from edges (avoids
+    //    Lightshot/screenshot black borders). Filter to near-white only —
+    //    page bg is always a bright uniform region; a dark perimeter
+    //    pixel is noise (border, separator line, content edge).
+    const insetX = Math.max(5, Math.round(imgW * 0.05));
+    const insetY = Math.max(5, Math.round(imgH * 0.05));
+    const sR = [], sG = [], sB = [];
+    const strideX = Math.max(1, Math.floor(imgW / 40));
+    const strideY = Math.max(1, Math.floor(imgH / 40));
+    for (let pix = insetX; pix < imgW - insetX; pix += strideX) {
+      for (const py of [insetY, imgH - 1 - insetY]) {
+        const i = idx(pix, py);
+        sR.push(imgData[i]); sG.push(imgData[i + 1]); sB.push(imgData[i + 2]);
+      }
     }
+    for (let pix = insetY; pix < imgH - insetY; pix += strideY) {
+      for (const px of [insetX, imgW - 1 - insetX]) {
+        const i = idx(px, pix);
+        sR.push(imgData[i]); sG.push(imgData[i + 1]); sB.push(imgData[i + 2]);
+      }
+    }
+    const keepR = [], keepG = [], keepB = [];
+    for (let k = 0; k < sR.length; k++) {
+      if (sR[k] + sG[k] + sB[k] > 600) {
+        keepR.push(sR[k]); keepG.push(sG[k]); keepB.push(sB[k]);
+      }
+    }
+    if (keepR.length < 5) return null;
     const median = arr => { const s = [...arr].sort((a, b) => a - b); return s[Math.floor(s.length / 2)]; };
-    const pageR = median(perimRs), pageG = median(perimGs), pageB = median(perimBs);
+    const pageR = median(keepR), pageG = median(keepG), pageB = median(keepB);
 
-    // Tolerance per channel for "matches page bg". 5 distinguishes light
-    // grey cells (~245) from off-white pages (~252) reliably; with 8 the
-    // walks could drift past the cell edge into the row's text column.
     const TOL = 5;
     const isPageBg = (px, py) => {
       if (px < 0 || px >= imgW || py < 0 || py >= imgH) return true;
@@ -2734,17 +2747,24 @@
           && Math.abs(imgData[i + 2] - pageB) <= TOL;
     };
 
-    // 2) Walk from bbox CENTER in 4 directions. The center reliably falls
-    //    inside the photo cell even when Gemini's bbox overshoots — the
-    //    cell is always somewhere around the object, and the object is
-    //    always somewhere around the bbox center. Sampling boundary points
-    //    for an early reject doesn't work here because an overshot bbox
-    //    has its boundary on page-bg, not on the cell. The sanity-size
-    //    check at the end protects against bogus expansions (white-on-white
-    //    bbox where the walk stops immediately and returns a tiny region).
     const cx = Math.round(x + w / 2);
     const cy = Math.round(y + h / 2);
 
+    // 2) Pre-walk: sample 9 points around the bbox centre. If most are
+    //    page-bg, the product is on a same-colour-as-page background
+    //    (white-on-white sandal cart), so there's no coloured cell to
+    //    detect — skip and let the padded bbox be used as-is.
+    const csamples = [
+      [cx, cy], [cx + 5, cy], [cx - 5, cy], [cx, cy + 5], [cx, cy - 5],
+      [cx + 10, cy + 10], [cx - 10, cy + 10], [cx + 10, cy - 10], [cx - 10, cy - 10],
+    ];
+    let centerNonPage = 0;
+    for (const [sx, sy] of csamples) {
+      if (sx >= 0 && sx < imgW && sy >= 0 && sy < imgH && !isPageBg(sx, sy)) centerNonPage++;
+    }
+    if (centerNonPage < 4) return null;
+
+    // 3) Walk in 4 directions; stop at a contiguous page-bg run.
     const RUN_LEN = 8;
     function isPageBgRun(sx, sy, dx, dy) {
       for (let i = 0; i < RUN_LEN; i++) {
