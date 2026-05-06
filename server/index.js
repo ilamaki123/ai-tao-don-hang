@@ -832,13 +832,15 @@ If no thumbnails are visible, output [].`;
       // 10% is small enough that text-bleed risk on tight cart layouts
       // stays minor (a few pixels), but noticeably rounds out the
       // composition.
-      let widened = 0, padded = 0;
+      let widened = 0, padded = 0, anchoredTop = 0;
       for (const p of rawProducts) {
         const b = Array.isArray(p.box_2d) ? p.box_2d : null;
         if (!b || b.length !== 4) continue;
         const w = b[3] - b[1];
         const h = b[2] - b[0];
         if (w > h * 1.3) {
+          // Wide/flat object → square via vertical extension (sandals viewed
+          // side-on, watches, pens). Centered on object center.
           const cy = (b[0] + b[2]) / 2;
           const half = w / 2;
           p.box_2d = [
@@ -848,7 +850,22 @@ If no thumbnails are visible, output [].`;
             b[3],
           ];
           widened++;
+        } else if (h > w * 2) {
+          // Very tall bbox (h > w*2). Gemini frequently overshoots cell
+          // bounds vertically here, dragging in text below the thumbnail
+          // (cap-with-text-below pattern). Snap back to a width × width
+          // square anchored at the top of the original bbox — the photo
+          // cell almost always starts at the bbox's ymin.
+          p.box_2d = [
+            b[0],
+            b[1],
+            Math.min(1000, b[0] + w),
+            b[3],
+          ];
+          anchoredTop++;
         } else {
+          // Tall-ish or square-ish object → 10% padding all sides for a
+          // breathing-room look (polo shirts, bottles, jars).
           const padY = Math.round(h * 0.1);
           const padX = Math.round(w * 0.1);
           p.box_2d = [
@@ -860,7 +877,7 @@ If no thumbnails are visible, output [].`;
           padded++;
         }
       }
-      console.log('[extract-product-images] post-process: Pattern 1 →', widened, 'widened,', padded, 'padded of', rawProducts.length);
+      console.log('[extract-product-images] post-process: Pattern 1 →', widened, 'widened,', anchoredTop, 'anchored-top,', padded, 'padded of', rawProducts.length);
     }
 
     const normalized = rawProducts.map((p, i) => {
