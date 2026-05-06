@@ -2813,7 +2813,11 @@
         srcCtx.drawImage(img, 0, 0);
         const imgData = srcCtx.getImageData(0, 0, img.naturalWidth, img.naturalHeight).data;
 
-        const PAD = 0.10;
+        // Padding adds breathing room for cart thumbnails (multiple bboxes).
+        // For a single-bbox case (detail page or clean photo) the server
+        // already chose precise bounds — extra client padding bleeds into
+        // sidebar text on detail pages.
+        const PAD = products.length > 1 ? 0.10 : 0;
         const results = products.map(p => {
           const canvas = document.createElement('canvas');
           const rawX = (p.xPct / 100) * img.naturalWidth;
