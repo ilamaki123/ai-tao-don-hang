@@ -2734,28 +2734,14 @@
           && Math.abs(imgData[i + 2] - pageB) <= TOL;
     };
 
-    // 2) Quick reject: sample 8 points around the bbox edge. If most are
-    //    page-bg, the product cell is the same colour as the page (e.g.
-    //    polo on white) and there's no cell boundary to find.
-    const ix = Math.round(x), iy = Math.round(y);
-    const iw = Math.round(w), ih = Math.round(h);
-    const offX = Math.max(2, Math.round(iw * 0.05));
-    const offY = Math.max(2, Math.round(ih * 0.05));
-    const samplePts = [
-      [ix + offX, iy + offY], [ix + iw - offX, iy + offY],
-      [ix + offX, iy + ih - offY], [ix + iw - offX, iy + ih - offY],
-      [ix + Math.round(iw / 2), iy + offY], [ix + Math.round(iw / 2), iy + ih - offY],
-      [ix + offX, iy + Math.round(ih / 2)], [ix + iw - offX, iy + Math.round(ih / 2)],
-    ];
-    let nonPageBg = 0;
-    for (const [sx, sy] of samplePts) {
-      if (!isPageBg(sx, sy)) nonPageBg++;
-    }
-    if (nonPageBg < 3) return null;
-
-    // 3) Walk from bbox center in 4 directions. Stop when pixel matches
-    //    page-bg AND the next 8 pixels also match (avoid stopping inside
-    //    a near-white object pixel by accident).
+    // 2) Walk from bbox CENTER in 4 directions. The center reliably falls
+    //    inside the photo cell even when Gemini's bbox overshoots — the
+    //    cell is always somewhere around the object, and the object is
+    //    always somewhere around the bbox center. Sampling boundary points
+    //    for an early reject doesn't work here because an overshot bbox
+    //    has its boundary on page-bg, not on the cell. The sanity-size
+    //    check at the end protects against bogus expansions (white-on-white
+    //    bbox where the walk stops immediately and returns a tiny region).
     const cx = Math.round(x + w / 2);
     const cy = Math.round(y + h / 2);
 
