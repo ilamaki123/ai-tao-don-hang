@@ -2702,61 +2702,77 @@
 
   // If the bbox sits on a non-white "cell" background (typical e-commerce
   // product cells that use grey or beige tiles), expand the crop to the
-  // edges of that colored region. Stops at white because that's where
-  // the cell ends and the page background begins.
-  function expandToColoredCell(srcCtx, imgW, imgH, x, y, w, h) {
-    const isWhite = (r, g, b) => r > 240 && g > 240 && b > 240;
-    // Sample several points just inside the bbox edges to pick a reliable
-    // background color. Median-ish: pick the most common non-white sample.
+  // edges of that colored region. Stops at the page background — defined
+  // as a contiguous run of white pixels — so light-coloured products
+  // (bone-white cap, light dress) don't trigger a false stop on their own
+  // pixels.
+  function expandToColoredCell(imgData, imgW, imgH, x, y, w, h) {
+    const WHITE_THRESH = 248;
+    const RUN_LEN = 10; // require 10 contiguous white pixels to call it page bg
+    const idx = (px, py) => (py * imgW + px) * 4;
+    const isWhite = (px, py) => {
+      if (px < 0 || px >= imgW || py < 0 || py >= imgH) return true; // outside image == page edge
+      const i = idx(px, py);
+      return imgData[i] > WHITE_THRESH && imgData[i + 1] > WHITE_THRESH && imgData[i + 2] > WHITE_THRESH;
+    };
+
+    // Quick reject: sample 8 points around the bbox boundary. If too few
+    // are non-white, the surrounding is page bg, not a coloured cell.
+    const ix = Math.round(x), iy = Math.round(y);
+    const iw = Math.round(w), ih = Math.round(h);
+    const offX = Math.max(2, Math.round(iw * 0.05));
+    const offY = Math.max(2, Math.round(ih * 0.05));
     const samplePts = [
-      [x + Math.min(8, w * 0.05), y + Math.min(8, h * 0.05)],
-      [x + w - Math.min(8, w * 0.05), y + Math.min(8, h * 0.05)],
-      [x + Math.min(8, w * 0.05), y + h - Math.min(8, h * 0.05)],
-      [x + w - Math.min(8, w * 0.05), y + h - Math.min(8, h * 0.05)],
-      [x + w / 2, y + Math.min(8, h * 0.05)],
-      [x + w / 2, y + h - Math.min(8, h * 0.05)],
+      [ix + offX, iy + offY], [ix + iw - offX, iy + offY],
+      [ix + offX, iy + ih - offY], [ix + iw - offX, iy + ih - offY],
+      [ix + Math.round(iw / 2), iy + offY], [ix + Math.round(iw / 2), iy + ih - offY],
+      [ix + offX, iy + Math.round(ih / 2)], [ix + iw - offX, iy + Math.round(ih / 2)],
     ];
-    let nonWhiteCount = 0, totalR = 0, totalG = 0, totalB = 0;
+    let nonWhite = 0;
     for (const [sx, sy] of samplePts) {
-      const px = srcCtx.getImageData(Math.max(0, Math.min(imgW - 1, Math.round(sx))), Math.max(0, Math.min(imgH - 1, Math.round(sy))), 1, 1).data;
-      if (!isWhite(px[0], px[1], px[2])) {
-        nonWhiteCount++;
-        totalR += px[0]; totalG += px[1]; totalB += px[2];
-      }
+      if (!isWhite(sx, sy)) nonWhite++;
     }
-    // Need at least 4 of 6 corners to be non-white to trust there's a colored cell.
-    if (nonWhiteCount < 4) return null;
+    if (nonWhite < 3) return null; // mostly white surroundings — skip
 
-    // Anchor: middle of the top edge — likely on the cell bg, above the
-    // product object even if Gemini bbox starts above the cell.
-    const ax = Math.round(x + w / 2);
-    const ay = Math.round(y + Math.min(8, h * 0.05));
+    // Anchor at bbox center. The walk passes through the product object
+    // (whatever colour it is) and stops only when it hits a long run of
+    // white pixels — i.e. the page background outside the cell.
+    const cx = Math.round(x + w / 2);
+    const cy = Math.round(y + h / 2);
 
-    function walkUntilWhite(startX, startY, dx, dy) {
-      let cx = startX, cy = startY;
-      let last = [cx, cy];
+    function isPageBgRun(startX, startY, dx, dy) {
+      for (let i = 0; i < RUN_LEN; i++) {
+        if (!isWhite(startX + dx * i, startY + dy * i)) return false;
+      }
+      return true;
+    }
+
+    function walkToCellEdge(dx, dy) {
+      let lastInside = [cx, cy];
+      let px = cx + dx, py = cy + dy;
       const limit = Math.max(imgW, imgH);
-      for (let i = 0; i < limit; i++) {
-        if (cx < 0 || cx >= imgW || cy < 0 || cy >= imgH) return last;
-        const px = srcCtx.getImageData(cx, cy, 1, 1).data;
-        if (isWhite(px[0], px[1], px[2])) return [cx - dx, cy - dy];
-        last = [cx, cy];
-        cx += dx; cy += dy;
+      for (let step = 0; step < limit; step++) {
+        if (px < 0 || px >= imgW || py < 0 || py >= imgH) return lastInside;
+        if (isWhite(px, py) && isPageBgRun(px, py, dx, dy)) return lastInside;
+        lastInside = [px, py];
+        px += dx; py += dy;
       }
-      return last;
+      return lastInside;
     }
 
-    const [leftX] = walkUntilWhite(ax, ay, -1, 0);
-    const [rightX] = walkUntilWhite(ax, ay, 1, 0);
-    const [, topY] = walkUntilWhite(ax, ay, 0, -1);
-    const [, botY] = walkUntilWhite(ax, ay, 0, 1);
+    const [, topY] = walkToCellEdge(0, -1);
+    const [, botY] = walkToCellEdge(0, 1);
+    const [leftX] = walkToCellEdge(-1, 0);
+    const [rightX] = walkToCellEdge(1, 0);
 
     const newX = Math.max(0, leftX);
     const newY = Math.max(0, topY);
     const newW = Math.min(imgW - newX, rightX - leftX + 1);
     const newH = Math.min(imgH - newY, botY - topY + 1);
-    // Sanity: must be at least as big as the original bbox
-    if (newW < w * 0.7 || newH < h * 0.7) return null;
+    // Sanity: cell expansion should not make the bbox dramatically smaller
+    // and must be at least 30 px in either dim
+    if (newW < 30 || newH < 30) return null;
+    if (newW < w * 0.5 || newH < h * 0.5) return null;
     return { x: newX, y: newY, w: newW, h: newH };
   }
 
@@ -2765,12 +2781,13 @@
       const img = new Image();
       const url = URL.createObjectURL(file);
       img.onload = () => {
-        // Draw full image once into a hidden canvas for pixel sampling.
+        // Read full image data once for fast pixel sampling
         const srcCanvas = document.createElement('canvas');
         srcCanvas.width = img.naturalWidth;
         srcCanvas.height = img.naturalHeight;
         const srcCtx = srcCanvas.getContext('2d', { willReadFrequently: true });
         srcCtx.drawImage(img, 0, 0);
+        const imgData = srcCtx.getImageData(0, 0, img.naturalWidth, img.naturalHeight).data;
 
         const PAD = 0.10;
         const results = products.map(p => {
@@ -2787,8 +2804,8 @@
           let h = Math.min(img.naturalHeight - y, rawH + padY * 2);
 
           // Try expanding to a colored cell (grey/beige tile). Falls back
-          // to the original bbox when bg is white.
-          const expanded = expandToColoredCell(srcCtx, img.naturalWidth, img.naturalHeight, x, y, w, h);
+          // to the padded bbox when bg is white or detection fails.
+          const expanded = expandToColoredCell(imgData, img.naturalWidth, img.naturalHeight, x, y, w, h);
           if (expanded) {
             x = expanded.x; y = expanded.y; w = expanded.w; h = expanded.h;
           }
