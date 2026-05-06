@@ -168,6 +168,10 @@ async function getDb() {
       waitForConnections: true,
       connectionLimit: 5,
       charset: 'utf8mb4',
+      // Prevent stale connections after long idle (default MySQL wait_timeout = 8h)
+      enableKeepAlive: true,
+      keepAliveInitialDelay: 0,
+      idleTimeout: 60000, // 1 min — pool drops idle conn, reopens fresh on next query
     });
     try {
       const [r] = await dbPool.execute('SELECT VERSION() AS v, DATABASE() AS db, CURRENT_USER() AS u');
@@ -1039,6 +1043,25 @@ Chỉ trả về đúng 1 câu, không giải thích, không markdown.`;
   }
 });
 
+// ===== HEALTH CHECK =====
+// Lightweight liveness + DB readiness probe for uptime monitors and PM2 watchdog.
+// 200 = process alive AND DB query works. 500 = something wrong.
+app.get('/api/health', async (req, res) => {
+  try {
+    const db = await getDb();
+    const [r] = await db.execute('SELECT 1 AS ok');
+    res.json({
+      success: true,
+      ok: r[0].ok === 1,
+      uptime_sec: Math.round(process.uptime()),
+      memory_mb: Math.round(process.memoryUsage().rss / 1024 / 1024),
+    });
+  } catch (err) {
+    console.error('[health] DB check failed:', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // ===== DEBUG: who am I =====
 app.get('/api/me', async (req, res) => {
   const fromCache = resolveUser(req);
@@ -1268,12 +1291,16 @@ app.use((err, req, res, next) => {
   if (!res.headersSent) res.status(500).json({ success: false, message: err.message });
 });
 
-// Prevent process crash on unhandled errors
+// On unhandled errors: log full info and EXIT so PM2 restarts cleanly.
+// Continuing after uncaughtException keeps a corrupted-state process running,
+// which is what causes "bot ngủ" — process alive but DB pool / state broken.
 process.on('uncaughtException', (err) => {
-  console.error('[uncaughtException]', err.message);
+  console.error('[uncaughtException] fatal — exiting for PM2 restart:', err);
+  process.exit(1);
 });
 process.on('unhandledRejection', (reason) => {
-  console.error('[unhandledRejection]', reason?.message || reason);
+  console.error('[unhandledRejection] fatal — exiting for PM2 restart:', reason);
+  process.exit(1);
 });
 
 // ===== START =====
