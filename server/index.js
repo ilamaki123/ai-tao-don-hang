@@ -645,6 +645,7 @@ Mỗi sản phẩm gồm:
 ${priceRule}
 - currency: ký hiệu tiền ("$", "€", "£", "₩", "¥", "đ", "VND"), không thấy để ""
 - variations: mảng các thuộc tính NGƯỜI MUA ĐÃ CHỌN (size selector, color swatch, hoặc dòng "Size: M", "Color: Black"). LUÔN có Size và Color trong mảng (value="" nếu không thấy lựa chọn cụ thể). KHÔNG được tự bịa thuộc tính từ tên/mô tả/đặc điểm sản phẩm (ví dụ KHÔNG suy "Surface: Carbon" từ tên paddle, KHÔNG đoán "Color: Blue" từ màu trong ảnh sản phẩm). Chỉ lấy khi có giá trị rõ ràng được hiển thị như một lựa chọn variant.
+- Đặc biệt cho Size giày dép: NẾU có dòng "Size: <giá trị>" hoặc tab giới tính (Women's / Men's / Kids / Unisex / W / M) đang được chọn → BẮT BUỘC include cả prefix giới tính trong value (vd "Women's 7", "Men's 9", "W8", "Kids 10"). KHÔNG chỉ lấy số nếu có context giới tính.
 
 Nếu ảnh không chứa sản phẩm nào, trả về {"items":[]}.
 
