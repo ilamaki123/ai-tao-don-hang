@@ -807,24 +807,32 @@ If no thumbnails are visible, output [].`;
         }
       }
     } else if (rawProducts.length > 1) {
-      // Multiple bboxes → Pattern 1 (cart). Cart thumbnail tiles are usually
-      // square. Force each bbox to a square centered on the object, side =
-      // max(width, height). Clamp to image bounds.
+      // Multiple bboxes → Pattern 1 (cart). Only widen vertically when the
+      // object is FLAT (w > h * 1.3), to recover the natural top/bottom
+      // whitespace that gets dropped by Gemini's tight crop on side-view
+      // sandals, watches, pens, etc. Tall objects (model wearing a shirt,
+      // standing shoe) already fit the cart's tall thumbnail tile — forcing
+      // a square there extends horizontally and bleeds into the product
+      // name/price text on the right.
+      let modified = 0;
       for (const p of rawProducts) {
         const b = Array.isArray(p.box_2d) ? p.box_2d : null;
         if (!b || b.length !== 4) continue;
-        const cy = (b[0] + b[2]) / 2;
-        const cx = (b[1] + b[3]) / 2;
-        const side = Math.max(b[2] - b[0], b[3] - b[1]);
-        const half = side / 2;
-        p.box_2d = [
-          Math.max(0, Math.round(cy - half)),
-          Math.max(0, Math.round(cx - half)),
-          Math.min(1000, Math.round(cy + half)),
-          Math.min(1000, Math.round(cx + half)),
-        ];
+        const w = b[3] - b[1];
+        const h = b[2] - b[0];
+        if (w > h * 1.3) {
+          const cy = (b[0] + b[2]) / 2;
+          const half = w / 2;
+          p.box_2d = [
+            Math.max(0, Math.round(cy - half)),
+            b[1],
+            Math.min(1000, Math.round(cy + half)),
+            b[3],
+          ];
+          modified++;
+        }
       }
-      console.log('[extract-product-images] post-process: Pattern 1 → squared', rawProducts.length, 'bboxes');
+      console.log('[extract-product-images] post-process: Pattern 1 → squared', modified, 'of', rawProducts.length, 'wide bboxes');
     }
 
     const normalized = rawProducts.map((p, i) => {
