@@ -785,6 +785,48 @@ If no thumbnails are visible, output [].`;
     // Accept either bare array [...] or { products: [...] } shape.
     const rawProducts = Array.isArray(parsed) ? parsed : (Array.isArray(parsed.products) ? parsed.products : []);
 
+    // ===== Post-process bboxes =====
+    // Gemini's prior is to tight-crop around object pixels even when told to
+    // include native whitespace. Override with deterministic geometry that
+    // matches what cart-card thumbnails actually need (the photo tile, not
+    // the object silhouette).
+    if (rawProducts.length === 1) {
+      // 1 bbox → Pattern 2 (detail page side panel) or Pattern 3 (clean photo).
+      // Decide by horizontal coverage:
+      //   ≥ 70% width → Pattern 3 → full image
+      //   <  70% width → Pattern 2 → keep x extent, extend y to whole page
+      const b = Array.isArray(rawProducts[0].box_2d) ? rawProducts[0].box_2d : null;
+      if (b && b.length === 4) {
+        const widthPct = (b[3] - b[1]) / 10;
+        if (widthPct >= 70) {
+          rawProducts[0].box_2d = [0, 0, 1000, 1000];
+          console.log('[extract-product-images] post-process: Pattern 3 → full image');
+        } else {
+          rawProducts[0].box_2d = [0, b[1], 1000, b[3]];
+          console.log('[extract-product-images] post-process: Pattern 2 → vertical full, x kept', b[1], '-', b[3]);
+        }
+      }
+    } else if (rawProducts.length > 1) {
+      // Multiple bboxes → Pattern 1 (cart). Cart thumbnail tiles are usually
+      // square. Force each bbox to a square centered on the object, side =
+      // max(width, height). Clamp to image bounds.
+      for (const p of rawProducts) {
+        const b = Array.isArray(p.box_2d) ? p.box_2d : null;
+        if (!b || b.length !== 4) continue;
+        const cy = (b[0] + b[2]) / 2;
+        const cx = (b[1] + b[3]) / 2;
+        const side = Math.max(b[2] - b[0], b[3] - b[1]);
+        const half = side / 2;
+        p.box_2d = [
+          Math.max(0, Math.round(cy - half)),
+          Math.max(0, Math.round(cx - half)),
+          Math.min(1000, Math.round(cy + half)),
+          Math.min(1000, Math.round(cx + half)),
+        ];
+      }
+      console.log('[extract-product-images] post-process: Pattern 1 → squared', rawProducts.length, 'bboxes');
+    }
+
     const normalized = rawProducts.map((p, i) => {
       // Gemini native bbox: [ymin, xmin, ymax, xmax] in 0-1000 normalized coords.
       const box = Array.isArray(p.box_2d) ? p.box_2d : (Array.isArray(p.box) ? p.box : null);
