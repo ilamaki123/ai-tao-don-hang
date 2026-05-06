@@ -2722,7 +2722,10 @@
     const median = arr => { const s = [...arr].sort((a, b) => a - b); return s[Math.floor(s.length / 2)]; };
     const pageR = median(perimRs), pageG = median(perimGs), pageB = median(perimBs);
 
-    const TOL = 8; // tolerance per channel for "matches page bg"
+    // Tolerance per channel for "matches page bg". 5 distinguishes light
+    // grey cells (~245) from off-white pages (~252) reliably; with 8 the
+    // walks could drift past the cell edge into the row's text column.
+    const TOL = 5;
     const isPageBg = (px, py) => {
       if (px < 0 || px >= imgW || py < 0 || py >= imgH) return true;
       const i = idx(px, py);
