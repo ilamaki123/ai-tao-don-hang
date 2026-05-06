@@ -700,19 +700,42 @@ app.post('/api/extract-product-images', upload.single('image'), async (req, res)
     if (!req.file) return res.status(400).json({ success: false, message: 'Thiếu file ảnh' });
     const imageBase64 = req.file.buffer.toString('base64');
     const mimeType = req.file.mimetype;
-    const promptText = `Detect every PRODUCT THUMBNAIL in this shopping cart screenshot.
+    const promptText = `Detect product thumbnails in this image. The input falls into ONE of three patterns — identify which, then output bboxes accordingly.
 
-A "product thumbnail" = the photo of the actual item being purchased
-(jar, bottle, box, clothing, shoe, device, model wearing the item).
-EXCLUDE: app icons, store logos, checkout buttons, payment icons
-(Apple Pay/PayPal/Klarna/Venmo/Shop Pay), nav icons, rating stars,
-trust badges, qty/delete/edit buttons, save-for-later links.
+PATTERN 1 — Cart screenshot
+  Multiple rows, each row has a product photo + name + qty + price.
+  Output ONE bbox per row, covering that row's photo area (the full
+  rectangular image tile, INCLUDING any whitespace padding inside it).
+  Order top to bottom, left to right. Index starts at 0.
 
-Order: top to bottom, then left to right. Index starts at 0.
+PATTERN 2 — Product detail page
+  ONE hero photo on one side, with a sidebar of price / color swatches /
+  size selector / "Add to Cart" / reviews on the other side.
+  Output ONE bbox covering ONLY the hero photo rectangle.
+  EXCLUDE the sidebar/info column entirely.
 
-For each thumbnail, give a TIGHT bounding box that wraps just the
-photo — no surrounding text/price/whitespace, but include the entire
-visible image (don't cut off product edges).
+PATTERN 3 — Clean single product photo
+  ONE product on a plain (white/transparent/uniform) background, no UI
+  around it. The image itself IS the thumbnail.
+  Output ONE bbox covering the FULL image: box_2d = [0, 0, 1000, 1000].
+
+CRITICAL — bbox must include the photo's NATIVE WHITESPACE:
+  The bbox is the rectangular IMAGE FILE, not the silhouette of the
+  object inside. If the product is flat/wide (flip-flop side view,
+  watch, pen) and the photo has tall whitespace above/below the
+  object, INCLUDE that whitespace in the bbox. DO NOT crop tight to
+  just the colored pixels of the object — that produces a zoom on
+  the middle stripe and is wrong.
+
+  Sanity check: imagine cropping along your bbox and pasting onto a
+  white page. The result should look like a complete product photo
+  with the object naturally framed (with whitespace around it). If
+  it would look like a tight zoom on part of the object, expand.
+
+EXCLUDE in every pattern: page nav, store logos, checkout buttons,
+payment icons (Apple Pay / PayPal / Klarna / Venmo / Shop Pay),
+rating stars, trust badges, qty +/- buttons, delete buttons, "save
+for later" links, the product NAME or PRICE text, color swatches.
 
 Output ONLY this JSON array (no markdown, no code fences, no commentary):
 [
@@ -720,10 +743,8 @@ Output ONLY this JSON array (no markdown, no code fences, no commentary):
   {"index": 1, "box_2d": [ymin, xmin, ymax, xmax]}
 ]
 
-Coordinates are NORMALIZED 0-1000 of the full uploaded image:
-- y axis: top=0, bottom=1000
-- x axis: left=0, right=1000
-- Always: ymin < ymax and xmin < xmax
+Coordinates: NORMALIZED 0-1000 of the full uploaded image
+(y top=0 bottom=1000, x left=0 right=1000, ymin<ymax, xmin<xmax).
 
 If no thumbnails are visible, output [].`;
 
