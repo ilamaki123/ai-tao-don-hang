@@ -440,6 +440,20 @@ function bassoHeaders(req) {
   };
 }
 
+// Khi Basso trả 401/403 (token hết hạn) — chuyển thành response chuẩn để FE auto-logout.
+// Trả true nếu đã handle (caller phải return ngay), false nếu status ok.
+function handleBassoAuthError(response, res) {
+  if (response.status === 401 || response.status === 403) {
+    res.status(401).json({
+      success: false,
+      error: 'session_expired',
+      message: 'Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.',
+    });
+    return true;
+  }
+  return false;
+}
+
 // ===== HEALTH CHECK =====
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', mock: IS_MOCK });
@@ -908,6 +922,7 @@ app.get('/api/find-customer', async (req, res) => {
       `${BASSO_URL}/partner/findCustomerByPhone?phone=${phone}`,
       { headers: bassoHeaders(req) }
     );
+    if (handleBassoAuthError(response, res)) return;
     const data = await response.json();
     res.json(data);
   } catch (err) {
@@ -932,6 +947,7 @@ app.post('/api/upload-image', upload.single('file'), async (req, res) => {
       headers: bassoHeaders(req),
       body: formData,
     });
+    if (handleBassoAuthError(response, res)) return;
     const data = await response.json();
     console.log('[upload-image] Basso response:', JSON.stringify(data));
     res.json(data);
@@ -961,6 +977,7 @@ app.post('/api/create-order', async (req, res) => {
       headers: { ...bassoHeaders(req), 'Content-Type': 'application/x-www-form-urlencoded' },
       body,
     });
+    if (handleBassoAuthError(response, res)) return;
     const data = await response.json();
     console.log('[create-order] Basso response:', JSON.stringify(data));
     // Log vào order_log nếu thành công
@@ -1015,6 +1032,7 @@ app.get('/api/get-order', async (req, res) => {
   }
   try {
     const response = await fetch(`${BASSO_URL}/partner/getOrderByCode?order_code=${encodeURIComponent(order_code)}`, { headers: bassoHeaders(req) });
+    if (handleBassoAuthError(response, res)) return;
     const data = await response.json();
     console.log('[get-order] Basso response:', JSON.stringify(data).substring(0, 500));
     res.json(data);
@@ -1029,6 +1047,7 @@ app.post('/api/update-order', async (req, res) => {
     const response = await fetch(`${BASSO_URL}/partner/updateOrder`, {
       method: 'POST', headers: { ...bassoHeaders(req), 'Content-Type': 'application/json' }, body: JSON.stringify(req.body),
     });
+    if (handleBassoAuthError(response, res)) return;
     const data = await response.json();
     console.log('[update-order] Basso response:', JSON.stringify(data).substring(0, 500));
     res.json(data);
@@ -1044,6 +1063,7 @@ app.post('/api/cancel-order', async (req, res) => {
     const response = await fetch(`${BASSO_URL}/partner/cancelOrder`, {
       method: 'POST', headers: { ...bassoHeaders(req), 'Content-Type': 'application/json' }, body: JSON.stringify({ order_code }),
     });
+    if (handleBassoAuthError(response, res)) return;
     const data = await response.json();
     console.log('[cancel-order] Basso response:', JSON.stringify(data).substring(0, 500));
     res.json(data);
@@ -1065,6 +1085,7 @@ app.get('/api/orders-by-item-status', async (req, res) => {
     const url = `${BASSO_URL}/partner/getCustomerOrdersByItemStatus?${params.toString()}`;
     console.log('[orders-by-item-status] calling:', url);
     const response = await fetch(url, { headers: bassoHeaders(req) });
+    if (handleBassoAuthError(response, res)) return;
     const rawText = await response.text();
     console.log('[orders-by-item-status] status:', response.status, 'raw:', rawText.substring(0, 3000));
     let data;

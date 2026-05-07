@@ -2297,10 +2297,28 @@
       }
 
       const res = await fetch(`${API_BASE}/api/find-customer?phone=${phone}`, { headers: getAuthHeaders() });
-      const data = await res.json();
       removeTyping();
 
-      if (!data.success || !data.data.found) {
+      // Token Basso hết hạn — auto logout về login.html
+      if (res.status === 401) {
+        addMessage('ai', 'Phiên đăng nhập đã hết hạn. Đang chuyển về trang đăng nhập...');
+        setTimeout(() => {
+          localStorage.removeItem('ai_chat_user');
+          sessionStorage.removeItem('ai_chat_user');
+          window.location.replace('login.html');
+        }, 2000);
+        return;
+      }
+
+      const data = await res.json();
+
+      // Lỗi khác từ Basso (success=false) — show message thật, không lẫn với "không tìm thấy SĐT"
+      if (!data.success) {
+        addMessage('ai', translateError(data.message) || 'Không tìm được khách hàng do lỗi kết nối Basso.');
+        return;
+      }
+
+      if (!data.data || !data.data.found) {
         addMessage('ai', `Không tìm thấy khách hàng với SĐT ${phone}.\nVui lòng kiểm tra lại số điện thoại.`);
         return;
       }
@@ -3748,8 +3766,8 @@
 
   function translateError(msg) {
     if (!msg) return 'Lỗi không xác định';
-    // Auto-logout khi token hết hạn
-    if (/unauthorized|expired.*token|invalid.*token/i.test(msg)) {
+    // Auto-logout khi token hết hạn — match cả message English (Basso gốc) lẫn Vietnamese (backend đã chuẩn hoá)
+    if (/unauthorized|expired.*token|invalid.*token|đã hết hạn/i.test(msg)) {
       addMessage('ai', 'Phiên đăng nhập đã hết hạn. Đang chuyển về trang đăng nhập...');
       setTimeout(() => {
         localStorage.removeItem('ai_chat_user');
