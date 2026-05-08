@@ -643,7 +643,14 @@ app.post('/api/analyze-image', upload.single('image'), async (req, res) => {
     const isTotalPriceSite = rules.totalPriceDomains.some(d => domain.includes(d));
     console.log(`[analyze-image] domain="${domain}" isTotalPriceSite=${isTotalPriceSite} rules=[${rules.totalPriceDomains.join(', ')}]`);
     const priceRule = isTotalPriceSite
-      ? `- price: QUAN TRỌNG - Website ${domain} hiển thị TỔNG GIÁ (tổng tiền cho toàn bộ quantity). Bắt buộc phải chia: price = số_tiền_hiển_thị / quantity để ra ĐƠN GIÁ. KHÔNG được dùng số tiền hiển thị trực tiếp làm price.`
+      ? `- price: QUAN TRỌNG - Website ${domain} HIỂN THỊ TỔNG GIÁ (tổng tiền cho toàn bộ quantity), KHÔNG phải đơn giá.
+  Quy tắc nghiêm ngặt, KHÔNG được override bởi visual cue:
+  1. Nếu có giá bị gạch ngang (strikethrough, ~~$X~~) → đó là TỔNG GỐC trước khi web tự giảm. BỎ QUA hoàn toàn, không dùng để suy luận đơn giá.
+  2. Lấy số tiền KHÔNG bị gạch → đó là TỔNG sau khi web đã giảm.
+  3. price = (số tiền không gạch) / quantity. KHÔNG được trả số tiền không gạch trực tiếp làm price.
+  Ví dụ chính xác: ảnh hiển thị "~~$129.00~~ $64.50" với qty=2 → price = 64.50 / 2 = 32.25. KHÔNG phải 64.50.
+  Ví dụ khác: hiển thị "$48" với qty=3 → price = 48 / 3 = 16. KHÔNG phải 48.
+  Đừng để label "50% Off" hoặc "Sale" làm bạn nhầm số gạch ngang là đơn giá gốc — trên website này, cả gạch ngang và số hiển thị đều là TỔNG.`
       : `- price: LUÔN LUÔN là ĐƠN GIÁ (giá cho 1 sản phẩm). Nếu ảnh hiển thị tổng giá (ví dụ qty=5, hiển thị $165) thì chia ngược: price = 165/5 = 33. Nếu ảnh hiển thị đơn giá (ví dụ $33/item hoặc $33 each) thì giữ nguyên. Kiểm tra: quantity × price phải bằng tổng giá hiển thị trong ảnh.`;
 
     const promptText = `Trích xuất thông tin sản phẩm từ ảnh và trả về JSON THUẦN (không markdown, không code fence, không giải thích).
