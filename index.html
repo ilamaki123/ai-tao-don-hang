@@ -1694,14 +1694,14 @@
               <span class="cart-field-value" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(linkShow)}</span>
             </span>
             ${vars}
-            <span class="cart-field" ${canEdit ? `onclick="editOrderItemField(${i},'note')"` : ''} style="color:${item.note ? '#333' : '#999'}">
-              <span class="cart-field-label">Note</span>
-              <span class="cart-field-value" style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.note ? escapeHtml(item.note) : '—'}</span>
-            </span>
             ${canEdit ? `<span class="cart-field" onclick="openTermModal('editOrder',${i})">
               <span class="cart-field-label">Danh mục</span>
               <span class="cart-field-value" style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(getTermName(item.term_id || 5))}</span>
             </span>` : ''}
+            <span class="cart-field" ${canEdit ? `onclick="editOrderItemField(${i},'note')"` : ''} style="color:${item.note ? '#333' : '#999'}">
+              <span class="cart-field-label">Note</span>
+              <span class="cart-field-value" style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.note ? escapeHtml(item.note) : '—'}</span>
+            </span>
           </div>
           ${canEdit ? `<div class="cart-card-tools">
             ${status !== 'deleted' ? `<button class="cart-tool-btn" onclick="addOrderItemVariation(${i})" title="Thêm variant"><svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg></button>` : ''}
@@ -3130,13 +3130,13 @@
             <span class="cart-field-value" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(linkShow)}</span>
           </span>
           ${vars}
-          <span class="cart-field" onclick="editCartField(${i},'note')" style="color:${item.note ? '#333' : '#999'}">
-            <span class="cart-field-label">Note</span>
-            <span class="cart-field-value" style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.note ? escapeHtml(item.note) : '—'}</span>
-          </span>
           <span class="cart-field" onclick="openTermModal('cart',${i})">
             <span class="cart-field-label">Danh mục</span>
             <span class="cart-field-value" style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(getTermName(item.term_id || 5))}</span>
+          </span>
+          <span class="cart-field" onclick="editCartField(${i},'note')" style="color:${item.note ? '#333' : '#999'}">
+            <span class="cart-field-label">Note</span>
+            <span class="cart-field-value" style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.note ? escapeHtml(item.note) : '—'}</span>
           </span>
         </div>
         <div class="cart-card-tools">
