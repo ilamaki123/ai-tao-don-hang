@@ -810,19 +810,34 @@ If no thumbnails are visible, output [].`;
     // matches what cart-card thumbnails actually need (the photo tile, not
     // the object silhouette).
     if (rawProducts.length === 1) {
-      // 1 bbox → Pattern 2 (detail page side panel) or Pattern 3 (clean photo).
-      // Decide by horizontal coverage:
-      //   ≥ 70% width → Pattern 3 → full image
-      //   <  70% width → Pattern 2 → keep x extent, extend y to whole page
+      // 1 bbox → Pattern 1b (small bbox, pad), Pattern 2 (tall hero), or Pattern 3 (clean photo).
+      // Decide by coverage:
+      //   width ≥ 70% → Pattern 3 → full image
+      //   width < 70% AND height ≥ 50% → Pattern 2 → keep x, extend y full (detail-page hero tightly cropped)
+      //   width < 70% AND height < 50% → Pattern 1b → pad 10% (cart-row single item, model photo, etc.)
       const b = Array.isArray(rawProducts[0].box_2d) ? rawProducts[0].box_2d : null;
       if (b && b.length === 4) {
         const widthPct = (b[3] - b[1]) / 10;
+        const heightPct = (b[2] - b[0]) / 10;
         if (widthPct >= 70) {
           rawProducts[0].box_2d = [0, 0, 1000, 1000];
           console.log('[extract-product-images] post-process: Pattern 3 → full image');
-        } else {
+        } else if (heightPct >= 50) {
           rawProducts[0].box_2d = [0, b[1], 1000, b[3]];
           console.log('[extract-product-images] post-process: Pattern 2 → vertical full, x kept', b[1], '-', b[3]);
+        } else {
+          // Cart-row single item, lifestyle/model photo cropped tightly — keep
+          // bbox aspect ratio (don't stretch to full height, would force
+          // object-fit:cover to take the wrong center). Just pad 10%.
+          const padY = (b[2] - b[0]) * 0.10;
+          const padX = (b[3] - b[1]) * 0.10;
+          rawProducts[0].box_2d = [
+            Math.max(0, b[0] - padY),
+            Math.max(0, b[1] - padX),
+            Math.min(1000, b[2] + padY),
+            Math.min(1000, b[3] + padX),
+          ];
+          console.log('[extract-product-images] post-process: Pattern 1b → small bbox (h<50%), pad 10%');
         }
       }
     } else if (rawProducts.length > 1) {
