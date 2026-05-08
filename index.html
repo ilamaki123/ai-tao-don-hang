@@ -1769,6 +1769,12 @@
     } else if (field === 'link') {
       label = 'Link'; currentVal = item.link || '';
     }
+    const onDelete = field === 'var' ? () => {
+      item.variations.splice(varIdx, 1);
+      if (isOrig) item._status = 'modified';
+      saveSessions();
+      renderEditOrder();
+    } : null;
     openEditModal(`Sửa ${label} (#${idx+1})`, currentVal, (newVal) => {
       if (field === 'var') item.variations[varIdx].value = newVal;
       else if (field === 'name') item.name = newVal;
@@ -1784,7 +1790,7 @@
       if (isOrig) item._status = 'modified';
       saveSessions();
       renderEditOrder();
-    });
+    }, onDelete);
   }
 
   function applyEditSaleUI() {
@@ -3259,6 +3265,11 @@
     } else if (field === 'link') {
       label = 'Link sản phẩm'; currentVal = item.link || '';
     }
+    const onDelete = field === 'var' ? () => {
+      item.variations.splice(varIdx, 1);
+      saveSessions();
+      renderCart();
+    } : null;
     openEditModal(`Sửa ${label} (#${idx+1})`, currentVal, (newVal) => {
       if (newVal === String(currentVal)) return;
       if (field === 'var') {
@@ -3288,7 +3299,7 @@
       }
       saveSessions();
       renderCart();
-    });
+    }, onDelete);
   }
 
   // ===== CONFIRM MODAL =====
@@ -3414,11 +3425,15 @@
   }
   // ===== END IMAGE UPLOADER MODAL =====
 
-  function openEditModal(title, value, callback) {
+  let _editModalDelete = null;
+  function openEditModal(title, value, callback, onDelete) {
     _editModalCallback = callback;
+    _editModalDelete = onDelete || null;
     document.getElementById('editModalTitle').textContent = title;
     const input = document.getElementById('editModalInput');
     input.value = value;
+    const delBtn = document.getElementById('editModalDeleteBtn');
+    if (delBtn) delBtn.style.display = onDelete ? '' : 'none';
     document.getElementById('editModal').classList.add('show');
     setTimeout(() => { input.focus(); input.select(); }, 100);
   }
@@ -3426,11 +3441,17 @@
   function closeEditModal() {
     document.getElementById('editModal').classList.remove('show');
     _editModalCallback = null;
+    _editModalDelete = null;
   }
 
   function saveEditModal() {
     const val = document.getElementById('editModalInput').value.trim();
     if (_editModalCallback && val !== '') _editModalCallback(val);
+    closeEditModal();
+  }
+
+  function deleteEditModal() {
+    if (_editModalDelete) _editModalDelete();
     closeEditModal();
   }
 
@@ -3965,6 +3986,7 @@
     <div class="edit-modal-title" id="editModalTitle"></div>
     <input class="edit-modal-input" id="editModalInput" autocomplete="off" />
     <div class="edit-modal-btns">
+      <button class="edit-modal-btn edit-modal-btn-danger" id="editModalDeleteBtn" style="display:none;margin-right:auto" onclick="deleteEditModal()">Xóa</button>
       <button class="edit-modal-btn edit-modal-btn-cancel" onclick="closeEditModal()">Hủy</button>
       <button class="edit-modal-btn edit-modal-btn-save" onclick="saveEditModal()">Lưu</button>
     </div>
