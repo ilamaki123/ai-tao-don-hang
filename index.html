@@ -1674,7 +1674,7 @@
               <span class="cart-field-value" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(displayName)}</span>
             </span>
           </div>
-          <div class="cart-card-fields">
+          <div class="cart-card-fields${canEdit ? ' with-tools' : ''}">
             <span class="cart-field" ${canEdit ? `onclick="editOrderItemField(${i},'quantity')"` : ''}>
               <span class="cart-field-label">Qty</span>
               <span class="cart-field-value">${item.quantity || 1}</span>
@@ -1702,9 +1702,11 @@
               <span class="cart-field-label">Danh mục</span>
               <span class="cart-field-value" style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(getTermName(item.term_id || 5))}</span>
             </span>` : ''}
-            ${canEdit ? `<span class="cart-field" onclick="cloneOrderItem(${i})" style="color:#7c5cbf;cursor:pointer;font-size:12px"><span class="cart-field-value">+ Copy</span></span>` : ''}
           </div>
-          ${status !== 'deleted' ? `<button class="cart-card-delete" onclick="markDeleteOrderItem(${i})" title="Xóa"><svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>` : `<button class="cart-card-delete" onclick="unmarkDeleteOrderItem(${i})" title="Hoàn tác" style="color:#28a745">↩</button>`}
+          ${canEdit ? `<div class="cart-card-tools">
+            <button class="cart-tool-btn" onclick="cloneOrderItem(${i})" title="Copy item"><svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg></button>
+            ${status !== 'deleted' ? `<button class="cart-tool-btn danger" onclick="markDeleteOrderItem(${i})" title="Xóa"><svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>` : `<button class="cart-tool-btn" onclick="unmarkDeleteOrderItem(${i})" title="Hoàn tác" style="color:#28a745">↩</button>`}
+          </div>` : ''}
         </div>
       </div>`;
     }).join('');
