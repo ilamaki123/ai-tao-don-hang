@@ -1728,7 +1728,13 @@
 
   function renderEditOrder() {
     const el = document.getElementById('inlineEditOrder');
-    if (el) el.innerHTML = buildInlineEditOrderHtml();
+    if (!el) return;
+    const expandedIds = [...el.querySelectorAll('.cart-card.expanded')].map(c => c.id);
+    el.innerHTML = buildInlineEditOrderHtml();
+    expandedIds.forEach(id => {
+      const c = document.getElementById(id);
+      if (c) c.classList.add('expanded');
+    });
   }
 
   function ensureEditOrderMessage() {
@@ -3016,7 +3022,12 @@
   function renderCart() {
     const el = document.getElementById('inlineCart');
     if (el) {
+      const expandedIds = [...el.querySelectorAll('.cart-card.expanded')].map(c => c.id);
       el.innerHTML = buildInlineCartHtml();
+      expandedIds.forEach(id => {
+        const c = document.getElementById(id);
+        if (c) c.classList.add('expanded');
+      });
     } else {
       // Nếu không tìm thấy inlineCart, re-render toàn bộ messages
       renderMessages();
