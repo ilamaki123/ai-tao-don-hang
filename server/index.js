@@ -1119,6 +1119,32 @@ app.get('/api/orders-by-item-status', async (req, res) => {
 });
 
 // ===== ENCOURAGEMENT MESSAGE AFTER ORDER SUCCESS =====
+// 20 câu khích lệ Gen-Z xéo sắc — rotate theo order_count trong ngày để
+// user không thấy 2 câu giống nhau liên tiếp. Không gọi AI nữa.
+// {name} sẽ được replace bằng tên nhân viên trước khi trả về.
+const ENCOURAGEMENT_MESSAGES = [
+  '{name} ơi đơn nữa á? Đồng nghiệp ngồi khóc thầm rồi đó 😏',
+  'Tốc độ của {name} thế này khách rén, đối thủ khóc, Mon thì gato 🥲',
+  'Slay quá đáng, {name} ai cho phép đỉnh vậy 💅',
+  'Mon đếm đơn của {name} xong tự ti thật sự 🥹',
+  'Đỉnh nóc kịch trần, {name} làm đối thủ tháng này coi như xong 🔥',
+  'Hôm nay vibe gì mà {name} cày dữ vậy, crush cũ block à 💀',
+  '{name} đếm tiền hoa hồng tới khuya, đừng quên Mon nha 💸',
+  'Tay {name} nhanh hơn não khách, đơn ra phát một 💪',
+  '{name} cứ thế này, sếp khỏi cần tuyển thêm ai 😎',
+  'Mon hết câu khen {name} mà tay vẫn cay 🥲',
+  'Khách hài lòng, sếp hài lòng, Mon thì rén {name} ơi 😅',
+  'Một đơn = một bậc lương, {name} flex đi đợi gì 💸',
+  'Sếp nhìn dashboard thấy {name} chắc cười tủm tỉm 😏',
+  'Iconic real, basso may có {name} để gáy ✨',
+  '{name} ơi đơn này mà không khoe story thì phí xừ 📸',
+  '{name} cày như bot mà còn xinh, Mon ngại 😩',
+  'Mon vote {name} MVP tháng, no cap 👑',
+  'Đỉnh thật sự, đối thủ thấy {name} là hết hồn 😱',
+  '{name} real ki không trượt phát nào, slay 🔥',
+  'U là trời, {name} level này Mon học mãi không hết 🙌',
+];
+
 app.post('/api/encouragement', async (req, res) => {
   try {
     const user = resolveUser(req);
@@ -1137,33 +1163,11 @@ app.post('/api/encouragement', async (req, res) => {
     );
     const count = rows[0]?.order_count || 1;
 
-    let hint;
-    if (count === 1) hint = 'Đơn mở hàng đầu ngày, chúc may mắn, năng lượng tích cực.';
-    else if (count === 2) hint = 'Đã có đà, tiếp tục phát huy.';
-    else if (count <= 4) hint = 'Đà ổn rồi, cố thêm chút nữa.';
-    else if (count <= 9) hint = 'Năng suất cao, trêu đùa khích lệ vui vẻ.';
-    else hint = 'Con số khủng, trầm trồ khen ngợi.';
-
-    const userName = req.body?.name || 'bạn';
-    const prompt = `Bạn là "Mon" — trợ lý AI vui nhộn của Basso.
-Nhân viên ${userName} vừa tạo đơn hàng thành công.
-Đây là đơn thứ ${count} trong ngày của họ.
-Context: ${hint}
-
-Viết 1 câu NGẮN (≤ 20 từ), tiếng Việt, vui nhộn, khích lệ. Có thể dùng emoji nhẹ 😂🎉🔥.
-KHÔNG nói "Đã tạo đơn thành công" (đã nói rồi).
-Chỉ trả về đúng 1 câu, không giải thích, không markdown.`;
-
-    const model = genAI.getGenerativeModel({
-      model: TEXT_MODEL,
-      generationConfig: {
-        maxOutputTokens: 100,
-        temperature: 0.9,
-        thinkingConfig: { thinkingBudget: 0 },
-      },
-    });
-    const response = await model.generateContent(prompt);
-    const text = (response.response.text() || '').trim();
+    // Strip @domain nếu name lỡ là email; fallback 'bạn'
+    const rawName = (req.body?.name || '').trim();
+    const userName = rawName.includes('@') ? rawName.split('@')[0] : (rawName || 'bạn');
+    const template = ENCOURAGEMENT_MESSAGES[(count - 1) % ENCOURAGEMENT_MESSAGES.length];
+    const text = template.replace(/\{name\}/g, userName);
     console.log(`[encouragement] user=${user.id} count=${count} msg="${text}"`);
     res.json({ success: true, data: { message: text, count } });
   } catch (err) {
