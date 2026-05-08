@@ -1901,7 +1901,7 @@
       if (i.link !== orig.link) upd.link = i.link;
       if ((i.note || '') !== (orig.note || '')) upd.note = i.note || '';
       if ((i.image_id || '') !== (orig.image_id || '')) upd.image_id = i.image_id;
-      if ((i.term_id || 5) !== (orig.term_id || 5)) upd.term_id = i.term_id || 5;
+      if ((Number(i.term_id) || 5) !== (Number(orig.term_id) || 5)) upd.term_id = Number(i.term_id) || 5;
       if (JSON.stringify(i.variations) !== JSON.stringify(orig.variations)) {
         upd.variations = i.variations || [];
       }
@@ -3144,7 +3144,8 @@
     { id: 83, name: 'Đồng hồ < 300%' },
   ];
   function getTermName(id) {
-    const t = TERM_CATEGORIES.find(c => c.id === id);
+    const num = Number(id);
+    const t = TERM_CATEGORIES.find(c => c.id === num);
     return t ? t.name : 'Hàng thông thường';
   }
 
@@ -3162,7 +3163,7 @@
     }
     if (!item) return;
     _termModalCtx = { scope, idx };
-    const currentId = item.term_id || 5;
+    const currentId = Number(item.term_id) || 5;
     const list = document.getElementById('termModalList');
     list.innerHTML = TERM_CATEGORIES.map(c =>
       `<div class="term-modal-item${c.id === currentId ? ' selected' : ''}" onclick="selectTermAndClose(${c.id})">${escapeHtml(c.name)}</div>`
