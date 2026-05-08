@@ -1704,6 +1704,7 @@
             </span>` : ''}
           </div>
           ${canEdit ? `<div class="cart-card-tools">
+            ${status !== 'deleted' ? `<button class="cart-tool-btn" onclick="addOrderItemVariation(${i})" title="Thêm variant"><svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg></button>` : ''}
             <button class="cart-tool-btn" onclick="cloneOrderItem(${i})" title="Copy item"><svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg></button>
             ${status !== 'deleted' ? `<button class="cart-tool-btn danger" onclick="markDeleteOrderItem(${i})" title="Xóa"><svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>` : `<button class="cart-tool-btn" onclick="unmarkDeleteOrderItem(${i})" title="Hoàn tác" style="color:#28a745">↩</button>`}
           </div>` : ''}
@@ -3232,9 +3233,16 @@
     }
   }
 
-  var _variantItemIdx = null;
+  var _variantContext = null;
   function addCartVariation(idx) {
-    _variantItemIdx = idx;
+    _variantContext = { scope: 'cart', idx };
+    document.getElementById('variantName').value = '';
+    document.getElementById('variantValue').value = '';
+    document.getElementById('variantModal').classList.add('show');
+    setTimeout(() => document.getElementById('variantName').focus(), 100);
+  }
+  function addOrderItemVariation(idx) {
+    _variantContext = { scope: 'editOrder', idx };
     document.getElementById('variantName').value = '';
     document.getElementById('variantValue').value = '';
     document.getElementById('variantModal').classList.add('show');
@@ -3242,20 +3250,36 @@
   }
   function closeVariantModal() {
     document.getElementById('variantModal').classList.remove('show');
-    _variantItemIdx = null;
+    _variantContext = null;
   }
   function saveVariantModal() {
     const name = document.getElementById('variantName').value.trim();
     const value = document.getElementById('variantValue').value.trim();
     if (!name) return;
     const session = getActiveSession();
-    if (!session || _variantItemIdx === null || !session.items[_variantItemIdx]) return;
-    const item = session.items[_variantItemIdx];
-    if (!item.variations) item.variations = [];
-    item.variations.push({ name, value });
-    saveSessions();
-    closeVariantModal();
-    renderCart();
+    if (!session || !_variantContext) return;
+    const { scope, idx } = _variantContext;
+    if (scope === 'cart') {
+      const item = session.items?.[idx];
+      if (!item) return;
+      if (!item.variations) item.variations = [];
+      item.variations.push({ name, value });
+      saveSessions();
+      closeVariantModal();
+      renderCart();
+    } else if (scope === 'editOrder') {
+      const editing = session.editingOrder;
+      if (!editing) return;
+      const isOrig = idx < editing.items.length;
+      const item = isOrig ? editing.items[idx] : editing.addItems[idx - editing.items.length];
+      if (!item) return;
+      if (!item.variations) item.variations = [];
+      item.variations.push({ name, value });
+      if (isOrig) item._status = 'modified';
+      saveSessions();
+      closeVariantModal();
+      renderEditOrder();
+    }
   }
 
   function editCartField(idx, field, varIdx) {
