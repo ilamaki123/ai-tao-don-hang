@@ -817,6 +817,18 @@
     .edit-modal-btn-save:hover { background: #6a4aad; }
     .edit-modal-btn-danger { background: #e55; color: #fff; }
     .edit-modal-btn-danger:hover { background: #d33; }
+    .term-modal-list {
+      flex: 1; overflow-y: auto; margin-bottom: 12px;
+      border: 1px solid #eee; border-radius: 8px;
+    }
+    .term-modal-item {
+      padding: 10px 14px; cursor: pointer;
+      border-bottom: 1px solid #f0f0f0;
+      font-size: 14px; color: #333;
+    }
+    .term-modal-item:last-child { border-bottom: none; }
+    .term-modal-item:hover { background: #f8f5ff; }
+    .term-modal-item.selected { background: #efe7ff; color: #7c5acb; font-weight: 600; }
 
     .img-uploader-tabs { display: flex; gap: 6px; margin-bottom: 12px; }
     .img-uploader-tab {
@@ -1671,6 +1683,10 @@
               <span class="cart-field-label">Note</span>
               <span class="cart-field-value" style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.note ? escapeHtml(item.note) : '—'}</span>
             </span>
+            ${canEdit ? `<span class="cart-field" onclick="openTermModal('editOrder',${i})">
+              <span class="cart-field-label">Danh mục</span>
+              <span class="cart-field-value" style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(getTermName(item.term_id || 5))}</span>
+            </span>` : ''}
             ${canEdit ? `<span class="cart-field" onclick="cloneOrderItem(${i})" style="color:#7c5cbf;cursor:pointer;font-size:12px"><span class="cart-field-value">+ Copy</span></span>` : ''}
           </div>
           ${status !== 'deleted' ? `<button class="cart-card-delete" onclick="markDeleteOrderItem(${i})" title="Xóa"><svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>` : `<button class="cart-card-delete" onclick="unmarkDeleteOrderItem(${i})" title="Hoàn tác" style="color:#28a745">↩</button>`}
@@ -1861,6 +1877,7 @@
         price_origin: base,
         price_discount_rate: pct,
         price: computeAfterSale(base, pct),
+        term_id: i.term_id || 5,
         variations: i.variations || [],
         ...(i.image_id ? { image_id: i.image_id } : {}),
         ...(i.note ? { note: i.note } : {}),
@@ -1884,6 +1901,7 @@
       if (i.link !== orig.link) upd.link = i.link;
       if ((i.note || '') !== (orig.note || '')) upd.note = i.note || '';
       if ((i.image_id || '') !== (orig.image_id || '')) upd.image_id = i.image_id;
+      if ((i.term_id || 5) !== (orig.term_id || 5)) upd.term_id = i.term_id || 5;
       if (JSON.stringify(i.variations) !== JSON.stringify(orig.variations)) {
         upd.variations = i.variations || [];
       }
@@ -1899,6 +1917,7 @@
             price_origin: base,
             price_discount_rate: newPct,
             price: computeAfterSale(base, newPct),
+            term_id: i.term_id || 5,
             variations: i.variations || [],
             ...(i.image_id ? { image_id: i.image_id } : {}),
             ...(i.image_path ? { image_path: i.image_path } : {}),
@@ -3083,6 +3102,10 @@
           <span class="cart-field" onclick="addCartVariation(${i})" style="color:#7c5cbf;cursor:pointer;font-size:12px">
             <span class="cart-field-value">+ Variant</span>
           </span>
+          <span class="cart-field" onclick="openTermModal('cart',${i})">
+            <span class="cart-field-label">Danh mục</span>
+            <span class="cart-field-value" style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(getTermName(item.term_id || 5))}</span>
+          </span>
           <span class="cart-field" onclick="cloneCartItem(${i})" style="color:#7c5cbf;cursor:pointer;font-size:12px">
             <span class="cart-field-value">+ Copy</span>
           </span>
@@ -3093,6 +3116,88 @@
   }
 
   let _editModalCallback = null;
+
+  // ===== DANH MỤC PHỤ THU (term_id) =====
+  const TERM_CATEGORIES = [
+    { id: 5, name: 'Hàng thông thường' },
+    { id: 7, name: 'Kính mắt > $300' },
+    { id: 46, name: 'Laptop' },
+    { id: 8, name: 'Đơn hàng nhỏ hơn $30' },
+    { id: 4, name: 'Đồng hồ' },
+    { id: 6, name: 'Nước hoa' },
+    { id: 24, name: 'Apple watch' },
+    { id: 2, name: 'Đồ điện tử, thiết bị phụ tùng khác > $300' },
+    { id: 53, name: 'Smart phone, Tablet, Máy ảnh, Máy in' },
+    { id: 17, name: 'Kindle/Fire Tablets/Máy vẽ' },
+    { id: 11, name: 'Trang sức' },
+    { id: 13, name: 'Cigar' },
+    { id: 31, name: 'Hàng nhạy cảm' },
+    { id: 63, name: 'Item lớn hơn $500' },
+    { id: 67, name: 'Zippos' },
+    { id: 68, name: 'Xe đạp' },
+    { id: 70, name: 'Airpod' },
+    { id: 78, name: 'Máy chơi game, Kính thực tế ảo' },
+    { id: 79, name: 'Ipad' },
+    { id: 80, name: 'Loa, âm ly > $500' },
+    { id: 81, name: 'Iphone 11 - 16' },
+    { id: 82, name: 'Iphone 17' },
+    { id: 83, name: 'Đồng hồ < 300%' },
+  ];
+  function getTermName(id) {
+    const t = TERM_CATEGORIES.find(c => c.id === id);
+    return t ? t.name : 'Hàng thông thường';
+  }
+
+  let _termModalCtx = null;
+  function openTermModal(scope, idx) {
+    const session = getActiveSession();
+    if (!session) return;
+    let item;
+    if (scope === 'cart') {
+      item = session.items?.[idx];
+    } else if (scope === 'editOrder') {
+      const editing = session.editingOrder;
+      if (!editing) return;
+      item = idx < editing.items.length ? editing.items[idx] : editing.addItems[idx - editing.items.length];
+    }
+    if (!item) return;
+    _termModalCtx = { scope, idx };
+    const currentId = item.term_id || 5;
+    const list = document.getElementById('termModalList');
+    list.innerHTML = TERM_CATEGORIES.map(c =>
+      `<div class="term-modal-item${c.id === currentId ? ' selected' : ''}" onclick="selectTermAndClose(${c.id})">${escapeHtml(c.name)}</div>`
+    ).join('');
+    document.getElementById('termModal').classList.add('show');
+  }
+  function closeTermModal() {
+    document.getElementById('termModal').classList.remove('show');
+    _termModalCtx = null;
+  }
+  function selectTermAndClose(termId) {
+    if (!_termModalCtx) return closeTermModal();
+    const { scope, idx } = _termModalCtx;
+    const session = getActiveSession();
+    if (!session) return closeTermModal();
+    if (scope === 'cart') {
+      const item = session.items?.[idx];
+      if (item) item.term_id = termId;
+      saveSessions();
+      closeTermModal();
+      renderCart();
+    } else if (scope === 'editOrder') {
+      const editing = session.editingOrder;
+      if (!editing) return closeTermModal();
+      const isOrig = idx < editing.items.length;
+      const item = isOrig ? editing.items[idx] : editing.addItems[idx - editing.items.length];
+      if (item) {
+        item.term_id = termId;
+        if (isOrig) item._status = 'modified';
+      }
+      saveSessions();
+      closeTermModal();
+      renderEditOrder();
+    }
+  }
 
   var _variantItemIdx = null;
   function addCartVariation(idx) {
@@ -3904,6 +4009,17 @@
     <div class="edit-modal-btns">
       <button class="edit-modal-btn edit-modal-btn-cancel" onclick="closeVariantModal()">Hủy</button>
       <button class="edit-modal-btn edit-modal-btn-save" onclick="saveVariantModal()">Lưu</button>
+    </div>
+  </div>
+</div>
+
+<!-- Chọn danh mục phụ thu (term_id) -->
+<div class="edit-modal-overlay" id="termModal">
+  <div class="edit-modal" style="max-width:420px;max-height:80vh;display:flex;flex-direction:column">
+    <div class="edit-modal-title">Chọn danh mục phụ thu</div>
+    <div class="term-modal-list" id="termModalList"></div>
+    <div class="edit-modal-btns">
+      <button class="edit-modal-btn edit-modal-btn-cancel" onclick="closeTermModal()">Đóng</button>
     </div>
   </div>
 </div>
