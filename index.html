@@ -731,6 +731,10 @@
     .cart-tool-btn svg { width: 18px; height: 18px; fill: currentColor; }
     .cart-card-fields.with-tools { padding-bottom: 36px; }
 
+    @media (max-width: 768px) {
+      .cart-field-name { width: 100%; flex: 1 0 100% !important; box-sizing: border-box; }
+    }
+
     /* Mobile compact cart */
     .cart-card-details { }
     .hide-mobile { }
@@ -1669,7 +1673,7 @@
           <div class="cart-card-fields" style="margin-top:0">
             <span class="cart-card-num hide-mobile">${i+1}.${badge}</span>
             ${thumbHtml ? `<span class="hide-mobile">${thumbHtml}</span>` : ''}
-            <span class="cart-field" ${canEdit ? `onclick="editOrderItemField(${i},'name')"` : ''} style="flex:1;min-width:0;margin-right:28px" title="${escapeHtml(item.name || '')}">
+            <span class="cart-field cart-field-name" ${canEdit ? `onclick="editOrderItemField(${i},'name')"` : ''} style="flex:1;min-width:0" title="${escapeHtml(item.name || '')}">
               <span class="cart-field-label">Tên</span>
               <span class="cart-field-value" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(displayName)}</span>
             </span>
@@ -3105,7 +3109,7 @@
         <div class="cart-card-fields" style="margin-top:0">
           <span class="cart-card-num hide-mobile">${i+1}.</span>
           ${thumbHtml ? `<span class="hide-mobile">${thumbHtml}</span>` : ''}
-          <span class="cart-field" onclick="editCartField(${i},'name')" style="flex:1;min-width:0;margin-right:28px" title="${escapeHtml(item.name || '')}">
+          <span class="cart-field cart-field-name" onclick="editCartField(${i},'name')" style="flex:1;min-width:0" title="${escapeHtml(item.name || '')}">
             <span class="cart-field-label">Tên</span>
             <span class="cart-field-value" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(displayName)}</span>
           </span>
