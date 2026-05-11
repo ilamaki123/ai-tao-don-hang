@@ -39,6 +39,7 @@ module.exports = {
       // ---------- Runtime ----------
       env: {
         NODE_ENV: 'production',
+        TZ: 'Asia/Ho_Chi_Minh',
       },
       // Watch is off — we deploy by `git pull && pm2 restart all`, not by
       // file watching. Watching the whole tree would also restart on log
