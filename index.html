@@ -1061,8 +1061,24 @@
   const LS_SESSIONS_KEY = 'ai_chat_sessions_v1';
   var _syncTimer = null;
 
+  // Recursively drop heavy media strings (base64 data URLs, blob: URLs).
+  // item.thumb on cart/edit-order items holds 30-100KB base64 each; with
+  // 90+ sessions the PUT /api/sessions body would blow past express.json's
+  // 10mb limit and the server would 413. Basso URL in item.image_path is
+  // kept and renderCartCard falls back to it when thumb is missing.
+  function stripHeavyMedia(value) {
+    if (value === null || typeof value !== 'object') return value;
+    if (Array.isArray(value)) return value.map(stripHeavyMedia);
+    const out = {};
+    for (const [k, v] of Object.entries(value)) {
+      if (typeof v === 'string' && (v.startsWith('data:image/') || v.startsWith('blob:'))) continue;
+      out[k] = stripHeavyMedia(v);
+    }
+    return out;
+  }
+
   function sanitizeForServer(sessions) {
-    return sessions.map(s => ({
+    return sessions.map(s => stripHeavyMedia({
       ...s,
       cartImages: [],
       messages: (s.messages || []).map(m => ({ ...m, images: undefined })),
