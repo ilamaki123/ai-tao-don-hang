@@ -1186,15 +1186,17 @@
   if (!activeSessionId) renderHistory();
   syncSessionsFromServer();
 
-  // dd/m/yy hh:mm theo timestamp message mới nhất trong session.
-  // Fallback về session.id (= Date.now() lúc tạo) nếu session chưa có message.
-  function formatLastActive(s) {
+  // Timestamp ms của thao tác cuối: lấy message gần nhất, fallback session.id.
+  function lastActiveTs(s) {
     let ts = 0;
     for (const m of (s.messages || [])) {
       if (m && m.timestamp > ts) ts = m.timestamp;
     }
-    if (!ts) ts = s.id || Date.now();
-    const d = new Date(ts);
+    return ts || s.id || 0;
+  }
+
+  function formatLastActive(s) {
+    const d = new Date(lastActiveTs(s) || Date.now());
     const yy = String(d.getFullYear()).slice(-2);
     const hh = String(d.getHours()).padStart(2, '0');
     const mi = String(d.getMinutes()).padStart(2, '0');
@@ -1209,7 +1211,12 @@
       const phone = (s.customer?.phone || '').toLowerCase();
       const name = (s.customer?.name || '').toLowerCase();
       return title.includes(q) || phone.includes(q) || name.includes(q);
-    }) : sessions;
+    }) : sessions.slice();
+    // Sort theo cùng tiêu chí với timestamp hiển thị (last message),
+    // không phụ thuộc updated_at của MySQL — tránh trường hợp DB bump
+    // updated_at do save lại nhưng không có message mới, khiến order
+    // lệch khỏi giờ hiển thị.
+    filtered.sort((a, b) => lastActiveTs(b) - lastActiveTs(a));
     el.innerHTML = filtered.map(s => `
       <div class="chat-history-item ${s.id === activeSessionId ? 'active' : ''}" onclick="selectSession(${s.id})">
         <span class="icon">&#128172;</span>
