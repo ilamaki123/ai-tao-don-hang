@@ -1203,9 +1203,13 @@
     return `${d.getDate()}/${d.getMonth() + 1}/${yy} ${hh}:${mi}`;
   }
 
-  function renderHistory(filter = '') {
+  function renderHistory(filter) {
+    if (filter === undefined) {
+      const input = document.getElementById('searchSessions');
+      filter = input ? input.value : '';
+    }
     const el = document.getElementById('chatHistory');
-    const q = filter.toLowerCase().trim();
+    const q = (filter || '').toLowerCase().trim();
     const filtered = q ? sessions.filter(s => {
       const title = (s.title || '').toLowerCase();
       const phone = (s.customer?.phone || '').toLowerCase();
