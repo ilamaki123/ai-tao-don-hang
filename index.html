@@ -2435,6 +2435,21 @@
         return;
       }
 
+      // Nếu SĐT đã tồn tại trong session cũ → switch sang session đó,
+      // xoá session INIT vừa tạo (tránh chat trùng cho cùng 1 khách).
+      // Match qua last-9-digits để bỏ qua prefix +84/84/0 và mọi ký tự không phải số.
+      const target = normalizePhone(phone);
+      const existing = sessions.find(s => s.id !== session.id && s.customer && normalizePhone(s.customer.phone) === target);
+      if (existing) {
+        removeTyping();
+        const currentId = session.id;
+        sessions = sessions.filter(s => s.id !== currentId);
+        selectSession(existing.id);
+        deleteSessionOnServer(currentId);
+        saveSessions();
+        return;
+      }
+
       const res = await fetch(`${API_BASE}/api/find-customer?phone=${phone}`, { headers: getAuthHeaders() });
       removeTyping();
 
@@ -2739,6 +2754,12 @@
   function extractPhone(text) {
     const match = (text || '').replace(/\s/g, '').match(/\d{9,12}/);
     return match ? match[0] : null;
+  }
+
+  // So sánh SĐT bỏ qua prefix (+84 / 84 / 0): lấy 9 số cuối.
+  // "0973xxxxxx" vs "+84973xxxxxx" vs "973xxxxxx" cho cùng kết quả.
+  function normalizePhone(p) {
+    return String(p || '').replace(/\D/g, '').slice(-9);
   }
 
   function extractLinks(text) {
