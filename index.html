@@ -1186,6 +1186,21 @@
   if (!activeSessionId) renderHistory();
   syncSessionsFromServer();
 
+  // dd/m/yy hh:mm theo timestamp message mới nhất trong session.
+  // Fallback về session.id (= Date.now() lúc tạo) nếu session chưa có message.
+  function formatLastActive(s) {
+    let ts = 0;
+    for (const m of (s.messages || [])) {
+      if (m && m.timestamp > ts) ts = m.timestamp;
+    }
+    if (!ts) ts = s.id || Date.now();
+    const d = new Date(ts);
+    const yy = String(d.getFullYear()).slice(-2);
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mi = String(d.getMinutes()).padStart(2, '0');
+    return `${d.getDate()}/${d.getMonth() + 1}/${yy} ${hh}:${mi}`;
+  }
+
   function renderHistory(filter = '') {
     const el = document.getElementById('chatHistory');
     const q = filter.toLowerCase().trim();
@@ -1200,7 +1215,7 @@
         <span class="icon">&#128172;</span>
         <div class="info">
           <div class="title">${s.title}</div>
-          <div class="date">${s.date}</div>
+          <div class="date">${formatLastActive(s)}</div>
         </div>
         <button class="btn-delete-chat" onclick="deleteSession(event, ${s.id})" title="Xóa đoạn chat">&#x2715;</button>
       </div>
