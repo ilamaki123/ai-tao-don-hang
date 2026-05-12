@@ -1108,11 +1108,40 @@
       const serverSessions = data.data;
       // Server is source of truth — always use server data
       sessions = serverSessions.map(s => ({ ...s, cartImages: s.cartImages || [] }));
+      purgeAbandonedSessions();
       renderHistory();
       if (sessions.length && !activeSessionId) selectSession(sessions[0].id);
       else if (activeSessionId) renderMessages();
       try { localStorage.setItem(LS_SESSIONS_KEY, JSON.stringify(sanitizeForServer(sessions))); } catch {}
     } catch {}
+  }
+
+  // Chat được coi là "bỏ trống" khi user mở rồi không/chưa tìm được khách hàng:
+  // - state vẫn ở INIT (chưa có customer được link)
+  // - title vẫn ở mặc định "Chat <ngày>"
+  // - customer === null
+  function isAbandonedSession(s) {
+    return s?.state === 'INIT' && !s.customer && (s.title || '').startsWith('Chat ');
+  }
+
+  // Dọn các chat bỏ trống đã hơn 1 ngày tuổi (s.id = Date.now() lúc tạo).
+  // Gọi sau khi sync từ server xong để không xoá session ai đó vừa tạo trên
+  // device khác. Trong-ngày được giữ lại để user còn cơ hội nhập SĐT.
+  function purgeAbandonedSessions() {
+    const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+    const removed = [];
+    sessions = sessions.filter(s => {
+      if ((s.id || 0) < cutoff && isAbandonedSession(s)) {
+        removed.push(s.id);
+        return false;
+      }
+      return true;
+    });
+    if (removed.length) {
+      console.log('[purge-abandoned]', removed.length, 'session(s) removed');
+      removed.forEach(id => deleteSessionOnServer(id));
+      saveSessions();
+    }
   }
 
   async function deleteSessionOnServer(id) {
@@ -1212,6 +1241,24 @@
   function newChat() {
     const now = new Date();
     const dateStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()}`;
+    // Reuse session bỏ trống nếu có — tránh stack nhiều "Chat <ngày>" rỗng
+    // khi user mở app rồi rời đi nhiều lần. Reset messages/date để session
+    // sạch như mới tạo.
+    const existing = sessions.find(isAbandonedSession);
+    if (existing) {
+      existing.title = `Chat ${dateStr}`;
+      existing.date = dateStr;
+      existing.messages = [];
+      existing.items = [];
+      existing.cartImages = [];
+      existing.salePct = 0;
+      sessions = [existing, ...sessions.filter(s => s.id !== existing.id)];
+      selectSession(existing.id);
+      setTimeout(() => {
+        addMessage('ai', 'Mon xin chào! Vui lòng nhập số điện thoại khách hàng để Mon bắt đầu tạo đơn hàng nhé.');
+      }, 200);
+      return;
+    }
     const newSession = {
       id: Date.now(),
       title: `Chat ${dateStr}`,
