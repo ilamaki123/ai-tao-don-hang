@@ -1262,6 +1262,38 @@
     renderMessages();
     updateHint();
     setTimeout(closeSidebar, 150);
+    // Refresh customer ngầm — nếu Basso đã update (vd. user bổ sung email)
+    // session pick up data mới mà không cần user tự find-customer lại.
+    refreshCustomerIfStale(getActiveSession());
+  }
+
+  // Refetch customer từ Basso theo phone của session, merge vào session.customer.
+  // - Throttle 5 phút mỗi session (skip nếu vừa refresh xong)
+  // - Bỏ qua hoàn toàn nếu session không có customer hoặc không có phone
+  // - opts.force=true bỏ qua throttle (dùng trước submitOrder)
+  async function refreshCustomerIfStale(session, opts = {}) {
+    if (!session || !session.customer || !session.customer.phone) return null;
+    const now = Date.now();
+    const last = session._customerRefreshAt || 0;
+    if (!opts.force && now - last < 5 * 60 * 1000) return session.customer;
+    try {
+      const res = await fetch(`${API_BASE}/api/find-customer?phone=${encodeURIComponent(session.customer.phone)}`, { headers: getAuthHeaders() });
+      if (!res.ok) return session.customer;
+      const data = await res.json();
+      if (!data.success || !data.data || !data.data.found) return session.customer;
+      const fresh = data.data.customer;
+      const changed = JSON.stringify(fresh) !== JSON.stringify(session.customer);
+      session.customer = fresh;
+      session._customerRefreshAt = now;
+      if (changed) {
+        console.log('[refresh-customer] updated', fresh.id, fresh.name);
+        saveSessions();
+      }
+      return fresh;
+    } catch (e) {
+      console.warn('[refresh-customer] failed:', e.message);
+      return session.customer;
+    }
   }
 
   function newChat() {
@@ -2665,6 +2697,10 @@
     _orderSubmitting = true;
     showTyping();
     try {
+    // Refresh customer ngay trước khi build order body: nếu khách vừa bổ
+    // sung email/address bên Basso, session sẽ pick up data mới — tránh
+    // cảnh order fail vì field thiếu trong snapshot cũ.
+    await refreshCustomerIfStale(session, { force: true });
     const c = session.customer;
     const orderBody = {
       customer_id: c.id,
