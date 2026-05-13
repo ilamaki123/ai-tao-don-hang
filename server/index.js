@@ -747,6 +747,13 @@ If the image is a PRODUCT DETAIL PAGE (one big hero photo on one side
 ONLY ONE bbox for the LARGE HERO PHOTO. EXCLUDE the small colour
 swatch thumbnails in the sidebar entirely — they are not the product
 to capture, they are alternate-color options.
+For PDP, the bbox MUST cover the FULL hero photo tile, INCLUDING the
+natural whitespace/background padding around the product silhouette
+— NOT a tight crop of the product outline. Ecommerce hero photos
+nearly always have generous padding around the subject (e.g. a sneaker
+with white space above and below it on a white tile); include that
+padding in the bbox so the resulting thumbnail looks like a normal
+product card, not a zoomed-in cutout.
 
 If the image is a CLEAN SINGLE PRODUCT PHOTO (one product on plain
 background, no UI), return ONE bbox covering the whole image:
