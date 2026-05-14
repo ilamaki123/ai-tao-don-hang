@@ -2019,8 +2019,10 @@
     const salePct = editing.salePct || 0;
     const deleteIds = editing.items.filter(i => i._status === 'deleted').map(i => i.id);
     const updateItems = [];
+    // Round to 3 decimals (not 2) — must match effectivePrice/formatAmount3
+    // so what the user sees in the edit-order card == what gets sent to Basso.
     const computeAfterSale = (base, pct) => pct > 0
-      ? Math.round((base || 0) * (1 - pct / 100) * 100) / 100
+      ? Math.round((base || 0) * (1 - pct / 100) * 1000) / 1000
       : (base || 0);
 
     const addItems = [...editing.addItems.map(i => {
@@ -2720,8 +2722,10 @@
       ...(session.adminNote ? { admin_note: session.adminNote } : {}),
       items: JSON.stringify(session.items.map(item => {
         const pct = getItemSalePct(item, session.salePct || 0);
+        // Round to 3 decimals — must match what the cart card displays
+        // (effectivePrice + formatAmount3 both 3 decimals).
         const priceAfterSale = pct > 0
-          ? Math.round(item.price * (1 - pct / 100) * 100) / 100
+          ? Math.round(item.price * (1 - pct / 100) * 1000) / 1000
           : item.price || 0;
         return {
           name: item.name,
