@@ -2710,8 +2710,11 @@
       phone: c.phone,
       email: c.email || '',
       shipping_address: c.address,
-      city_id: c.city_id,
-      district_id: c.district_id,
+      // Basso không nhận null cho city_id/district_id. Khách thiếu city
+      // (đôi khi Basso trả null) → gửi 0 để form-encoded body không thành
+      // chuỗi rỗng và Basso không reject.
+      city_id: c.city_id ?? 0,
+      district_id: c.district_id ?? 0,
       payment_method: 'cod',
       isStock: false,
       country_id: detectCountryId(session.items),
