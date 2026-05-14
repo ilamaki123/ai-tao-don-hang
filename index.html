@@ -3118,11 +3118,12 @@
     return totals;
   }
 
-  // Force 3 decimals cho các tiền tệ prefix (USD/EUR/…). VND / đ / ₫ giữ
-  // nguyên (không có khái niệm phần thập phân).
+  // Hiện tới 3 chữ số thập phân, KHÔNG pad trailing zeros: 47.7 → "47.7",
+  // 47.71 → "47.71", 47.712 → "47.712", 47 → "47". Chỉ áp dụng cho prefix
+  // currency ($, €, £…). VND / đ / ₫ giữ nguyên (không có phần thập phân).
   function formatAmount3(n) {
     return Number(n || 0).toLocaleString(undefined, {
-      minimumFractionDigits: 3,
+      minimumFractionDigits: 0,
       maximumFractionDigits: 3,
     });
   }
