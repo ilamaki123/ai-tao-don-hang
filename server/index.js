@@ -1125,6 +1125,27 @@ app.get('/api/orders-by-item-status', async (req, res) => {
   } catch (err) { console.error('[api] error:', req.url, err.message); res.status(500).json({ success: false, message: err.message }); }
 });
 
+// ===== PROXY: ĐƠN CÓ SP CANCEL (scope theo user của token) =====
+// Basso tự lọc theo approve_user_id = user_id của Bearer token (trừ admin/accounting_manager).
+app.get('/api/cancel-notifications', async (req, res) => {
+  if (IS_MOCK) {
+    return res.json({ success: true, data: { orders: [], total_orders: 0 }, _mock: true });
+  }
+  try {
+    const params = new URLSearchParams();
+    ['page', 'page_size', 'order_status', 'from', 'to', 'website', 'key'].forEach(k => {
+      if (req.query[k]) params.set(k, req.query[k]);
+    });
+    const url = `${BASSO_URL}/partner/getOrdersWithCancelledItems${params.toString() ? '?' + params.toString() : ''}`;
+    const response = await fetch(url, { headers: bassoHeaders(req) });
+    if (handleBassoAuthError(response, res)) return;
+    res.json(await response.json());
+  } catch (err) {
+    console.error('[cancel-notifications] error:', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // ===== ENCOURAGEMENT MESSAGE AFTER ORDER SUCCESS =====
 // 20 câu khích lệ Gen-Z xéo sắc — rotate theo order_count trong ngày để
 // user không thấy 2 câu giống nhau liên tiếp. Không gọi AI nữa.

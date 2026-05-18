@@ -92,6 +92,68 @@
       transition: background 0.2s;
     }
     .btn-dashboard:hover { background: #004d72; }
+    .btn-cancel-noti {
+      position: relative;
+      background: #00354E;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 12px;
+      transition: background 0.2s;
+      width: 100%;
+      text-align: left;
+    }
+    .btn-cancel-noti:hover { background: #004d72; }
+    .cancel-noti-badge {
+      position: absolute;
+      top: -6px;
+      right: -6px;
+      min-width: 18px;
+      height: 18px;
+      padding: 0 5px;
+      background: #D95C5C;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      border-radius: 9px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+    .cancel-noti-badge.visible { display: flex; }
+    .cancel-new-tag {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: #D95C5C;
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 8px;
+      letter-spacing: 0.5px;
+      line-height: 1.4;
+      margin-left: 6px;
+      vertical-align: middle;
+    }
+    .cancel-new-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      background: #D95C5C;
+      border-radius: 50%;
+      margin-left: 6px;
+      vertical-align: middle;
+      box-shadow: 0 0 0 2px rgba(217,92,92,0.2);
+    }
 
     .dashboard-view {
       flex: 1;
@@ -902,6 +964,11 @@
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
     Dashboard
   </button>
+  <button class="btn-cancel-noti" id="btnCancelNoti" onclick="toggleCancelPanel()">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+    Thông báo Cancel
+    <span class="cancel-noti-badge" id="cancelNotiBadge">0</span>
+  </button>
   <input type="text" class="search-sessions" id="searchSessions" placeholder="Tìm tên, SĐT..." oninput="filterSessions()" />
   <button class="btn-new-chat" onclick="newChat()">
     <span>+</span> New Chat
@@ -969,12 +1036,21 @@
     </div>
   </div>
 
+  <!-- Cancel notifications view (ẩn mặc định) -->
+  <div class="dashboard-view" id="cancelPanelView">
+    <div class="dashboard-section">
+      <h3>Thông báo sản phẩm bị Cancel</h3>
+      <div style="font-size:13px;color:#666;margin-bottom:8px">Các đơn của bạn vừa có sản phẩm bị hủy.</div>
+      <div id="cancelPanelList" style="display:flex;flex-direction:column;gap:12px"></div>
+    </div>
+  </div>
+
   <!-- Input bar -->
   <div class="input-bar-wrap" id="inputArea" style="display:none;">
     <!-- Nút tạo đơn mới (DONE) / hủy tạo đơn (WAITING_IMAGE) -->
     <div id="newOrderBtnWrap" style="display:none;padding:5px 0 0;width:100%;max-width:700px;margin:0 auto;">
       <div style="display:flex;gap:10px;width:100%">
-        <button class="cart-btn" style="flex:1;background:#f0f0f0;color:#666;border:1px solid #ccc;border-radius:14px" onclick="startNewOrder()">Tạo đơn mới</button>
+        <button class="cart-btn" style="flex:1;background:#f0f0f0;color:#666;border:1px solid #ccc;border-radius:14px" onclick="openNewOrderTypeMenu()">Tạo đơn mới</button>
         <button class="cart-btn" style="flex:1;background:#f0f0f0;color:#666;border:1px solid #ccc;border-radius:14px" onclick="openOrderStatusMenu()">Tình trạng đơn</button>
       </div>
     </div>
@@ -1254,6 +1330,7 @@
 
   function selectSession(id) {
     if (_dashboardOpen) closeDashboard();
+    if (_cancelPanelOpen) closeCancelPanel();
     activeSessionId = id;
     renderHistory();
     document.getElementById('emptyState').style.display = 'none';
@@ -1393,13 +1470,15 @@
       if (m.cartView) {
         return `<div class="message ai wide-message"><div id="inlineCart">${buildInlineCartHtml()}</div></div>`;
       }
-      const wideCls = (m.orderData || m.orderStatusResult) ? ' wide-message' : '';
+      const wideCls = (m.orderData || m.orderStatusResult || m.checkoutEditCard) ? ' wide-message' : '';
       return `
         <div class="message ai${wideCls}">
           ${m.text ? `<div class="message-bubble" style="white-space:pre-wrap">${escapeHtml(m.text)}</div>` : ''}
           ${m.orderData ? renderOrderCard(m.orderData) : ''}
           ${m.orderStatusMenu ? renderOrderStatusMenu() : ''}
           ${m.orderStatusResult ? renderOrderStatusResult(m.orderStatusResult) : ''}
+          ${m.newOrderTypeMenu ? renderNewOrderTypeMenu() : ''}
+          ${m.checkoutEditCard ? renderCheckoutEditCard(m.checkoutEditCard) : ''}
         </div>
       `;
     }
@@ -1645,6 +1724,8 @@
     session.state = 'DONE';
     session.items = [];
     session.salePct = 0;
+    session.checkoutMode = false;
+    session.checkoutInfo = null;
     saveSessions();
     updateHint();
     addMessage('ai', 'Đã hủy tạo đơn hàng.');
@@ -1659,9 +1740,146 @@
     session.state = 'WAITING_IMAGE';
     session.items = [];
     session.salePct = 0;
+    session.checkoutMode = false;
+    session.checkoutInfo = null;
     saveSessions();
     updateHint();
     addMessage('ai', `Mon bắt đầu tạo đơn mới cho ${session.customer?.name || 'khách hàng'}. Bạn vui lòng upload ảnh giỏ hàng kèm link sản phẩm.`);
+  }
+
+  // ===== CHECKOUT ORDER FLOW =====
+  function openNewOrderTypeMenu() {
+    const session = getActiveSession();
+    if (!session) return;
+    if (!session.customer) {
+      addMessage('ai', 'Mon chưa có thông tin khách hàng. Vui lòng nhập số điện thoại trước.');
+      return;
+    }
+    session.messages.push({ role: 'ai', text: '', newOrderTypeMenu: true, timestamp: Date.now() });
+    renderMessages();
+    saveSessions();
+  }
+
+  function renderNewOrderTypeMenu() {
+    return `
+      <div class="order-card">
+        <div class="order-title">Chọn loại đơn hàng</div>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">
+          <div><button class="order-link" style="border:none;cursor:pointer;background:#EFE7FF;color:#7C5ACB;font-size:13px;padding:6px 14px" onclick="startNewOrder()">Tạo đơn Order</button></div>
+          <div><button class="order-link" style="border:none;cursor:pointer;background:#EFE7FF;color:#7C5ACB;font-size:13px;padding:6px 14px" onclick="startCheckoutOrder()">Tạo đơn Checkout</button></div>
+        </div>
+      </div>
+    `;
+  }
+
+  function startCheckoutOrder() {
+    const session = getActiveSession();
+    if (!session || !session.customer) return;
+    addMessage('user', 'Tạo đơn Checkout');
+    const c = session.customer;
+    const cardId = 'co_' + Date.now();
+    const data = {
+      id: cardId,
+      name: c.name || '',
+      phone: c.phone || '',
+      email: c.email || '',
+      // Ưu tiên checkout_address (địa chỉ checkout từ users_info), fallback địa chỉ giao mặc định
+      shipping_address: c.checkout_address || c.address || '',
+      confirmed: false,
+    };
+    session.messages.push({ role: 'ai', text: 'Vui lòng kiểm tra và chỉnh sửa thông tin checkout:', checkoutEditCard: data, timestamp: Date.now() });
+    renderMessages();
+    saveSessions();
+  }
+
+  function renderCheckoutEditCard(data) {
+    // Sau khi confirm/cancel, message sẽ được convert sang plain-text bubble
+    // (xem confirmCheckoutInfo / cancelCheckoutInfo) → branch confirmed không
+    // còn được reach trong flow mới. Giữ làm fallback cho session cũ.
+    if (data.confirmed) return '';
+    const id = data.id;
+    const lockedStyle = 'padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;background:#f5f5f5;color:#333;cursor:not-allowed';
+    return `
+      <div class="order-card" id="${id}">
+        <div class="order-title">Thông tin checkout</div>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px;font-size:13px">
+          <label style="display:flex;flex-direction:column;gap:3px">
+            <span style="color:#666">Họ tên</span>
+            <input id="${id}_name" type="text" readonly value="${escapeHtml(data.name)}" style="${lockedStyle}" />
+          </label>
+          <label style="display:flex;flex-direction:column;gap:3px">
+            <span style="color:#666">Số điện thoại</span>
+            <input id="${id}_phone" type="text" readonly value="${escapeHtml(data.phone)}" style="${lockedStyle}" />
+          </label>
+          <label style="display:flex;flex-direction:column;gap:3px">
+            <span style="color:#666">Địa chỉ giao hàng</span>
+            <textarea id="${id}_address" rows="4" style="padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;resize:vertical;font-family:inherit">${escapeHtml(data.shipping_address)}</textarea>
+          </label>
+          <div style="display:flex;gap:8px;margin-top:6px">
+            <button class="order-link" style="flex:1;border:none;cursor:pointer;background:#EFE7FF;color:#7C5ACB;padding:8px 14px" onclick="confirmCheckoutInfo('${id}')">Xác nhận và tiếp tục</button>
+            <button class="order-link" style="flex:0 0 auto;border:none;cursor:pointer;background:#FDEBEC;color:#D95C5C;padding:8px 14px" onclick="cancelCheckoutInfo('${id}')">Hủy</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function findCheckoutCardData(cardId) {
+    const session = getActiveSession();
+    if (!session) return null;
+    const m = (session.messages || []).find(m => m.checkoutEditCard && m.checkoutEditCard.id === cardId);
+    return m ? m.checkoutEditCard : null;
+  }
+
+  function confirmCheckoutInfo(cardId) {
+    const session = getActiveSession();
+    if (!session) return;
+    const card = findCheckoutCardData(cardId);
+    if (!card) return;
+    const name = (document.getElementById(cardId + '_name')?.value || '').trim();
+    const phone = (document.getElementById(cardId + '_phone')?.value || '').trim();
+    // Email ẩn khỏi UI nhưng vẫn gửi BE — đọc từ data prefill (lấy từ findCustomerByPhone)
+    const email = (card.email || '').trim();
+    const address = (document.getElementById(cardId + '_address')?.value || '').trim();
+    if (!name || !phone || !address) {
+      addMessage('ai', 'Vui lòng nhập đầy đủ Họ tên, SĐT, Địa chỉ giao hàng.');
+      return;
+    }
+    session.checkoutMode = true;
+    session.checkoutInfo = {
+      customer_id: session.customer?.id,
+      name, phone, email,
+      address,
+      // Checkout không cần city/district — Basso lưu NULL khi brand=checkout
+      city_id: null,
+      district_id: null,
+    };
+    session.state = 'WAITING_IMAGE';
+    session.items = [];
+    session.salePct = 0;
+    invalidateOldCarts();
+    // Convert card message → plain-text bubble (giống tin nhắn AI findCustomer)
+    const msg = (session.messages || []).find(m => m.checkoutEditCard && m.checkoutEditCard.id === cardId);
+    if (msg) {
+      msg.text = `Thông tin checkout đã xác nhận:\n👤 ${name}\n📞 ${phone}\n📍 ${address}\n🏷️ Brand: ${formatBrand('checkout')}`;
+      msg.checkoutEditCard = null;
+    }
+    saveSessions();
+    renderMessages();
+    updateHint();
+    addMessage('ai', 'Mon đã ghi nhận thông tin checkout. Bạn vui lòng upload ảnh giỏ hàng kèm link sản phẩm.');
+  }
+
+  function cancelCheckoutInfo(cardId) {
+    const session = getActiveSession();
+    if (!session) return;
+    const msg = (session.messages || []).find(m => m.checkoutEditCard && m.checkoutEditCard.id === cardId);
+    if (msg) {
+      msg.text = 'Đã hủy tạo đơn Checkout. Bạn có thể bấm "Tạo đơn mới" để chọn lại.';
+      msg.checkoutEditCard = null;
+    }
+    saveSessions();
+    renderMessages();
   }
 
   async function enterEditOrder(orderCode) {
@@ -2702,24 +2920,30 @@
     // Refresh customer ngay trước khi build order body: nếu khách vừa bổ
     // sung email/address bên Basso, session sẽ pick up data mới — tránh
     // cảnh order fail vì field thiếu trong snapshot cũ.
-    await refreshCustomerIfStale(session, { force: true });
+    // Skip refresh ở checkout mode để giữ nguyên info user đã edit trên card.
+    if (!session.checkoutMode) {
+      await refreshCustomerIfStale(session, { force: true });
+    }
     const c = session.customer;
+    const useCheckout = !!session.checkoutMode && !!session.checkoutInfo;
+    const ci = session.checkoutInfo || {};
     const orderBody = {
-      customer_id: c.id,
-      name: c.name,
-      phone: c.phone,
-      email: c.email || '',
-      shipping_address: c.address,
+      customer_id: useCheckout ? (ci.customer_id || c.id) : c.id,
+      name: useCheckout ? ci.name : c.name,
+      phone: useCheckout ? ci.phone : c.phone,
+      email: useCheckout ? (ci.email || '') : (c.email || ''),
+      shipping_address: useCheckout ? ci.address : c.address,
       // Basso không nhận null cho city_id/district_id. Khách thiếu city
       // (đôi khi Basso trả null) → gửi 0 để form-encoded body không thành
-      // chuỗi rỗng và Basso không reject.
-      city_id: c.city_id ?? 0,
-      district_id: c.district_id ?? 0,
+      // chuỗi rỗng và Basso không reject. Checkout cho phép NULL nhưng
+      // vẫn gửi 0 cho đồng nhất với form-encoded.
+      city_id: (useCheckout ? ci.city_id : c.city_id) ?? 0,
+      district_id: (useCheckout ? ci.district_id : c.district_id) ?? 0,
       payment_method: 'cod',
       isStock: false,
       country_id: detectCountryId(session.items),
       payment_limit_id: 1,
-      brand: c.brand || 'shipus',
+      brand: useCheckout ? 'checkout' : (c.brand || 'shipus'),
       website: extractWebsiteFromItems(session.items),
       ...(session.webShippingFee ? { web_shipping_fee: Number(session.webShippingFee) } : {}),
       ...(session.adminNote ? { admin_note: session.adminNote } : {}),
@@ -2764,6 +2988,8 @@
       session.state = 'DONE';
       session.items = [];
       session.salePct = 0;
+      session.checkoutMode = false;
+      session.checkoutInfo = null;
       updateHint();
       addMessage('ai', 'Mon đã tạo đơn hàng thành công!\n\nHãy bấm "Tạo đơn mới" để Mon tiếp tục tạo đơn nhé.', {
         orderData: {
@@ -3780,6 +4006,7 @@
   }
 
   function openDashboard() {
+    if (_cancelPanelOpen) closeCancelPanel();
     _dashboardOpen = true;
     document.getElementById('dashboardView').classList.add('show');
     document.getElementById('messageList').style.display = 'none';
@@ -3806,6 +4033,242 @@
       document.getElementById('inputArea').style.display = 'none';
     }
   }
+
+  // ===== CANCEL NOTIFICATIONS PANEL =====
+  var _cancelPanelOpen = false;
+  var _cancelData = { orders: [] };
+  var _cancelPollTimer = null;
+  // Snapshot seenIds tại thời điểm mở panel — dùng để xác định item nào là "NEW"
+  // (chưa có trong snapshot = phát sinh sau lần mở panel trước). Reset khi đóng.
+  var _cancelSeenAtOpen = null;
+  const LS_CANCEL_SEEN_KEY = 'ai_chat_cancel_seen_' + (sessionUser?.email || 'anon');
+
+  function loadCancelSeenIds() {
+    try { return new Set(JSON.parse(localStorage.getItem(LS_CANCEL_SEEN_KEY) || '[]')); }
+    catch { return new Set(); }
+  }
+  function saveCancelSeenIds(set) {
+    try { localStorage.setItem(LS_CANCEL_SEEN_KEY, JSON.stringify([...set])); } catch {}
+  }
+  function getCancelItemKey(orderId, itemId) { return orderId + ':' + itemId; }
+
+  function getUnseenCancelCount() {
+    const seen = loadCancelSeenIds();
+    let count = 0;
+    (_cancelData.orders || []).forEach(o => {
+      (o.cancelled_items || []).forEach(it => {
+        if (!seen.has(getCancelItemKey(o.id, it.id))) count++;
+      });
+    });
+    return count;
+  }
+
+  function updateCancelBadge() {
+    const badge = document.getElementById('cancelNotiBadge');
+    if (!badge) return;
+    const n = getUnseenCancelCount();
+    if (n > 0) {
+      badge.textContent = n > 99 ? '99+' : String(n);
+      badge.classList.add('visible');
+    } else {
+      badge.classList.remove('visible');
+    }
+  }
+
+  async function fetchCancelNotifications() {
+    if (!sessionUser?.token) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/cancel-notifications?order_status=processing&page_size=50`, {
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data?.success) {
+        const payload = data.data || { orders: [] };
+        // Sort theo created_time tăng dần — đơn cũ ở trên, mới ở dưới (chat-style).
+        // Fallback theo id nếu thiếu created_time.
+        (payload.orders || []).sort((a, b) => {
+          const ta = Number(a.created_time) || 0;
+          const tb = Number(b.created_time) || 0;
+          if (ta !== tb) return ta - tb;
+          return (Number(a.id) || 0) - (Number(b.id) || 0);
+        });
+        _cancelData = payload;
+        // Nếu panel đang mở: tự mark seen các item mới vừa fetch về (panel đang
+        // hiển thị = user đã xem) → sidebar badge giữ ở 0. NEW badge trên panel
+        // vẫn hiển thị đúng vì dùng `_cancelSeenAtOpen` (snapshot lúc mở panel).
+        if (_cancelPanelOpen) {
+          const seen = loadCancelSeenIds();
+          (_cancelData.orders || []).forEach(o => (o.cancelled_items || []).forEach(it => seen.add(getCancelItemKey(o.id, it.id))));
+          saveCancelSeenIds(seen);
+        }
+        updateCancelBadge();
+        if (_cancelPanelOpen) renderCancelPanel({ keepScroll: true });
+      }
+    } catch (e) { /* silent — try lại lần poll sau */ }
+  }
+
+  // Smart polling theo focus/visibility:
+  //   tab visible + focused → 15s   (user đang dùng, cần thông báo nhanh)
+  //   tab visible + blurred → 60s   (user mở tab khác cùng cửa sổ, giảm tải)
+  //   tab hidden             → tắt  (chuyển tab khác/minimize, 0 request)
+  // Khi tab quay lại visible: poll ngay 1 lần để có data fresh.
+  var _cancelCurrentInterval = 0;
+
+  function pickCancelInterval() {
+    if (document.hidden) return 0;
+    return document.hasFocus() ? 15000 : 60000;
+  }
+
+  function applyCancelPollingMode() {
+    if (!sessionUser?.token) return;
+    const next = pickCancelInterval();
+    if (next === _cancelCurrentInterval) return;
+    _cancelCurrentInterval = next;
+    if (_cancelPollTimer) { clearInterval(_cancelPollTimer); _cancelPollTimer = null; }
+    if (next > 0) _cancelPollTimer = setInterval(fetchCancelNotifications, next);
+  }
+
+  function startCancelPolling() {
+    if (!sessionUser?.token) return;
+    fetchCancelNotifications();
+    applyCancelPollingMode();
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) fetchCancelNotifications();
+      applyCancelPollingMode();
+    });
+    window.addEventListener('focus', applyCancelPollingMode);
+    window.addEventListener('blur', applyCancelPollingMode);
+  }
+
+  function toggleCancelPanel() {
+    if (_cancelPanelOpen) closeCancelPanel();
+    else openCancelPanel();
+  }
+
+  function openCancelPanel() {
+    if (_dashboardOpen) closeDashboard();
+    _cancelPanelOpen = true;
+    document.getElementById('cancelPanelView').classList.add('show');
+    document.getElementById('messageList').style.display = 'none';
+    document.getElementById('emptyState').style.display = 'none';
+    document.getElementById('inputArea').style.display = 'none';
+    const topSearch = document.getElementById('topbarSearch');
+    if (topSearch) topSearch.style.visibility = 'hidden';
+    closeSidebar();
+    // Snapshot seenIds TRƯỚC khi mark — item nào không có trong snapshot → "NEW"
+    _cancelSeenAtOpen = loadCancelSeenIds();
+    // Mark tất cả items hiện tại là đã thấy → badge sidebar về 0
+    const seen = new Set(_cancelSeenAtOpen);
+    (_cancelData.orders || []).forEach(o => (o.cancelled_items || []).forEach(it => seen.add(getCancelItemKey(o.id, it.id))));
+    saveCancelSeenIds(seen);
+    updateCancelBadge();
+    renderCancelPanel();
+    fetchCancelNotifications();
+  }
+
+  function closeCancelPanel() {
+    _cancelPanelOpen = false;
+    _cancelSeenAtOpen = null;
+    document.getElementById('cancelPanelView').classList.remove('show');
+    const topSearch = document.getElementById('topbarSearch');
+    if (topSearch) topSearch.style.visibility = '';
+    if (activeSessionId) {
+      document.getElementById('messageList').style.display = 'flex';
+      document.getElementById('inputArea').style.display = 'flex';
+      document.getElementById('emptyState').style.display = 'none';
+    } else {
+      document.getElementById('emptyState').style.display = '';
+      document.getElementById('messageList').style.display = 'none';
+      document.getElementById('inputArea').style.display = 'none';
+    }
+  }
+
+  function isCancelPanelAtBottom() {
+    const view = document.getElementById('cancelPanelView');
+    if (!view) return true;
+    return view.scrollTop + view.clientHeight >= view.scrollHeight - 80;
+  }
+
+  function scrollCancelPanelToBottom() {
+    const view = document.getElementById('cancelPanelView');
+    if (view) view.scrollTop = view.scrollHeight;
+  }
+
+  function renderCancelPanel(opts = {}) {
+    const list = document.getElementById('cancelPanelList');
+    if (!list) return;
+    const stickToBottom = opts.keepScroll ? isCancelPanelAtBottom() : true;
+    const orders = _cancelData.orders || [];
+    if (orders.length === 0) {
+      list.innerHTML = '<div style="padding:24px;text-align:center;color:#888;font-size:13px">Không có sản phẩm bị cancel nào.</div>';
+      return;
+    }
+    list.innerHTML = orders.map(o => renderCancelOrderCard(o)).join('');
+    if (stickToBottom) {
+      requestAnimationFrame(scrollCancelPanelToBottom);
+    }
+  }
+
+  function isCancelItemNew(orderId, itemId) {
+    if (!_cancelSeenAtOpen) return false;
+    return !_cancelSeenAtOpen.has(getCancelItemKey(orderId, itemId));
+  }
+
+  function renderCancelOrderCard(o) {
+    const orderCode = o.order_code || '';
+    const orderId = o.id || '';
+    const customerName = o.customer_name || '';
+    const website = o.website || '';
+    const site = website ? getWebsiteName('https://' + website) : '';
+    const siteSuffix = site ? ` — ${site}` : '';
+    const customerSuffix = customerName ? ` — ${escapeHtml(customerName)}` : '';
+    const orderHasNew = (o.cancelled_items || []).some(it => isCancelItemNew(orderId, it.id));
+    const itemsHtml = (o.cancelled_items || []).map((it, idx) => {
+      const price = parseFloat(it.price ?? it.price_origin ?? 0) || 0;
+      const cur = (it.currency || '$').trim();
+      const priceStr = price > 0 ? `${cur}${price}` : '';
+      const img = it.image_path || '';
+      const imgUrl = img && (img.startsWith('http') || img.startsWith('data:')) ? img : (img ? 'https://basso.vn' + img : '');
+      const thumb = imgUrl ? `<img src="${imgUrl}" style="width:36px;height:36px;object-fit:cover;border-radius:6px;flex-shrink:0" />` : `<div style="width:36px;height:36px;flex-shrink:0"></div>`;
+      const fullName = it.name || '';
+      let vars = it.variations;
+      if (typeof vars === 'string') { try { vars = JSON.parse(vars); } catch { vars = []; } }
+      const varsStr = (Array.isArray(vars) ? vars : [])
+        .filter(v => v && v.value)
+        .map(v => `${escapeHtml(v.name)}: ${escapeHtml(v.value)}`)
+        .join(' • ');
+      const cancelNote = it.cancel_note || '';
+      const isNew = isCancelItemNew(orderId, it.id);
+      const newTag = isNew ? '<span class="cancel-new-tag">NEW</span>' : '';
+      return `
+        <div style="display:flex;align-items:flex-start;gap:8px;padding:6px 0;min-width:0">
+          <span style="flex-shrink:0;color:#666;min-width:18px;padding-top:8px">${idx + 1}.</span>
+          ${thumb}
+          <div style="flex:1;min-width:0;overflow:hidden">
+            <div title="${escapeHtml(fullName)}" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px">${escapeHtml(fullName)}${newTag}</div>
+            ${varsStr ? `<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:#888;margin-top:2px">${varsStr}</div>` : ''}
+            ${cancelNote ? `<div style="font-size:11px;color:#D95C5C;margin-top:3px;line-height:1.4"><span style="font-weight:600">Lý do cancel:</span> ${escapeHtml(cancelNote)}</div>` : ''}
+          </div>
+          ${priceStr ? `<span style="flex-shrink:0;font-weight:600;color:#7c5cbf;font-size:13px;padding-top:8px">${priceStr}</span>` : ''}
+        </div>
+      `;
+    }).join('');
+    const orderUrl = orderId ? `https://basso.vn/basso/customer_order/detail/${orderId}` : '#';
+    const orderDot = orderHasNew ? '<span class="cancel-new-dot" title="Có sản phẩm cancel mới"></span>' : '';
+    return `
+      <div class="order-card">
+        <div class="order-title">Đơn cancel — ${escapeHtml(orderCode)}${siteSuffix}${customerSuffix}${orderDot}</div>
+        <div style="margin:8px 0;padding:8px 10px;background:#fafafa;border-radius:6px">${itemsHtml}</div>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">
+          <div><a class="order-link" href="${orderUrl}" target="_blank">Xem đơn hàng &rarr;</a></div>
+        </div>
+      </div>
+    `;
+  }
+
+  // Kick off polling sau khi auth ready
+  if (sessionUser?.token) startCancelPolling();
 
   async function initDashboard() {
     _dashboardSelectedUser = null;
