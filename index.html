@@ -4241,6 +4241,7 @@
       const cancelNote = it.cancel_note || '';
       const isNew = isCancelItemNew(orderId, it.id);
       const newTag = isNew ? '<span class="cancel-new-tag">NEW</span>' : '';
+      const deleteBtn = `<button data-order-code="${escapeHtml(orderCode)}" data-item-id="${it.id}" data-item-name="${escapeHtml(fullName)}" onclick="onClickDeleteCancelItem(this)" title="Xóa SP khỏi đơn" style="flex-shrink:0;border:none;background:transparent;cursor:pointer;color:#D95C5C;font-size:18px;line-height:1;padding:4px 6px;margin-top:4px">&times;</button>`;
       return `
         <div style="display:flex;align-items:flex-start;gap:8px;padding:6px 0;min-width:0">
           <span style="flex-shrink:0;color:#666;min-width:18px;padding-top:8px">${idx + 1}.</span>
@@ -4251,6 +4252,7 @@
             ${cancelNote ? `<div style="font-size:11px;color:#D95C5C;margin-top:3px;line-height:1.4"><span style="font-weight:600">Lý do cancel:</span> ${escapeHtml(cancelNote)}</div>` : ''}
           </div>
           ${priceStr ? `<span style="flex-shrink:0;font-weight:600;color:#7c5cbf;font-size:13px;padding-top:8px">${priceStr}</span>` : ''}
+          ${deleteBtn}
         </div>
       `;
     }).join('');
@@ -4265,6 +4267,35 @@
         </div>
       </div>
     `;
+  }
+
+  function onClickDeleteCancelItem(btn) {
+    const orderCode = btn.dataset.orderCode;
+    const itemId = parseInt(btn.dataset.itemId);
+    const itemName = btn.dataset.itemName || 'sản phẩm này';
+    openConfirmModal(`Xóa "${itemName}" khỏi đơn ${orderCode}?`,
+      () => deleteCancelItem(orderCode, itemId),
+      { title: 'Xóa sản phẩm', okText: 'Xóa' });
+  }
+
+  async function deleteCancelItem(orderCode, itemId) {
+    try {
+      const res = await fetch(`${API_BASE}/api/update-order`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify({ order_code: orderCode, delete_item_ids: [itemId] }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        openConfirmModal(`Không xóa được: ${data.message || (data.errors || []).join(', ') || 'lỗi không xác định'}`,
+          () => {}, { title: 'Lỗi', okText: 'OK' });
+        return;
+      }
+      // Refresh panel để item biến mất
+      fetchCancelNotifications();
+    } catch (err) {
+      openConfirmModal(`Lỗi kết nối: ${err.message}`, () => {}, { title: 'Lỗi', okText: 'OK' });
+    }
   }
 
   // Kick off polling sau khi auth ready
