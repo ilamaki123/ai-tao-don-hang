@@ -4267,10 +4267,29 @@
     `;
   }
 
-  function onClickDeleteCancelItem(btn) {
+  async function onClickDeleteCancelItem(btn) {
     const orderCode = btn.dataset.orderCode;
     const itemId = parseInt(btn.dataset.itemId);
     const itemName = btn.dataset.itemName || 'sản phẩm này';
+    // Fetch order trước khi cho xóa — `cancelled_items` chỉ chứa items đã
+    // cancel nên không phản ánh tổng số items thật của đơn. Nếu order chỉ
+    // còn 1 item duy nhất, xóa sẽ khiến order rỗng → block, gợi ý hủy
+    // cả đơn thay vì xóa item cuối.
+    try {
+      btn.disabled = true;
+      const r = await fetch(`${API_BASE}/api/get-order?order_code=${encodeURIComponent(orderCode)}`, { headers: getAuthHeaders() });
+      const j = await r.json();
+      if (j.success && (j.data?.items || []).length <= 1) {
+        openConfirmModal(`Không thể xóa sản phẩm cuối cùng trong đơn hàng. Đơn ${orderCode} chỉ còn 1 sản phẩm. Vui lòng hủy cả đơn nếu cần.`,
+          () => {}, { title: 'Không thể xóa', okText: 'OK' });
+        return;
+      }
+    } catch (e) {
+      // Fetch fail → bỏ qua guard, để server xử lý
+      console.warn('[cancel-delete] guard fetch failed:', e.message);
+    } finally {
+      btn.disabled = false;
+    }
     openConfirmModal(`Xóa "${itemName}" khỏi đơn ${orderCode}?`,
       () => deleteCancelItem(orderCode, itemId),
       { title: 'Xóa sản phẩm', okText: 'Xóa' });
