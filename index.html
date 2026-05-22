@@ -2664,6 +2664,7 @@
                 const uploadRes = await fetch(`${API_BASE}/api/upload-image`, { method: 'POST', headers: getAuthHeaders(), body: uploadForm });
                 const uploadData = await uploadRes.json();
                 if (uploadData.success && uploadData.data.id) newItems[i].image_id = uploadData.data.id;
+                else if (uploadRes.status === 401 || !uploadData.success) checkTokenExpired(uploadData.message);
               } catch (e) { console.error('[upload-image] error:', e.message); }
             }));
           }
@@ -2709,14 +2710,9 @@
       const res = await fetch(`${API_BASE}/api/find-customer?phone=${phone}`, { headers: getAuthHeaders() });
       removeTyping();
 
-      // Token Basso hết hạn — auto logout về login.html
+      // Token Basso hết hạn — auto logout về login.html (qua checkTokenExpired)
       if (res.status === 401) {
-        addMessage('ai', 'Phiên đăng nhập đã hết hạn. Đang chuyển về trang đăng nhập...');
-        setTimeout(() => {
-          localStorage.removeItem('ai_chat_user');
-          sessionStorage.removeItem('ai_chat_user');
-          window.location.replace('login.html');
-        }, 2000);
+        checkTokenExpired('Unauthorized');
         return;
       }
 
@@ -2839,6 +2835,8 @@
                 if (uploadData.success && uploadData.data.id) {
                   newItems[i].image_id = uploadData.data.id;
                   newItems[i].image_path = uploadData.data.path;
+                } else if (uploadRes.status === 401 || !uploadData.success) {
+                  checkTokenExpired(uploadData.message);
                 }
               } catch (e) { console.error(`[extract] item ${i} upload error:`, e); }
             }));
@@ -3829,7 +3827,7 @@
       const res = await fetch(`${API_BASE}/api/upload-image`, { method: 'POST', headers: getAuthHeaders(), body: formData });
       const data = await res.json();
       if (!data.success) {
-        addMessage('ai', 'Upload ảnh thất bại: ' + (data.message || 'lỗi không xác định'));
+        addMessage('ai', 'Upload ảnh thất bại: ' + translateError(data.message || 'lỗi không xác định'));
         closeImgUploader();
         return;
       }
@@ -4606,17 +4604,27 @@
     return headers;
   }
 
+  // True nếu msg là dạng "token hết hạn" — phát hiện cả message gốc tiếng
+  // Anh từ Basso và bản tiếng Việt đã chuẩn hoá. Side effect: hiển thị
+  // thông báo + redirect về login sau 2s. Idempotent (cờ chống re-trigger
+  // tránh setTimeout chạy nhiều lần khi nhiều request fail cùng lúc).
+  var _tokenExpiredHandled = false;
+  function checkTokenExpired(msg) {
+    if (!msg || _tokenExpiredHandled) return false;
+    if (!/unauthorized|expired.*token|invalid.*token|đã hết hạn/i.test(msg)) return false;
+    _tokenExpiredHandled = true;
+    addMessage('ai', 'Phiên đăng nhập đã hết hạn. Đang chuyển về trang đăng nhập...');
+    setTimeout(() => {
+      localStorage.removeItem('ai_chat_user');
+      sessionStorage.removeItem('ai_chat_user');
+      window.location.replace('login.html');
+    }, 2000);
+    return true;
+  }
+
   function translateError(msg) {
     if (!msg) return 'Lỗi không xác định';
-    // Auto-logout khi token hết hạn — match cả message English (Basso gốc) lẫn Vietnamese (backend đã chuẩn hoá)
-    if (/unauthorized|expired.*token|invalid.*token|đã hết hạn/i.test(msg)) {
-      addMessage('ai', 'Phiên đăng nhập đã hết hạn. Đang chuyển về trang đăng nhập...');
-      setTimeout(() => {
-        localStorage.removeItem('ai_chat_user');
-        sessionStorage.removeItem('ai_chat_user');
-        window.location.replace('login.html');
-      }, 2000);
-    }
+    checkTokenExpired(msg);
     const map = {
       'Product link is required': 'Sản phẩm thiếu link',
       'Not exist user with this id': 'Khách hàng không tồn tại',
