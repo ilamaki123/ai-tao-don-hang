@@ -4262,7 +4262,7 @@
         <div style="margin:8px 0;padding:8px 10px;background:#fafafa;border-radius:6px">${itemsHtml}</div>
         <div style="display:flex;flex-direction:row;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap">
           <a class="order-link" href="${orderUrl}" target="_blank">Xem đơn hàng &rarr;</a>
-          <button class="order-link" style="border:none;cursor:pointer;background:#FDEBEC;color:#D95C5C;font-size:13px;padding:6px 14px" onclick="onClickCancelOrderFromPanel('${escapeHtml(orderCode)}', this)">Hủy đơn hàng</button>
+          ${o.has_bought_items === false ? `<button class="order-link" style="border:none;cursor:pointer;background:#FDEBEC;color:#D95C5C;font-size:13px;padding:6px 14px" onclick="onClickCancelOrderFromPanel('${escapeHtml(orderCode)}', this)">Hủy đơn hàng</button>` : ''}
         </div>
       </div>
     `;
