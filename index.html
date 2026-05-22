@@ -4109,29 +4109,30 @@
     } catch (e) { /* silent — try lại lần poll sau */ }
   }
 
-  // Lazy-load cờ "all_not_available" cho từng order: fetch get-order song
-  // song, set cờ → re-render panel. Nút "Hủy đơn hàng" chỉ xuất hiện khi
-  // TOÀN BỘ item trong đơn đều ở trạng thái not_available (đã cancel) —
-  // các đơn còn item pending/bought thì không cho hủy.
+  // Lấy cờ "all_not_available" cho từng order qua 1 batch call (server gọi
+  // Basso parallel). Tránh N fetches song song từ FE bị browser limit ~6
+  // connection/origin queue lại khi panel có nhiều đơn.
   async function enrichCancelOrdersAsync() {
     const orders = _cancelData?.orders || [];
-    let updated = false;
-    await Promise.all(orders.map(async o => {
-      if (o._enrichedStatus) return;
-      o._enrichedStatus = true;
-      const code = o.order_code;
-      if (!code) { o.all_not_available = false; return; }
-      try {
-        const r = await fetch(`${API_BASE}/api/get-order?order_code=${encodeURIComponent(code)}`, { headers: getAuthHeaders() });
-        const j = await r.json();
-        const items = j?.success ? (j.data?.items || []) : [];
-        o.all_not_available = items.length > 0 && items.every(it => (it.item_status || it.status) === 'not_available');
-        updated = true;
-      } catch (e) {
-        o.all_not_available = false;
-      }
-    }));
-    if (updated && _cancelPanelOpen) renderCancelPanel({ keepScroll: true });
+    const codes = orders.filter(o => !o._enrichedStatus && o.order_code).map(o => o.order_code);
+    if (codes.length === 0) return;
+    orders.forEach(o => { if (o.order_code && codes.includes(o.order_code)) o._enrichedStatus = true; });
+    try {
+      const r = await fetch(`${API_BASE}/api/orders-statuses`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify({ order_codes: codes }),
+      });
+      const j = await r.json();
+      if (!j?.success) return;
+      const statusMap = j.data || {};
+      orders.forEach(o => {
+        if (o.order_code in statusMap) o.all_not_available = !!statusMap[o.order_code]?.all_not_available;
+      });
+      if (_cancelPanelOpen) renderCancelPanel({ keepScroll: true });
+    } catch (e) {
+      console.warn('[enrich-cancel] batch fetch failed:', e.message);
+    }
   }
 
   // Smart polling theo focus/visibility:
