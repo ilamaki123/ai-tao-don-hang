@@ -4101,38 +4101,9 @@
           saveCancelSeenIds(seen);
         }
         updateCancelBadge();
-        if (_cancelPanelOpen) {
-          renderCancelPanel({ keepScroll: true });
-          enrichCancelOrdersAsync();
-        }
+        if (_cancelPanelOpen) renderCancelPanel({ keepScroll: true });
       }
     } catch (e) { /* silent — try lại lần poll sau */ }
-  }
-
-  // Lấy cờ "all_not_available" cho từng order qua 1 batch call (server gọi
-  // Basso parallel). Tránh N fetches song song từ FE bị browser limit ~6
-  // connection/origin queue lại khi panel có nhiều đơn.
-  async function enrichCancelOrdersAsync() {
-    const orders = _cancelData?.orders || [];
-    const codes = orders.filter(o => !o._enrichedStatus && o.order_code).map(o => o.order_code);
-    if (codes.length === 0) return;
-    orders.forEach(o => { if (o.order_code && codes.includes(o.order_code)) o._enrichedStatus = true; });
-    try {
-      const r = await fetch(`${API_BASE}/api/orders-statuses`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ order_codes: codes }),
-      });
-      const j = await r.json();
-      if (!j?.success) return;
-      const statusMap = j.data || {};
-      orders.forEach(o => {
-        if (o.order_code in statusMap) o.all_not_available = !!statusMap[o.order_code]?.all_not_available;
-      });
-      if (_cancelPanelOpen) renderCancelPanel({ keepScroll: true });
-    } catch (e) {
-      console.warn('[enrich-cancel] batch fetch failed:', e.message);
-    }
   }
 
   // Smart polling theo focus/visibility:
@@ -4192,7 +4163,6 @@
     updateCancelBadge();
     renderCancelPanel();
     fetchCancelNotifications();
-    enrichCancelOrdersAsync();
   }
 
   function closeCancelPanel() {
@@ -4290,64 +4260,11 @@
       <div class="order-card">
         <div class="order-title">Đơn cancel — ${escapeHtml(orderCode)}${siteSuffix}${customerSuffix}${orderDot}</div>
         <div style="margin:8px 0;padding:8px 10px;background:#fafafa;border-radius:6px">${itemsHtml}</div>
-        <div style="display:flex;flex-direction:row;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap">
-          <a class="order-link" href="${orderUrl}" target="_blank">Xem đơn hàng &rarr;</a>
-          ${o.all_not_available === true ? `<button class="order-link" style="border:none;cursor:pointer;background:#FDEBEC;color:#D95C5C;font-size:13px;padding:6px 14px" onclick="onClickCancelOrderFromPanel('${escapeHtml(orderCode)}', this)">Hủy đơn hàng</button>` : ''}
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">
+          <div><a class="order-link" href="${orderUrl}" target="_blank">Xem đơn hàng &rarr;</a></div>
         </div>
       </div>
     `;
-  }
-
-  // Hủy đơn từ panel Đơn Cancel. Khác cancelOrder() trong session chat
-  // (không cần activeSession). Defense-in-depth guard: chỉ cho hủy khi
-  // TOÀN BỘ item đã ở trạng thái not_available — khớp với điều kiện
-  // hiển thị nút ở renderCancelOrderCard.
-  async function onClickCancelOrderFromPanel(orderCode, btn) {
-    try {
-      btn.disabled = true;
-      const r = await fetch(`${API_BASE}/api/get-order?order_code=${encodeURIComponent(orderCode)}`, { headers: getAuthHeaders() });
-      const j = await r.json();
-      if (j.success) {
-        const items = j.data?.items || [];
-        const allNotAvailable = items.length > 0 && items.every(it => (it.item_status || it.status) === 'not_available');
-        if (!allNotAvailable) {
-          openConfirmModal(`Đơn ${orderCode} còn sản phẩm chưa mua hoặc đã mua, không thể hủy cả đơn. Chỉ hủy được khi toàn bộ sản phẩm đã ở trạng thái cancel.`,
-            () => {}, { title: 'Không thể hủy đơn', okText: 'OK' });
-          return;
-        }
-      }
-    } catch (e) {
-      console.warn('[cancel-order-panel] guard fetch failed:', e.message);
-    } finally {
-      btn.disabled = false;
-    }
-    openConfirmModal(`Bạn muốn hủy đơn hàng ${orderCode}?`,
-      () => doCancelOrderFromPanel(orderCode),
-      { title: 'Hủy đơn hàng', okText: 'Đồng ý' });
-  }
-
-  async function doCancelOrderFromPanel(orderCode) {
-    try {
-      const res = await fetch(`${API_BASE}/api/cancel-order`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ order_code: orderCode }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        // Remove the order from _cancelData and re-render.
-        if (_cancelData?.orders) {
-          _cancelData.orders = _cancelData.orders.filter(o => (o.order_code || '') !== orderCode);
-          renderCancelPanel({ keepScroll: true });
-        }
-        openConfirmModal(`Đã hủy đơn ${orderCode}.`, () => {}, { title: 'Đã hủy', okText: 'OK' });
-      } else {
-        openConfirmModal(`Không thể hủy: ${translateError(data.message || (data.errors || []).join(', ') || 'lỗi không xác định')}`,
-          () => {}, { title: 'Lỗi', okText: 'OK' });
-      }
-    } catch (err) {
-      openConfirmModal(`Lỗi: ${err.message}`, () => {}, { title: 'Lỗi', okText: 'OK' });
-    }
   }
 
   async function onClickDeleteCancelItem(btn) {

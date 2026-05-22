@@ -1146,39 +1146,6 @@ app.get('/api/cancel-notifications', async (req, res) => {
   }
 });
 
-// ===== BATCH: ITEM STATUS CHECK CHO MULTIPLE ORDERS =====
-// Trả về { order_code: { all_not_available: bool } } cho từng đơn trong
-// body.order_codes. Mục đích: FE panel Đơn Cancel hỏi 1 lần thay vì N
-// requests song song (browser limit ~6 connection/origin với panel nhiều
-// đơn sẽ queue). Server gọi Basso parallel không bị giới hạn này.
-app.post('/api/orders-statuses', express.json(), async (req, res) => {
-  if (IS_MOCK) {
-    return res.json({ success: true, data: {}, _mock: true });
-  }
-  try {
-    const codes = Array.isArray(req.body?.order_codes) ? req.body.order_codes.filter(Boolean) : [];
-    if (codes.length === 0) return res.json({ success: true, data: {} });
-    const result = {};
-    await Promise.all(codes.map(async code => {
-      try {
-        const r = await fetch(`${BASSO_URL}/partner/getOrderByCode?order_code=${encodeURIComponent(code)}`, { headers: bassoHeaders(req) });
-        const j = await r.json();
-        const items = j?.success ? (j.data?.items || []) : [];
-        result[code] = {
-          all_not_available: items.length > 0 && items.every(it => (it.item_status || it.status) === 'not_available'),
-        };
-      } catch (e) {
-        console.warn('[orders-statuses] fetch failed for', code, e.message);
-        result[code] = { all_not_available: false };
-      }
-    }));
-    res.json({ success: true, data: result });
-  } catch (err) {
-    console.error('[orders-statuses] error:', err.message);
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
-
 // ===== ENCOURAGEMENT MESSAGE AFTER ORDER SUCCESS =====
 // 20 câu khích lệ Gen-Z xéo sắc — rotate theo order_count trong ngày để
 // user không thấy 2 câu giống nhau liên tiếp. Không gọi AI nữa.
