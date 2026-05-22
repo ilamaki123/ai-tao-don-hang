@@ -4109,26 +4109,26 @@
     } catch (e) { /* silent — try lại lần poll sau */ }
   }
 
-  // Lazy-load has_bought_items cho từng order trong panel: fetch get-order
-  // song song, set cờ trên object → re-render panel để nút "Hủy đơn hàng"
-  // xuất hiện ở các đơn không có sản phẩm bought. Server không enrich vì
-  // N+1 fetch chặn response chính, panel mở chậm.
+  // Lazy-load cờ "all_not_available" cho từng order: fetch get-order song
+  // song, set cờ → re-render panel. Nút "Hủy đơn hàng" chỉ xuất hiện khi
+  // TOÀN BỘ item trong đơn đều ở trạng thái not_available (đã cancel) —
+  // các đơn còn item pending/bought thì không cho hủy.
   async function enrichCancelOrdersAsync() {
     const orders = _cancelData?.orders || [];
     let updated = false;
     await Promise.all(orders.map(async o => {
-      if (o._enrichedBought) return;
-      o._enrichedBought = true;
+      if (o._enrichedStatus) return;
+      o._enrichedStatus = true;
       const code = o.order_code;
-      if (!code) { o.has_bought_items = false; return; }
+      if (!code) { o.all_not_available = false; return; }
       try {
         const r = await fetch(`${API_BASE}/api/get-order?order_code=${encodeURIComponent(code)}`, { headers: getAuthHeaders() });
         const j = await r.json();
         const items = j?.success ? (j.data?.items || []) : [];
-        o.has_bought_items = items.some(it => (it.item_status || it.status) === 'bought');
+        o.all_not_available = items.length > 0 && items.every(it => (it.item_status || it.status) === 'not_available');
         updated = true;
       } catch (e) {
-        o.has_bought_items = true;
+        o.all_not_available = false;
       }
     }));
     if (updated && _cancelPanelOpen) renderCancelPanel({ keepScroll: true });
@@ -4291,15 +4291,16 @@
         <div style="margin:8px 0;padding:8px 10px;background:#fafafa;border-radius:6px">${itemsHtml}</div>
         <div style="display:flex;flex-direction:row;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap">
           <a class="order-link" href="${orderUrl}" target="_blank">Xem đơn hàng &rarr;</a>
-          ${o.has_bought_items === false ? `<button class="order-link" style="border:none;cursor:pointer;background:#FDEBEC;color:#D95C5C;font-size:13px;padding:6px 14px" onclick="onClickCancelOrderFromPanel('${escapeHtml(orderCode)}', this)">Hủy đơn hàng</button>` : ''}
+          ${o.all_not_available === true ? `<button class="order-link" style="border:none;cursor:pointer;background:#FDEBEC;color:#D95C5C;font-size:13px;padding:6px 14px" onclick="onClickCancelOrderFromPanel('${escapeHtml(orderCode)}', this)">Hủy đơn hàng</button>` : ''}
         </div>
       </div>
     `;
   }
 
   // Hủy đơn từ panel Đơn Cancel. Khác cancelOrder() trong session chat
-  // (không cần activeSession). Block khi có item nào status='bought' —
-  // không cho hủy đơn đã có hàng được mua phần nào.
+  // (không cần activeSession). Defense-in-depth guard: chỉ cho hủy khi
+  // TOÀN BỘ item đã ở trạng thái not_available — khớp với điều kiện
+  // hiển thị nút ở renderCancelOrderCard.
   async function onClickCancelOrderFromPanel(orderCode, btn) {
     try {
       btn.disabled = true;
@@ -4307,9 +4308,9 @@
       const j = await r.json();
       if (j.success) {
         const items = j.data?.items || [];
-        const hasBought = items.some(it => (it.item_status || it.status) === 'bought');
-        if (hasBought) {
-          openConfirmModal(`Đơn ${orderCode} có sản phẩm đã mua, không thể hủy cả đơn. Hãy hủy từng sản phẩm chưa mua bằng nút X.`,
+        const allNotAvailable = items.length > 0 && items.every(it => (it.item_status || it.status) === 'not_available');
+        if (!allNotAvailable) {
+          openConfirmModal(`Đơn ${orderCode} còn sản phẩm chưa mua hoặc đã mua, không thể hủy cả đơn. Chỉ hủy được khi toàn bộ sản phẩm đã ở trạng thái cancel.`,
             () => {}, { title: 'Không thể hủy đơn', okText: 'OK' });
           return;
         }
