@@ -4101,9 +4101,37 @@
           saveCancelSeenIds(seen);
         }
         updateCancelBadge();
-        if (_cancelPanelOpen) renderCancelPanel({ keepScroll: true });
+        if (_cancelPanelOpen) {
+          renderCancelPanel({ keepScroll: true });
+          enrichCancelOrdersAsync();
+        }
       }
     } catch (e) { /* silent — try lại lần poll sau */ }
+  }
+
+  // Lazy-load has_bought_items cho từng order trong panel: fetch get-order
+  // song song, set cờ trên object → re-render panel để nút "Hủy đơn hàng"
+  // xuất hiện ở các đơn không có sản phẩm bought. Server không enrich vì
+  // N+1 fetch chặn response chính, panel mở chậm.
+  async function enrichCancelOrdersAsync() {
+    const orders = _cancelData?.orders || [];
+    let updated = false;
+    await Promise.all(orders.map(async o => {
+      if (o._enrichedBought) return;
+      o._enrichedBought = true;
+      const code = o.order_code;
+      if (!code) { o.has_bought_items = false; return; }
+      try {
+        const r = await fetch(`${API_BASE}/api/get-order?order_code=${encodeURIComponent(code)}`, { headers: getAuthHeaders() });
+        const j = await r.json();
+        const items = j?.success ? (j.data?.items || []) : [];
+        o.has_bought_items = items.some(it => (it.item_status || it.status) === 'bought');
+        updated = true;
+      } catch (e) {
+        o.has_bought_items = true;
+      }
+    }));
+    if (updated && _cancelPanelOpen) renderCancelPanel({ keepScroll: true });
   }
 
   // Smart polling theo focus/visibility:
@@ -4163,6 +4191,7 @@
     updateCancelBadge();
     renderCancelPanel();
     fetchCancelNotifications();
+    enrichCancelOrdersAsync();
   }
 
   function closeCancelPanel() {

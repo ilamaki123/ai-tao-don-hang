@@ -1139,26 +1139,7 @@ app.get('/api/cancel-notifications', async (req, res) => {
     const url = `${BASSO_URL}/partner/getOrdersWithCancelledItems${params.toString() ? '?' + params.toString() : ''}`;
     const response = await fetch(url, { headers: bassoHeaders(req) });
     if (handleBassoAuthError(response, res)) return;
-    const data = await response.json();
-    // Enrich each order with has_bought_items so the FE can decide whether
-    // to render the "Hủy đơn hàng" button without doing N+1 fetches itself.
-    // Failures here default to true (hide the button) — conservative.
-    if (data?.success && Array.isArray(data?.data?.orders)) {
-      await Promise.all(data.data.orders.map(async o => {
-        const code = o.order_code;
-        if (!code) { o.has_bought_items = false; return; }
-        try {
-          const r = await fetch(`${BASSO_URL}/partner/getOrderByCode?order_code=${encodeURIComponent(code)}`, { headers: bassoHeaders(req) });
-          const j = await r.json();
-          const items = j?.success ? (j.data?.items || []) : [];
-          o.has_bought_items = items.some(it => (it.item_status || it.status) === 'bought');
-        } catch (e) {
-          console.warn('[cancel-notifications] enrich failed for', code, e.message);
-          o.has_bought_items = true;
-        }
-      }));
-    }
-    res.json(data);
+    res.json(await response.json());
   } catch (err) {
     console.error('[cancel-notifications] error:', err.message);
     res.status(500).json({ success: false, message: err.message });
