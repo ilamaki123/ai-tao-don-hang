@@ -4260,11 +4260,67 @@
       <div class="order-card">
         <div class="order-title">Đơn cancel — ${escapeHtml(orderCode)}${siteSuffix}${customerSuffix}${orderDot}</div>
         <div style="margin:8px 0;padding:8px 10px;background:#fafafa;border-radius:6px">${itemsHtml}</div>
-        <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">
-          <div><a class="order-link" href="${orderUrl}" target="_blank">Xem đơn hàng &rarr;</a></div>
+        <div style="display:flex;flex-direction:row;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap">
+          <a class="order-link" href="${orderUrl}" target="_blank">Xem đơn hàng &rarr;</a>
+          <button class="order-link" style="border:none;cursor:pointer;background:#FDEBEC;color:#D95C5C;font-size:13px;padding:6px 14px" onclick="onClickCancelOrderFromPanel('${escapeHtml(orderCode)}', this)">Hủy đơn hàng</button>
         </div>
       </div>
     `;
+  }
+
+  // Hủy đơn từ panel Đơn Cancel — không cần activeSession.
+  // Rule: chỉ cho hủy khi TOÀN BỘ item trong đơn đều ở trạng thái
+  // not_available. Check on-click (1 fetch, user chủ động bấm) thay vì
+  // render conditional theo enrichment trước (sẽ phải fetch N đơn → chậm
+  // hoặc reload mỗi lần mở panel).
+  async function onClickCancelOrderFromPanel(orderCode, btn) {
+    const origText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Đang kiểm tra...';
+    try {
+      const r = await fetch(`${API_BASE}/api/get-order?order_code=${encodeURIComponent(orderCode)}`, { headers: getAuthHeaders() });
+      const j = await r.json();
+      if (j?.success) {
+        const items = j.data?.items || [];
+        const allNotAvailable = items.length > 0 && items.every(it => (it.item_status || it.status) === 'not_available');
+        if (!allNotAvailable) {
+          openConfirmModal(`Đơn ${orderCode} còn sản phẩm chưa mua hoặc đã mua. Chỉ hủy được đơn khi toàn bộ sản phẩm đã ở trạng thái cancel.`,
+            () => {}, { title: 'Không thể hủy đơn', okText: 'OK' });
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn('[cancel-order-panel] guard fetch failed:', e.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = origText;
+    }
+    openConfirmModal(`Bạn muốn hủy đơn hàng ${orderCode}?`,
+      () => doCancelOrderFromPanel(orderCode),
+      { title: 'Hủy đơn hàng', okText: 'Đồng ý' });
+  }
+
+  async function doCancelOrderFromPanel(orderCode) {
+    try {
+      const res = await fetch(`${API_BASE}/api/cancel-order`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify({ order_code: orderCode }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        if (_cancelData?.orders) {
+          _cancelData.orders = _cancelData.orders.filter(o => (o.order_code || '') !== orderCode);
+          renderCancelPanel({ keepScroll: true });
+        }
+        openConfirmModal(`Đã hủy đơn ${orderCode}.`, () => {}, { title: 'Đã hủy', okText: 'OK' });
+      } else {
+        openConfirmModal(`Không thể hủy: ${translateError(data.message || (data.errors || []).join(', ') || 'lỗi không xác định')}`,
+          () => {}, { title: 'Lỗi', okText: 'OK' });
+      }
+    } catch (err) {
+      openConfirmModal(`Lỗi: ${err.message}`, () => {}, { title: 'Lỗi', okText: 'OK' });
+    }
   }
 
   async function onClickDeleteCancelItem(btn) {
