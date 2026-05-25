@@ -662,7 +662,7 @@ app.post('/api/analyze-image', upload.single('image'), async (req, res) => {
 
 Mỗi sản phẩm gồm:
 - name: thương hiệu + tên sản phẩm
-- quantity: số nguyên, mặc định 1
+- quantity: số nguyên, mặc định 1. CHÚ Ý: "X Count", "Pack of N", "N-Pack", "Set of N", "Bundle of N" trong size selector / size label là QUY CÁCH ĐÓNG GÓI của 1 sản phẩm (vd. 1 chai chứa 100 viên thuốc, 1 hộp gồm 3 bịch) — KHÔNG được hiểu là quantity. Quantity là số sản phẩm user thêm vào giỏ, mặc định 1 trừ khi thấy rõ ô "Qty: N" / "Quantity: N" hoặc ảnh giỏ hàng có số lượng cụ thể.
 ${priceRule}
 - currency: ký hiệu tiền ("$", "€", "£", "₩", "¥", "đ", "VND"), không thấy để ""
 - variations: mảng các thuộc tính NGƯỜI MUA ĐÃ CHỌN (size selector, color swatch, hoặc dòng "Size: M", "Color: Black"). LUÔN có Size và Color trong mảng (value="" nếu không thấy lựa chọn cụ thể). KHÔNG được tự bịa thuộc tính từ tên/mô tả/đặc điểm sản phẩm (ví dụ KHÔNG suy "Surface: Carbon" từ tên paddle, KHÔNG đoán "Color: Blue" từ màu trong ảnh sản phẩm). Chỉ lấy khi có giá trị rõ ràng được hiển thị như một lựa chọn variant.
