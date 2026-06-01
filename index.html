@@ -3743,6 +3743,9 @@
     document.getElementById('confirmModalTitle').textContent = opts.title || 'Xác nhận';
     document.getElementById('confirmModalMessage').textContent = message;
     document.getElementById('confirmModalOk').textContent = opts.okText || 'Xác nhận';
+    // hideCancel: chỉ hiện nút OK (dùng cho thông báo, không phải xác nhận hành động)
+    const cancelBtn = document.getElementById('confirmModalCancel');
+    if (cancelBtn) cancelBtn.style.display = opts.hideCancel ? 'none' : '';
     document.getElementById('confirmModal').classList.add('show');
   }
   function closeConfirmModal(confirmed) {
@@ -4306,13 +4309,13 @@
           _cancelData.orders = _cancelData.orders.filter(o => (o.order_code || '') !== orderCode);
           renderCancelPanel({ keepScroll: true });
         }
-        openConfirmModal(`Đã hủy đơn ${orderCode}.`, () => {}, { title: 'Đã hủy', okText: 'OK' });
+        openConfirmModal(`Đã hủy đơn ${orderCode}.`, () => {}, { title: 'Đã hủy', okText: 'OK', hideCancel: true });
       } else {
         openConfirmModal(`Không thể hủy: ${translateError(data.message || (data.errors || []).join(', ') || 'lỗi không xác định')}`,
-          () => {}, { title: 'Lỗi', okText: 'OK' });
+          () => {}, { title: 'Lỗi', okText: 'OK', hideCancel: true });
       }
     } catch (err) {
-      openConfirmModal(`Lỗi: ${err.message}`, () => {}, { title: 'Lỗi', okText: 'OK' });
+      openConfirmModal(`Lỗi: ${err.message}`, () => {}, { title: 'Lỗi', okText: 'OK', hideCancel: true });
     }
   }
 
@@ -4326,7 +4329,7 @@
     const order = (_cancelData.orders || []).find(o => (o.order_code || '') === orderCode);
     if (order && order.total_items != null && Number(order.total_items) <= 1) {
       openConfirmModal(`Không thể xóa sản phẩm cuối cùng trong đơn hàng. Đơn ${orderCode} chỉ còn 1 sản phẩm. Vui lòng hủy cả đơn nếu cần.`,
-        () => {}, { title: 'Không thể xóa', okText: 'OK' });
+        () => {}, { title: 'Không thể xóa', okText: 'OK', hideCancel: true });
       return;
     }
     openConfirmModal(`Xóa "${itemName}" khỏi đơn ${orderCode}?`,
@@ -4344,13 +4347,13 @@
       const data = await res.json();
       if (!data.success) {
         openConfirmModal(`Không xóa được: ${data.message || (data.errors || []).join(', ') || 'lỗi không xác định'}`,
-          () => {}, { title: 'Lỗi', okText: 'OK' });
+          () => {}, { title: 'Lỗi', okText: 'OK', hideCancel: true });
         return;
       }
       // Refresh panel để item biến mất
       fetchCancelNotifications();
     } catch (err) {
-      openConfirmModal(`Lỗi kết nối: ${err.message}`, () => {}, { title: 'Lỗi', okText: 'OK' });
+      openConfirmModal(`Lỗi kết nối: ${err.message}`, () => {}, { title: 'Lỗi', okText: 'OK', hideCancel: true });
     }
   }
 
@@ -4769,7 +4772,7 @@
     <div class="edit-modal-title" id="confirmModalTitle">Xác nhận</div>
     <div id="confirmModalMessage" style="font-size:14px;color:#444;margin-bottom:8px"></div>
     <div class="edit-modal-btns">
-      <button class="edit-modal-btn edit-modal-btn-cancel" onclick="closeConfirmModal(false)">Hủy</button>
+      <button class="edit-modal-btn edit-modal-btn-cancel" id="confirmModalCancel" onclick="closeConfirmModal(false)">Hủy</button>
       <button class="edit-modal-btn edit-modal-btn-danger" id="confirmModalOk" onclick="closeConfirmModal(true)">Xác nhận</button>
     </div>
   </div>
