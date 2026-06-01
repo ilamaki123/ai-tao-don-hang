@@ -4054,7 +4054,7 @@
     const seen = loadCancelSeenIds();
     let count = 0;
     (_cancelData.orders || []).forEach(o => {
-      (o.cancelled_items || []).forEach(it => {
+      (o.items || o.cancelled_items || []).forEach(it => {
         if (!seen.has(getCancelItemKey(o.id, it.id))) count++;
       });
     });
@@ -4076,7 +4076,7 @@
   async function fetchCancelNotifications() {
     if (!sessionUser?.token) return;
     try {
-      const res = await fetch(`${API_BASE}/api/cancel-notifications?order_status=processing&page_size=50`, {
+      const res = await fetch(`${API_BASE}/api/cancel-notifications?item_status=not_available&order_status=processing&page_size=50`, {
         headers: getAuthHeaders(),
       });
       if (!res.ok) return;
@@ -4097,7 +4097,7 @@
         // vẫn hiển thị đúng vì dùng `_cancelSeenAtOpen` (snapshot lúc mở panel).
         if (_cancelPanelOpen) {
           const seen = loadCancelSeenIds();
-          (_cancelData.orders || []).forEach(o => (o.cancelled_items || []).forEach(it => seen.add(getCancelItemKey(o.id, it.id))));
+          (_cancelData.orders || []).forEach(o => (o.items || o.cancelled_items || []).forEach(it => seen.add(getCancelItemKey(o.id, it.id))));
           saveCancelSeenIds(seen);
         }
         updateCancelBadge();
@@ -4158,7 +4158,7 @@
     _cancelSeenAtOpen = loadCancelSeenIds();
     // Mark tất cả items hiện tại là đã thấy → badge sidebar về 0
     const seen = new Set(_cancelSeenAtOpen);
-    (_cancelData.orders || []).forEach(o => (o.cancelled_items || []).forEach(it => seen.add(getCancelItemKey(o.id, it.id))));
+    (_cancelData.orders || []).forEach(o => (o.items || o.cancelled_items || []).forEach(it => seen.add(getCancelItemKey(o.id, it.id))));
     saveCancelSeenIds(seen);
     updateCancelBadge();
     renderCancelPanel();
@@ -4221,8 +4221,8 @@
     const site = website ? getWebsiteName('https://' + website) : '';
     const siteSuffix = site ? ` — ${site}` : '';
     const customerSuffix = customerName ? ` — ${escapeHtml(customerName)}` : '';
-    const orderHasNew = (o.cancelled_items || []).some(it => isCancelItemNew(orderId, it.id));
-    const itemsHtml = (o.cancelled_items || []).map((it, idx) => {
+    const orderHasNew = (o.items || o.cancelled_items || []).some(it => isCancelItemNew(orderId, it.id));
+    const itemsHtml = (o.items || o.cancelled_items || []).map((it, idx) => {
       const price = parseFloat(it.price ?? it.price_origin ?? 0) || 0;
       const cur = (it.currency || '$').trim();
       const priceStr = price > 0 ? `${cur}${price}` : '';
@@ -4256,45 +4256,38 @@
     }).join('');
     const orderUrl = orderId ? `https://basso.vn/basso/customer_order/detail/${orderId}` : '#';
     const orderDot = orderHasNew ? '<span class="cancel-new-dot" title="Có sản phẩm cancel mới"></span>' : '';
+    // Nút Hủy đơn chỉ hiện khi TOÀN BỘ SP của đơn đều not_available — xác định
+    // qua `total_items` (API mới: tổng dòng SP của đơn). Không cần fetch get-order
+    // riêng cho từng đơn nữa.
+    const cancelOrderBtn = isOrderFullyCancelled(o)
+      ? `<button class="order-link" style="border:none;cursor:pointer;background:#FDEBEC;color:#D95C5C;font-size:13px;padding:6px 14px" onclick="onClickCancelOrderFromPanel('${escapeHtml(orderCode)}')">Hủy đơn hàng</button>`
+      : '';
     return `
       <div class="order-card">
         <div class="order-title">Đơn cancel — ${escapeHtml(orderCode)}${siteSuffix}${customerSuffix}${orderDot}</div>
         <div style="margin:8px 0;padding:8px 10px;background:#fafafa;border-radius:6px">${itemsHtml}</div>
         <div style="display:flex;flex-direction:row;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap">
           <a class="order-link" href="${orderUrl}" target="_blank">Xem đơn hàng &rarr;</a>
-          <button class="order-link" style="border:none;cursor:pointer;background:#FDEBEC;color:#D95C5C;font-size:13px;padding:6px 14px" onclick="onClickCancelOrderFromPanel('${escapeHtml(orderCode)}', this)">Hủy đơn hàng</button>
+          ${cancelOrderBtn}
         </div>
       </div>
     `;
   }
 
-  // Hủy đơn từ panel Đơn Cancel — không cần activeSession.
-  // Rule: chỉ cho hủy khi TOÀN BỘ item trong đơn đều ở trạng thái
-  // not_available. Check on-click (1 fetch, user chủ động bấm) thay vì
-  // render conditional theo enrichment trước (sẽ phải fetch N đơn → chậm
-  // hoặc reload mỗi lần mở panel).
-  async function onClickCancelOrderFromPanel(orderCode, btn) {
-    const origText = btn.textContent;
-    btn.disabled = true;
-    btn.textContent = 'Đang kiểm tra...';
-    try {
-      const r = await fetch(`${API_BASE}/api/get-order?order_code=${encodeURIComponent(orderCode)}`, { headers: getAuthHeaders() });
-      const j = await r.json();
-      if (j?.success) {
-        const items = j.data?.items || [];
-        const allNotAvailable = items.length > 0 && items.every(it => (it.item_status || it.status) === 'not_available');
-        if (!allNotAvailable) {
-          openConfirmModal(`Đơn ${orderCode} còn sản phẩm chưa mua hoặc đã mua. Chỉ hủy được đơn khi toàn bộ sản phẩm đã ở trạng thái cancel.`,
-            () => {}, { title: 'Không thể hủy đơn', okText: 'OK' });
-          return;
-        }
-      }
-    } catch (e) {
-      console.warn('[cancel-order-panel] guard fetch failed:', e.message);
-    } finally {
-      btn.disabled = false;
-      btn.textContent = origText;
-    }
+  // Trả về true nếu mọi dòng SP của đơn đều not_available.
+  // Dùng `total_items` (tổng dòng SP của đơn, mọi status — API mới) so với số
+  // dòng cancel hiển thị. Thiếu `total_items` → false (an toàn, ẩn nút).
+  function isOrderFullyCancelled(o) {
+    if (o.total_items == null) return false;
+    const items = o.items || o.cancelled_items || [];
+    if (items.length === 0) return false;
+    if (items.length !== Number(o.total_items)) return false;
+    return items.every(it => (it.item_status || it.status) === 'not_available');
+  }
+
+  // Hủy đơn từ panel — render-gate isOrderFullyCancelled đã đảm bảo toàn bộ SP
+  // cancel nên không cần guard fetch get-order nữa.
+  async function onClickCancelOrderFromPanel(orderCode) {
     openConfirmModal(`Bạn muốn hủy đơn hàng ${orderCode}?`,
       () => doCancelOrderFromPanel(orderCode),
       { title: 'Hủy đơn hàng', okText: 'Đồng ý' });
@@ -4327,24 +4320,14 @@
     const orderCode = btn.dataset.orderCode;
     const itemId = parseInt(btn.dataset.itemId);
     const itemName = btn.dataset.itemName || 'sản phẩm này';
-    // Fetch order trước khi cho xóa — `cancelled_items` chỉ chứa items đã
-    // cancel nên không phản ánh tổng số items thật của đơn. Nếu order chỉ
-    // còn 1 item duy nhất, xóa sẽ khiến order rỗng → block, gợi ý hủy
-    // cả đơn thay vì xóa item cuối.
-    try {
-      btn.disabled = true;
-      const r = await fetch(`${API_BASE}/api/get-order?order_code=${encodeURIComponent(orderCode)}`, { headers: getAuthHeaders() });
-      const j = await r.json();
-      if (j.success && (j.data?.items || []).length <= 1) {
-        openConfirmModal(`Không thể xóa sản phẩm cuối cùng trong đơn hàng. Đơn ${orderCode} chỉ còn 1 sản phẩm. Vui lòng hủy cả đơn nếu cần.`,
-          () => {}, { title: 'Không thể xóa', okText: 'OK' });
-        return;
-      }
-    } catch (e) {
-      // Fetch fail → bỏ qua guard, để server xử lý
-      console.warn('[cancel-delete] guard fetch failed:', e.message);
-    } finally {
-      btn.disabled = false;
+    // Chặn xóa SP cuối cùng của đơn (xóa hết → đơn rỗng). API mới trả
+    // `total_items` (tổng dòng SP mọi status) ngay trong _cancelData → không
+    // cần fetch get-order riêng. Thiếu total_items → để server validate.
+    const order = (_cancelData.orders || []).find(o => (o.order_code || '') === orderCode);
+    if (order && order.total_items != null && Number(order.total_items) <= 1) {
+      openConfirmModal(`Không thể xóa sản phẩm cuối cùng trong đơn hàng. Đơn ${orderCode} chỉ còn 1 sản phẩm. Vui lòng hủy cả đơn nếu cần.`,
+        () => {}, { title: 'Không thể xóa', okText: 'OK' });
+      return;
     }
     openConfirmModal(`Xóa "${itemName}" khỏi đơn ${orderCode}?`,
       () => deleteCancelItem(orderCode, itemId),

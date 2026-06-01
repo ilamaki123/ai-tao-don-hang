@@ -1133,13 +1133,21 @@ app.get('/api/cancel-notifications', async (req, res) => {
   }
   try {
     const params = new URLSearchParams();
+    // API mới yêu cầu item_status bắt buộc → default not_available cho panel cancel.
+    params.set('item_status', req.query.item_status || 'not_available');
     ['page', 'page_size', 'order_status', 'from', 'to', 'website', 'key'].forEach(k => {
       if (req.query[k]) params.set(k, req.query[k]);
     });
-    const url = `${BASSO_URL}/partner/getOrdersWithCancelledItems${params.toString() ? '?' + params.toString() : ''}`;
+    const url = `${BASSO_URL}/partner/getOrdersWithCancelledItems?${params.toString()}`;
     const response = await fetch(url, { headers: bassoHeaders(req) });
     if (handleBassoAuthError(response, res)) return;
-    res.json(await response.json());
+    const rawText = await response.text();
+    let data;
+    try { data = JSON.parse(rawText); } catch {
+      // Basso trả HTML (endpoint lỗi/chưa sẵn) → silent skip thay vì 500
+      return res.json({ success: false, message: 'Endpoint chưa khả dụng', data: { orders: [], total_orders: 0 } });
+    }
+    res.json(data);
   } catch (err) {
     console.error('[cancel-notifications] error:', err.message);
     res.status(500).json({ success: false, message: err.message });
