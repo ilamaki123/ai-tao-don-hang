@@ -13,6 +13,13 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <!-- BASSO EXTENSION: lưu token giỏ từ extension TRƯỚC khi auth-redirect làm mất hash -->
+  <script>
+    try {
+      var _bm = location.hash.match(/[#&]import=([^&]+)/);
+      if (_bm) localStorage.setItem('basso_pending_import', _bm[1]);
+    } catch (e) {}
+  </script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -2904,6 +2911,42 @@
     }
   }
 
+  // Vá triệt để "đơn không có ảnh": trước khi tạo đơn, item nào thiếu
+  // image_id mà còn nguồn ảnh thì upload lại để lấy image_id.
+  //  - Có thumb base64 (ảnh đã crop, còn trong phiên) → upload file
+  //  - Không thumb nhưng có image_path http (ảnh đã ở Basso storage,
+  //    mất id sau reload vì thumb base64 đã bị strip khi sync) → upload theo URL
+  // Mutate item tại chỗ. Lỗi 1 item không chặn cả đơn (log + bỏ qua).
+  async function ensureItemImageIds(items) {
+    let recovered = 0;
+    for (const item of (items || [])) {
+      if (item.image_id) continue;
+      try {
+        if (item.thumb && item.thumb.startsWith('data:image/')) {
+          const blob = await (await fetch(item.thumb)).blob();
+          const f = new File([blob], 'product.jpg', { type: 'image/jpeg' });
+          const fd = new FormData(); fd.append('file', f);
+          const r = await fetch(`${API_BASE}/api/upload-image`, { method: 'POST', headers: getAuthHeaders(), body: fd });
+          const d = await r.json();
+          if (d.success && d.data?.id) { item.image_id = d.data.id; item.image_path = d.data.path; recovered++; }
+          else if (r.status === 401 || !d.success) checkTokenExpired(d.message);
+        } else if (item.image_path && /^https?:\/\//i.test(item.image_path)) {
+          const r = await fetch(`${API_BASE}/api/upload-image-url`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+            body: JSON.stringify({ url: item.image_path }),
+          });
+          const d = await r.json();
+          if (d.success && d.data?.id) { item.image_id = d.data.id; item.image_path = d.data.path; recovered++; }
+          else if (r.status === 401 || !d.success) checkTokenExpired(d.message);
+        }
+      } catch (e) {
+        console.warn('[ensureItemImageIds] re-upload lỗi cho', item.name, e.message);
+      }
+    }
+    if (recovered) { console.log(`[ensureItemImageIds] khôi phục image_id cho ${recovered} item`); saveSessions(); }
+  }
+
   var _orderSubmitting = false;
   async function submitOrder(session) {
     if (_orderSubmitting) return;
@@ -2922,6 +2965,9 @@
     if (!session.checkoutMode) {
       await refreshCustomerIfStale(session, { force: true });
     }
+    // Đảm bảo mọi item có image_id trước khi build order — vá triệt để
+    // cảnh "đơn không có ảnh" khi image_id bị rớt (reload/race/upload fail).
+    await ensureItemImageIds(session.items);
     const c = session.customer;
     const useCheckout = !!session.checkoutMode && !!session.checkoutInfo;
     const ci = session.checkoutInfo || {};
@@ -4869,6 +4915,61 @@
       })
       .catch(() => {});
   }
+</script>
+
+<!-- BASSO EXTENSION: nạp giỏ hàng từ extension vào một session mới -->
+<script>
+  (function () {
+    function decodeImport(tok) {
+      try {
+        var b64 = tok.replace(/-/g, '+').replace(/_/g, '/');
+        return JSON.parse(decodeURIComponent(escape(atob(b64))));
+      } catch (e) { console.error('[basso-import] decode lỗi', e); return null; }
+    }
+    function toMonItems(items) {
+      return (items || []).map(function (it) {
+        return {
+          name: it.name || '',
+          link: it.link || '',
+          quantity: parseInt(it.quantity) || 1,
+          price: parseFloat(it.price) || 0,
+          term_id: 5,
+          variations: (it.variations || []).map(function (v) { return { name: v.name, value: v.value }; }),
+          image_path: it.image || '',
+        };
+      });
+    }
+    function run() {
+      var tok = null;
+      try { tok = localStorage.getItem('basso_pending_import'); } catch (e) {}
+      if (!tok) { var m = location.hash.match(/[#&]import=([^&]+)/); if (m) tok = m[1]; }
+      if (!tok) return;
+      try { localStorage.removeItem('basso_pending_import'); } catch (e) {}
+      try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+      var data = decodeImport(tok);
+      if (!data || !data.items || !data.items.length) return;
+      if (typeof sessions === 'undefined' || typeof selectSession !== 'function' || typeof ensureCartMessage !== 'function') {
+        console.warn('[basso-import] app chưa sẵn sàng, bỏ qua'); return;
+      }
+      var now = Date.now(), nd = new Date();
+      var session = {
+        id: now,
+        title: 'Giỏ extension ' + (data.website || ''),
+        date: nd.getDate() + '/' + (nd.getMonth() + 1) + '/' + nd.getFullYear(),
+        messages: [], state: 'INIT', customer: data.customer || null,
+        items: toMonItems(data.items), cartImages: [], salePct: 0,
+      };
+      sessions.unshift(session);
+      if (typeof renderHistory === 'function') renderHistory();
+      selectSession(session.id);
+      var _cust = data.customer ? ('Khách: ' + (data.customer.name || '') + ' — ' + (data.customer.phone || '')) : 'Chưa có khách — nhập SĐT để chọn.';
+      if (typeof addMessage === 'function') addMessage('ai', 'Mon đã nhận ' + session.items.length + ' SP từ extension (' + (data.website || '') + '). ' + _cust);
+      ensureCartMessage();
+      if (typeof saveSessions === 'function') saveSessions();
+    }
+    // Chờ app boot + đồng bộ session từ server xong rồi mới nạp.
+    setTimeout(run, 1500);
+  })();
 </script>
 
 </body>

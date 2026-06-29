@@ -986,6 +986,32 @@ app.post('/api/upload-image', upload.single('file'), async (req, res) => {
   }
 });
 
+// ===== PROXY: UPLOAD ẢNH LÊN BASSO TỪ URL =====
+// Dùng khi cần lấy lại image_id từ một ảnh đã có URL (vd. item còn
+// image_path nhưng mất image_id sau reload — thumb base64 đã bị strip).
+// Basso uploadImage hỗ trợ field `url` (form-urlencoded).
+app.post('/api/upload-image-url', express.json(), async (req, res) => {
+  if (IS_MOCK) {
+    return res.json({ success: true, data: { id: null, path: null }, _mock: true });
+  }
+  const url = req.body?.url;
+  if (!url) return res.status(400).json({ success: false, message: 'Thiếu url' });
+  try {
+    const response = await fetch(`${BASSO_URL}/partner/uploadImage`, {
+      method: 'POST',
+      headers: { ...bassoHeaders(req), 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ url }).toString(),
+    });
+    if (handleBassoAuthError(response, res)) return;
+    const data = await response.json();
+    console.log('[upload-image-url] Basso response:', JSON.stringify(data));
+    res.json(data);
+  } catch (err) {
+    console.error('[upload-image-url] error:', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 
 // ===== PROXY: TẠO ĐƠN HÀNG =====
 app.post('/api/create-order', async (req, res) => {
@@ -1001,6 +1027,15 @@ app.post('/api/create-order', async (req, res) => {
     const body = new URLSearchParams(req.body).toString();
     console.log('[create-order] items JSON:', req.body.items);
     console.log('[create-order] website:', req.body.website);
+    // Chẩn đoán ảnh: đếm item thiếu image_id (đơn sẽ không có ảnh trên Basso).
+    try {
+      const _items = JSON.parse(req.body.items || '[]');
+      const _missing = _items.filter(i => !i.image_id);
+      if (_missing.length) {
+        console.warn(`[create-order] ⚠️ ${_missing.length}/${_items.length} item THIẾU image_id:`,
+          _missing.map(i => ({ name: (i.name || '').slice(0, 40), has_path: !!i.image_path })));
+      }
+    } catch (e) { /* ignore parse */ }
     const response = await fetch(`${BASSO_URL}/partner/createOrder`, {
       method: 'POST',
       headers: { ...bassoHeaders(req), 'Content-Type': 'application/x-www-form-urlencoded' },
