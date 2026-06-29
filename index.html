@@ -4972,5 +4972,40 @@
   })();
 </script>
 
+<!-- DEEP-LINK: #findphone=<sdt> → tự tạo chat mới + tìm khách theo SĐT (gọi từ ZaloCRM) -->
+<script>
+  (function () {
+    var m = location.hash.match(/[#&]findphone=([^&]+)/);
+    if (!m) return;
+    var phone = '';
+    try { phone = decodeURIComponent(m[1]); } catch (e) { phone = m[1]; }
+    phone = (phone || '').trim();
+    if (!phone) return;
+    // Xoá hash ngay để F5 không lặp lại tìm khách.
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+
+    var tries = 0;
+    var timer = setInterval(function () {
+      tries++;
+      var ready = typeof newChat === 'function' && typeof sendMessage === 'function'
+        && typeof sessions !== 'undefined' && document.getElementById('messageInput');
+      if (ready) {
+        clearInterval(timer);
+        try {
+          newChat(); // tạo session INIT mới (state INIT, chờ nhập SĐT)
+          setTimeout(function () {
+            var inp = document.getElementById('messageInput');
+            if (!inp) return;
+            inp.value = phone;
+            sendMessage(); // đi đúng luồng gõ tay → extractPhone → /api/find-customer
+          }, 450);
+        } catch (e) { console.error('[findphone] error', e); }
+      } else if (tries > 60) {
+        clearInterval(timer); // ~30s: app chưa sẵn sàng (vd chưa đăng nhập) → bỏ
+      }
+    }, 500);
+  })();
+</script>
+
 </body>
 </html>
