@@ -960,6 +960,74 @@ app.get('/api/find-customer', async (req, res) => {
   }
 });
 
+// ===== TỶ GIÁ: getCountries / getCountryRates / getWebsiteOrders =====
+app.get('/api/get-countries', async (req, res) => {
+  if (IS_MOCK) {
+    return res.json({ success: true, _mock: true, data: { countries: [
+      { id: 1, code: 'US', name: 'Mỹ', currency_id: 1, currency_name: 'Đô la Mỹ', currency_symbol: '$', customer_rate: 25500, buy_rate: 25000, shipping_fee: 50000, rate_detail_by: 'brand' },
+      { id: 4, code: 'GB', name: 'Anh', currency_id: 4, currency_name: 'Bảng Anh', currency_symbol: '£', customer_rate: 32000, buy_rate: 31500, shipping_fee: 50000, rate_detail_by: 'customer_group' },
+    ] } });
+  }
+  try {
+    const response = await fetch(`${BASSO_URL}/partner/getCountries?include_currencies=1`, { headers: bassoHeaders(req) });
+    if (handleBassoAuthError(response, res)) return;
+    res.json(await response.json());
+  } catch (err) {
+    console.error('[get-countries] error:', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+app.get('/api/get-country-rates', async (req, res) => {
+  const cid = req.query.country_id;
+  if (!cid) return res.status(400).json({ success: false, message: 'Thiếu country_id' });
+  if (IS_MOCK) {
+    return res.json({ success: true, _mock: true, data: {
+      country: { id: Number(cid) || 1, customer_rate: 25500, buy_rate: 25000, shipping_fee: 50000 },
+      rate_detail_by: Number(cid) === 1 ? 'brand' : 'customer_group',
+      rates: Number(cid) === 1
+        ? [{ brand: 'shipus', brand_name: 'ShipUS', rate: 25500, shipping_fee: 50000 }, { brand: 'basso', brand_name: 'Basso', rate: 25600, shipping_fee: 50000 }]
+        : [{ customer_group_id: 2, customer_group_name: 'CTV', rate: 32000, shipping_fee: 50000 }],
+    } });
+  }
+  try {
+    const response = await fetch(`${BASSO_URL}/partner/getCountryRates?country_id=${encodeURIComponent(cid)}`, { headers: bassoHeaders(req) });
+    if (handleBassoAuthError(response, res)) return;
+    res.json(await response.json());
+  } catch (err) {
+    console.error('[get-country-rates] error:', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// Tỉ giá theo từng (website × nhóm KH) cho Mỹ — currency_rate_website_orders
+app.get('/api/get-website-orders', async (req, res) => {
+  const inc = req.query.include_rates != null ? req.query.include_rates : 1;
+  if (IS_MOCK) {
+    return res.json({ success: true, _mock: true, data: {
+      website_orders: [
+        { id: 1, name: 'Tommy US', domain: 'https://usa.tommy.com', note: '', rates: [
+          { customer_group_id: 2, customer_group_name: 'CTV', rate: 25400 },
+          { customer_group_id: 3, customer_group_name: 'Sỉ nhỏ', rate: 25200 },
+          { customer_group_id: 4, customer_group_name: 'Sỉ vừa', rate: 25000 },
+          { customer_group_id: 5, customer_group_name: 'Sỉ to', rate: 24800 },
+        ] },
+      ],
+      customer_groups: [
+        { id: 2, name: 'CTV' }, { id: 3, name: 'Sỉ nhỏ' }, { id: 4, name: 'Sỉ vừa' }, { id: 5, name: 'Sỉ to' },
+      ],
+    } });
+  }
+  try {
+    const response = await fetch(`${BASSO_URL}/partner/getWebsiteOrders?include_rates=${encodeURIComponent(inc)}`, { headers: bassoHeaders(req) });
+    if (handleBassoAuthError(response, res)) return;
+    res.json(await response.json());
+  } catch (err) {
+    console.error('[get-website-orders] error:', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // ===== PROXY: UPLOAD ẢNH LÊN BASSO =====
 app.post('/api/upload-image', upload.single('file'), async (req, res) => {
   if (IS_MOCK) {
