@@ -1028,6 +1028,25 @@ app.get('/api/get-website-orders', async (req, res) => {
   }
 });
 
+// Danh sách phụ thu theo brand — getOrderTerms (order_terms + steps + categories)
+app.get('/api/get-order-terms', async (req, res) => {
+  const brand = req.query.brand || 'shipus';
+  const activeOnly = req.query.active_only != null ? req.query.active_only : 1;
+  if (IS_MOCK) {
+    return res.json({ success: true, _mock: true, data: { brand, order_terms: [
+      { id: 8, name: 'Phụ thu mẫu', active: 1, min_fee: 0, index: 1, steps: [ { id: 101, step: 0, type: 'amount', amount: 5 }, { id: 102, step: 50, type: 'percent', amount: 10 } ], categories: [] },
+    ] } });
+  }
+  try {
+    const response = await fetch(`${BASSO_URL}/partner/getOrderTerms?brand=${encodeURIComponent(brand)}&active_only=${encodeURIComponent(activeOnly)}`, { headers: bassoHeaders(req) });
+    if (handleBassoAuthError(response, res)) return;
+    res.json(await response.json());
+  } catch (err) {
+    console.error('[get-order-terms] error:', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // ===== PROXY: UPLOAD ẢNH LÊN BASSO =====
 app.post('/api/upload-image', upload.single('file'), async (req, res) => {
   if (IS_MOCK) {
