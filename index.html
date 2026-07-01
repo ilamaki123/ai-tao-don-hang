@@ -4974,6 +4974,14 @@
       sessions.unshift(session);
       if (typeof renderHistory === 'function') renderHistory();
       selectSession(session.id);
+      // Khách mới (chưa có chat sẵn): vẫn hiện message "Mon tìm thấy khách hàng" (địa chỉ, brand…) giống luồng tra SĐT.
+      if (hasCust && typeof addMessage === 'function') {
+        var c = data.customer;
+        var addr = [c.address, c.district, c.city].filter(Boolean).join(', ');
+        addMessage('ai', 'Mon tìm thấy khách hàng:\n👤 ' + (c.name || '') + '\n📞 ' + (c.phone || '')
+          + (addr ? ('\n📍 ' + addr) : '')
+          + (c.brand ? ('\n🏷️ Brand: ' + (typeof formatBrand === 'function' ? formatBrand(c.brand) : c.brand)) : ''));
+      }
       var _cust = data.customer ? ('Khách: ' + (data.customer.name || '') + ' — ' + (data.customer.phone || '')) : 'Chưa có khách — nhập SĐT để chọn.';
       if (typeof addMessage === 'function') addMessage('ai', 'Mon đã nhận ' + session.items.length + ' SP từ extension (' + (data.website || '') + '). ' + _cust);
       ensureCartMessage();
