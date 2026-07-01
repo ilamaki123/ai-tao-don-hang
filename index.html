@@ -4948,6 +4948,8 @@
       if (existing) {
         existing.items = (existing.items || []).concat(newItems);
         if (data.customer) existing.customer = Object.assign({}, existing.customer || {}, data.customer); // merge, giữ field cũ
+        // Đổi tên chat cũ "Giỏ extension …" → tên khách (không đụng tiêu đề user đã đặt tay).
+        if (data.customer && data.customer.name && (!existing.title || /^Giỏ extension/.test(existing.title))) existing.title = data.customer.name;
         var _idx = sessions.indexOf(existing); // đưa chat lên đầu (mutate in-place, không gán lại biến)
         if (_idx > -1) { sessions.splice(_idx, 1); sessions.unshift(existing); }
         if (typeof renderHistory === 'function') renderHistory();
@@ -4958,12 +4960,15 @@
         return;
       }
       // Chưa có chat trùng SĐT → tạo cuộc trò chuyện mới.
+      // Nếu đã có khách (extension gửi kèm) → đặt TÊN chat = tên khách + state DONE (giống search SĐT ra khách),
+      // để chat sync tên khách thay vì "Giỏ extension". selectSession sẽ tự refreshCustomerIfStale lấy khách mới nhất.
+      var hasCust = !!(data.customer && data.customer.name);
       var now = Date.now(), nd = new Date();
       var session = {
         id: now,
-        title: 'Giỏ extension ' + (data.website || ''),
+        title: hasCust ? data.customer.name : ('Giỏ extension ' + (data.website || '')),
         date: nd.getDate() + '/' + (nd.getMonth() + 1) + '/' + nd.getFullYear(),
-        messages: [], state: 'INIT', customer: data.customer || null,
+        messages: [], state: hasCust ? 'DONE' : 'INIT', customer: data.customer || null,
         items: newItems, cartImages: [], salePct: 0,
       };
       sessions.unshift(session);
