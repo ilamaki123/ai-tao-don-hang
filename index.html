@@ -1182,7 +1182,7 @@
   }
 
   async function syncSessionsFromServer() {
-    if (!sessionUser?.token) return;
+    if (!sessionUser?.token) { try { window._monSessionsSynced = true; } catch (e) {} return; }
     try {
       const res = await fetch(`${API_BASE}/api/sessions`, { headers: getAuthHeaders() });
       const data = await res.json();
@@ -1197,6 +1197,7 @@
       else if (activeSessionId) renderMessages();
       try { localStorage.setItem(LS_SESSIONS_KEY, JSON.stringify(sanitizeForServer(sessions))); } catch {}
     } catch {}
+    finally { try { window._monSessionsSynced = true; } catch (e) {} }
   }
 
   // Chat được coi là "bỏ trống" khi user mở rồi không/chưa tìm được khách hàng:
@@ -4939,25 +4940,31 @@
         };
       });
     }
-    function run() {
-      var tok = null;
-      try { tok = localStorage.getItem('basso_pending_import'); } catch (e) {}
-      if (!tok) { var m = location.hash.match(/[#&]import=([^&]+)/); if (m) tok = m[1]; }
-      if (!tok) return;
-      try { localStorage.removeItem('basso_pending_import'); } catch (e) {}
-      try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
-      var data = decodeImport(tok);
-      if (!data || !data.items || !data.items.length) return;
-      if (typeof sessions === 'undefined' || typeof selectSession !== 'function' || typeof ensureCartMessage !== 'function') {
-        console.warn('[basso-import] app chưa sẵn sàng, bỏ qua'); return;
+    function doImport(data) {
+      var newItems = toMonItems(data.items);
+      // Nếu đã có cuộc trò chuyện trùng SĐT → gộp SP vào đó (mở lại chat cũ), không tạo chat mới.
+      var phone = (data.customer && data.customer.phone && typeof normalizePhone === 'function') ? normalizePhone(data.customer.phone) : '';
+      var existing = phone ? sessions.find(function (s) { return s.customer && normalizePhone(s.customer.phone) === phone; }) : null;
+      if (existing) {
+        existing.items = (existing.items || []).concat(newItems);
+        if (data.customer) existing.customer = Object.assign({}, existing.customer || {}, data.customer); // merge, giữ field cũ
+        var _idx = sessions.indexOf(existing); // đưa chat lên đầu (mutate in-place, không gán lại biến)
+        if (_idx > -1) { sessions.splice(_idx, 1); sessions.unshift(existing); }
+        if (typeof renderHistory === 'function') renderHistory();
+        selectSession(existing.id);
+        if (typeof addMessage === 'function') addMessage('ai', 'Mon đã thêm ' + newItems.length + ' SP từ extension vào giỏ của ' + ((data.customer && data.customer.name) || 'khách') + ' — ' + (data.customer.phone || '') + ' (' + (data.website || '') + ').');
+        ensureCartMessage();
+        if (typeof saveSessions === 'function') saveSessions();
+        return;
       }
+      // Chưa có chat trùng SĐT → tạo cuộc trò chuyện mới.
       var now = Date.now(), nd = new Date();
       var session = {
         id: now,
         title: 'Giỏ extension ' + (data.website || ''),
         date: nd.getDate() + '/' + (nd.getMonth() + 1) + '/' + nd.getFullYear(),
         messages: [], state: 'INIT', customer: data.customer || null,
-        items: toMonItems(data.items), cartImages: [], salePct: 0,
+        items: newItems, cartImages: [], salePct: 0,
       };
       sessions.unshift(session);
       if (typeof renderHistory === 'function') renderHistory();
@@ -4967,8 +4974,26 @@
       ensureCartMessage();
       if (typeof saveSessions === 'function') saveSessions();
     }
-    // Chờ app boot + đồng bộ session từ server xong rồi mới nạp.
-    setTimeout(run, 1500);
+    function run() {
+      var tok = null;
+      try { tok = localStorage.getItem('basso_pending_import'); } catch (e) {}
+      if (!tok) { var m = location.hash.match(/[#&]import=([^&]+)/); if (m) tok = m[1]; }
+      if (!tok) return;
+      try { localStorage.removeItem('basso_pending_import'); } catch (e) {}
+      try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+      var data = decodeImport(tok);
+      if (!data || !data.items || !data.items.length) return;
+      // Chờ app sẵn sàng + đồng bộ session từ server XONG rồi mới khớp SĐT (nếu không sẽ tạo nhầm chat mới). Tối đa ~8s, hết thì nạp tạm.
+      var waited = 0;
+      var timer = setInterval(function () {
+        waited += 200;
+        var appReady = typeof sessions !== 'undefined' && typeof selectSession === 'function' && typeof ensureCartMessage === 'function';
+        var synced = !!window._monSessionsSynced || waited >= 8000;
+        if (appReady && synced) { clearInterval(timer); doImport(data); }
+        else if (waited >= 12000) { clearInterval(timer); if (appReady) { console.warn('[basso-import] sync chưa xong, nạp tạm'); doImport(data); } }
+      }, 200);
+    }
+    run();
   })();
 </script>
 
