@@ -1196,6 +1196,27 @@
     .img-uploader-file-btn:hover { background: var(--blue-600); }
     .img-uploader-hint { font-size: 11px; color: var(--ink-400); margin-top: 8px; }
     .confirm-modal-text { font-size: 14px; color: var(--ink-500); line-height: 1.5; }
+
+    /* ===== MOBILE CONVERSATION HEADER (back + name + subtitle) ===== */
+    .conv-header-mobile { display: none; }
+    @media (max-width: 768px) {
+      /* Thay topbar (search/admin-back) bằng header hội thoại giống mobile design */
+      .topbar { display: none; }
+      .conv-header-mobile {
+        display: none; align-items: center; gap: 10px;
+        padding: 12px 16px; border-bottom: 1px solid var(--border-hairline);
+        background: var(--surface-app);
+      }
+      .conv-header-mobile.show { display: flex; }
+      .conv-back {
+        width: 36px; height: 36px; border-radius: var(--radius-pill); flex: none;
+        background: #fff; border: none; box-shadow: inset 0 0 0 1px var(--border-hairline);
+        display: inline-flex; align-items: center; justify-content: center;
+        color: var(--ink-700); cursor: pointer;
+      }
+      .conv-header-name { font-size: 15px; font-weight: 800; color: var(--ink-900); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .conv-header-sub { font-size: 11.5px; font-weight: 500; color: var(--ink-400); margin-top: 1px; }
+    }
   </style>
 </head>
 <body>
@@ -1253,6 +1274,17 @@
       <button class="topbar-search-clear" id="msgSearchClear" onclick="clearMsgSearch()" style="display:none">&times;</button>
     </div>
     <button class="btn-logout" onclick="backToAdmin()">&#8592; Back</button>
+  </div>
+
+  <!-- Mobile conversation header (back + tên khách + subtitle) -->
+  <div class="conv-header-mobile" id="convHeaderMobile">
+    <button class="conv-back" onclick="mobileBackToList()" title="Danh sách chat">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M14 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div style="min-width:0">
+      <div class="conv-header-name" id="convHeaderName">Doraemon</div>
+      <div class="conv-header-sub" id="convHeaderSub"></div>
+    </div>
   </div>
 
   <!-- Empty state (hiện khi chưa có chat) -->
@@ -1790,6 +1822,8 @@
     const el = document.getElementById('messageList');
     el.innerHTML = session.messages.map(m => renderMessage(m)).join('');
     el.scrollTop = el.scrollHeight;
+    // Cập nhật header hội thoại mobile (tên/brand đổi sau findCustomer)
+    updateConvHeader();
   }
 
   function renderMessage(m) {
@@ -5015,6 +5049,29 @@
     set('mtabDashboard', _dashboardOpen);
     set('mtabCancel', _cancelPanelOpen);
     set('mtabChat', !_dashboardOpen && !_cancelPanelOpen);
+    updateConvHeader();
+  }
+
+  // Header hội thoại trên mobile: back + tên khách + subtitle (giống mobile design).
+  // Hiện khi đang xem 1 hội thoại (không ở dashboard/cancel).
+  function updateConvHeader() {
+    const el = document.getElementById('convHeaderMobile');
+    if (!el) return;
+    const s = getActiveSession();
+    const show = !!s && !_dashboardOpen && !_cancelPanelOpen;
+    el.classList.toggle('show', show);
+    if (show) {
+      const nameEl = document.getElementById('convHeaderName');
+      const subEl = document.getElementById('convHeaderSub');
+      if (nameEl) nameEl.textContent = s.customer?.name || s.title || 'Doraemon';
+      if (subEl) subEl.textContent = 'Tạo đơn' + (s.customer?.brand ? ' · Brand ' + formatBrand(s.customer.brand) : '');
+    }
+  }
+
+  // Nút ← trong header hội thoại → mở lại danh sách chat (sidebar full-screen).
+  function mobileBackToList() {
+    const sb = document.getElementById('sidebar');
+    if (sb && !sb.classList.contains('open')) toggleSidebar();
   }
 
   function formatPrice(item) {
