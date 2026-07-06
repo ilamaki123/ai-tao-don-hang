@@ -889,6 +889,31 @@
       .input-bar { max-width: 100%; }
       .input-text { font-size: 16px; }
       .btn-delete-chat { display: block; color: var(--ink-300); }
+      /* Chừa chỗ cho bottom tab bar (68px) */
+      .main { padding-bottom: 68px; }
+    }
+
+    /* ===== MOBILE BOTTOM TAB BAR ===== */
+    .mobile-tabbar { display: none; }
+    @media (max-width: 768px) {
+      .mobile-tabbar {
+        display: flex; position: fixed; left: 0; right: 0; bottom: 0;
+        height: 68px; background: #fff; border-top: 1px solid var(--border-hairline);
+        align-items: stretch; padding: 0 8px; z-index: 1500;
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+      }
+      .mobile-tab {
+        flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: 4px; color: var(--ink-400); cursor: pointer; font-size: 10.5px; font-weight: 600;
+        background: none; border: none; font-family: var(--font-sans); padding: 8px 0;
+      }
+      .mobile-tab.on { color: var(--blue-600); }
+      .mobile-tab .ti { width: 24px; height: 24px; display: inline-flex; position: relative; }
+      .mobile-tab-badge {
+        position: absolute; top: -5px; right: -12px; font-size: 8px; font-weight: 800;
+        background: var(--danger); color: #fff; border-radius: 999px; padding: 1px 5px; display: none;
+      }
+      .mobile-tab-badge.visible { display: block; }
     }
 
     /* ===== CART PANEL (Bankio) ===== */
@@ -1307,6 +1332,22 @@
   </div>
 
 </div>
+
+<!-- MOBILE BOTTOM TAB BAR (chỉ hiện ≤768px) -->
+<nav class="mobile-tabbar" id="mobileTabbar">
+  <button class="mobile-tab on" id="mtabChat" onclick="mobileTab('chat')">
+    <span class="ti"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4 6a2 2 0 012-2h12a2 2 0 012 2v8a2 2 0 01-2 2H9l-4 4V6z"/></svg></span>
+    Chat
+  </button>
+  <button class="mobile-tab" id="mtabDashboard" onclick="mobileTab('dashboard')">
+    <span class="ti"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="9" rx="2"/><rect x="14" y="3" width="7" height="5" rx="2"/><rect x="14" y="12" width="7" height="9" rx="2"/><rect x="3" y="16" width="7" height="5" rx="2"/></svg></span>
+    Dashboard
+  </button>
+  <button class="mobile-tab" id="mtabCancel" onclick="mobileTab('cancel')">
+    <span class="ti"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M9 9l6 6M15 9l-6 6" stroke-linecap="round"/></svg><span class="mobile-tab-badge" id="mobileTabCancelBadge">0</span></span>
+    Cancel
+  </button>
+</nav>
 
 <script>
   // ===== AUTH CHECK =====
@@ -4293,6 +4334,7 @@
     if (topSearch) topSearch.style.visibility = 'hidden';
     closeSidebar();
     initDashboard();
+    syncMobileTabs();
   }
 
   function closeDashboard() {
@@ -4309,6 +4351,7 @@
       document.getElementById('messageList').style.display = 'none';
       document.getElementById('inputArea').style.display = 'none';
     }
+    syncMobileTabs();
   }
 
   // ===== CANCEL NOTIFICATIONS PANEL =====
@@ -4341,14 +4384,18 @@
   }
 
   function updateCancelBadge() {
-    const badge = document.getElementById('cancelNotiBadge');
-    if (!badge) return;
     const n = getUnseenCancelCount();
-    if (n > 0) {
-      badge.textContent = n > 99 ? '99+' : String(n);
-      badge.classList.add('visible');
-    } else {
-      badge.classList.remove('visible');
+    const label = n > 99 ? '99+' : String(n);
+    const badge = document.getElementById('cancelNotiBadge');
+    if (badge) {
+      badge.textContent = label;
+      badge.classList.toggle('visible', n > 0);
+    }
+    // Mirror lên badge của tab Cancel dưới cùng (mobile)
+    const mBadge = document.getElementById('mobileTabCancelBadge');
+    if (mBadge) {
+      mBadge.textContent = label;
+      mBadge.classList.toggle('visible', n > 0);
     }
   }
 
@@ -4442,6 +4489,7 @@
     updateCancelBadge();
     renderCancelPanel();
     fetchCancelNotifications();
+    syncMobileTabs();
   }
 
   function closeCancelPanel() {
@@ -4459,6 +4507,7 @@
       document.getElementById('messageList').style.display = 'none';
       document.getElementById('inputArea').style.display = 'none';
     }
+    syncMobileTabs();
   }
 
   function isCancelPanelAtBottom() {
@@ -4874,6 +4923,35 @@
   // dùng nút logout ở sidebar.
   function backToAdmin() {
     window.location.href = 'https://ai.basso.vn/admin/dashboard.html';
+  }
+
+  // ===== MOBILE BOTTOM TAB BAR =====
+  // Chuyển view trên mobile: Chat / Dashboard / Cancel. Dùng lại các hàm
+  // open/close sẵn có. Tab "Chat" đóng các panel; nếu chưa có hội thoại
+  // nào đang mở thì bật sidebar (danh sách chat) để user chọn.
+  function mobileTab(name) {
+    if (name === 'dashboard') {
+      if (!_dashboardOpen) openDashboard();
+    } else if (name === 'cancel') {
+      if (!_cancelPanelOpen) openCancelPanel();
+    } else { // chat
+      if (_dashboardOpen) closeDashboard();
+      if (_cancelPanelOpen) closeCancelPanel();
+      if (!activeSessionId) {
+        // Chưa chọn hội thoại → mở danh sách chat (sidebar)
+        const sb = document.getElementById('sidebar');
+        if (sb && !sb.classList.contains('open')) toggleSidebar();
+      }
+    }
+    syncMobileTabs();
+  }
+
+  // Đồng bộ tab đang active theo trạng thái panel (gọi cả khi mở panel từ sidebar)
+  function syncMobileTabs() {
+    const set = (id, on) => { const e = document.getElementById(id); if (e) e.classList.toggle('on', on); };
+    set('mtabDashboard', _dashboardOpen);
+    set('mtabCancel', _cancelPanelOpen);
+    set('mtabChat', !_dashboardOpen && !_cancelPanelOpen);
   }
 
   function formatPrice(item) {
