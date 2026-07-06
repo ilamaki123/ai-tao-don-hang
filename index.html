@@ -12,6 +12,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&display=swap" rel="stylesheet">
+  <!-- Bankio redesign: Plus Jakarta Sans (design system font) -->
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <!-- BASSO EXTENSION: lưu token giỏ từ extension TRƯỚC khi auth-redirect làm mất hash -->
   <script>
@@ -21,119 +23,190 @@
     } catch (e) {}
   </script>
   <style>
+    /* ============================================================
+       Bankio design tokens (redesign) — source: design_handoff tokens/*
+       ============================================================ */
+    :root {
+      /* Primary periwinkle blue */
+      --blue-600:#6f8fed; --blue-500:#8aa7f2; --blue-400:#a4bbf5; --blue-300:#c0d0f8;
+      --blue-200:#d8e2fb; --blue-100:#e8eefc; --blue-050:#f2f6fe;
+      /* Mint */
+      --mint-600:#5cbd8a; --mint-500:#7fc9a3; --mint-400:#a6dabf; --mint-300:#c6e6d3;
+      --mint-200:#d7ecdf; --mint-100:#e7f2ec;
+      /* Ink / neutrals */
+      --ink-900:#171b21; --ink-800:#24292f; --ink-700:#3c4249; --ink-500:#6a727c;
+      --ink-400:#949ba5; --ink-300:#c2c8d0; --ink-200:#e2e6ec;
+      /* Surfaces */
+      --surface-page-from:#cfe0f7; --surface-page-to:#e7f0e9;
+      --surface-app:#ecf2fc; --surface-frame:#ffffff; --surface-card:#f5f8fe; --surface-raised:#ffffff;
+      /* Semantic */
+      --success:#4fbe86; --warning:#efb63f; --danger:#e26862;
+      /* Aliases */
+      --action-primary:var(--blue-600); --action-neutral:var(--ink-900);
+      --border-hairline:var(--ink-200); --border-card:rgba(23,27,33,.06);
+      --font-sans:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+      /* Radii */
+      --radius-sm:10px; --radius-md:14px; --radius-lg:20px; --radius-xl:28px; --radius-2xl:36px; --radius-pill:999px;
+      /* Shadows */
+      --shadow-xs:0 1px 2px rgba(23,27,33,.04); --shadow-sm:0 2px 8px rgba(46,74,140,.06);
+      --shadow-md:0 8px 24px rgba(46,74,140,.08); --shadow-lg:0 18px 48px rgba(46,74,140,.10);
+      --shadow-card:0 6px 20px rgba(46,74,140,.07);
+      --ring-focus:0 0 0 3px rgba(111,143,237,.35);
+    }
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      font-family: 'Segoe UI', sans-serif;
-      background-image: linear-gradient(-225deg, #E3FDF5 0%, #FFE6FA 100%);
+      font-family: var(--font-sans);
+      background: linear-gradient(135deg, var(--surface-page-from), var(--surface-page-to));
       height: 100vh;
       display: flex;
       overflow: hidden;
+      color: var(--ink-900);
+      padding: 14px;
+      gap: 14px;
+    }
+    /* App shell: sidebar + main sit on a white rounded frame via body padding
+       + surface-app panels. On mobile the frame collapses to full-bleed. */
+    @media (max-width: 768px) {
+      body { padding: 0; gap: 0; }
     }
 
-    /* ===== SIDEBAR ===== */
+    /* ===== SIDEBAR (Bankio) ===== */
     .sidebar {
-      width: 220px;
-      min-width: 220px;
-      background: #fff;
-      border-right: 1px solid #ede8f5;
+      width: 272px;
+      min-width: 272px;
+      background: var(--surface-app);
+      border-right: none;
+      border-radius: 26px;
       display: flex;
       flex-direction: column;
-      padding: 20px 14px;
+      padding: 18px 15px;
+      gap: 13px;
     }
 
+    /* Brand row: mint logo square + wordmark */
     .sidebar-logo {
-      font-family: 'Fredoka', 'Segoe UI', sans-serif;
-      font-size: 26px;
-      font-weight: 700;
-      color: #00354E;
-      letter-spacing: 0.5px;
-      margin-bottom: 4px;
+      font-family: var(--font-sans);
+      font-size: 19px;
+      font-weight: 800;
+      color: var(--ink-900);
+      letter-spacing: 0;
+      margin-bottom: 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .sidebar-logo::before {
+      content: "M";
+      width: 34px; height: 34px;
+      border-radius: 11px;
+      background: linear-gradient(135deg, #5CD6A0, #3FB98A);
+      color: #fff; font-weight: 800; font-size: 19px;
+      display: inline-flex; align-items: center; justify-content: center;
+      flex: none;
     }
 
     .sidebar-welcome {
-      font-size: 13px;
-      color: #888;
-      margin-bottom: 18px;
+      font-size: 12px;
+      color: var(--ink-400);
+      margin-bottom: 4px;
       display: flex;
       align-items: center;
       gap: 6px;
+      padding: 0 4px;
     }
     .sidebar-logout-btn {
       background: none; border: none; cursor: pointer;
-      color: #aaa; padding: 2px 4px; border-radius: 4px;
+      color: var(--ink-400); padding: 2px 4px; border-radius: 6px;
       display: flex; align-items: center; justify-content: center;
       transition: color 0.15s, background 0.15s;
     }
-    .sidebar-logout-btn:hover { color: #D95C5C; background: #FDEBEC; }
+    .sidebar-logout-btn:hover { color: var(--danger); background: rgba(226,104,98,.10); }
 
+    /* Nav tiles row (Dashboard + Đơn Cancel side by side) */
+    .navtiles { display: flex; gap: 10px; margin-top: 2px; }
     .btn-new-chat {
-      background: #00354E;
+      background: var(--blue-500);
       color: #fff;
       border: none;
-      border-radius: 8px;
-      padding: 10px 14px;
-      font-size: 14px;
+      border-radius: var(--radius-pill);
+      padding: 0 14px;
+      height: 46px;
+      font-size: 15px;
+      font-weight: 700;
+      font-family: var(--font-sans);
       cursor: pointer;
       display: flex;
       align-items: center;
-      gap: 6px;
-      margin-bottom: 20px;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 0;
+      box-shadow: var(--shadow-sm);
       transition: background 0.2s;
     }
-
-    .btn-new-chat:hover { background: #004d72; }
+    .btn-new-chat:hover { background: var(--blue-600); }
+    .btn-new-chat.mini {
+      height: 32px; padding: 0 14px; font-size: 12.5px; gap: 6px;
+      box-shadow: none; border-radius: var(--radius-pill);
+    }
 
     .btn-dashboard {
-      background: #00354E;
+      flex: 1;
+      background: var(--blue-500);
       color: #fff;
       border: none;
-      border-radius: 8px;
-      padding: 10px 14px;
-      font-size: 14px;
+      border-radius: 16px;
+      padding: 14px 13px;
+      font-size: 13px;
+      font-weight: 700;
+      font-family: var(--font-sans);
       cursor: pointer;
       display: flex;
-      align-items: center;
-      gap: 6px;
-      margin-bottom: 12px;
-      transition: background 0.2s;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 0;
+      transition: box-shadow 0.2s;
     }
-    .btn-dashboard:hover { background: #004d72; }
+    .btn-dashboard.active { box-shadow: 0 0 0 2px var(--surface-app), 0 0 0 4px var(--blue-500); }
     .btn-cancel-noti {
       position: relative;
-      background: #00354E;
-      color: #fff;
+      flex: 1;
+      background: var(--mint-300);
+      color: var(--ink-900);
       border: none;
-      border-radius: 8px;
-      padding: 10px 14px;
-      font-size: 14px;
+      border-radius: 16px;
+      padding: 14px 13px;
+      font-size: 13px;
+      font-weight: 700;
+      font-family: var(--font-sans);
       cursor: pointer;
       display: flex;
-      align-items: center;
-      gap: 6px;
-      margin-bottom: 12px;
-      transition: background 0.2s;
-      width: 100%;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 0;
       text-align: left;
+      transition: box-shadow 0.2s;
     }
-    .btn-cancel-noti:hover { background: #004d72; }
+    .btn-cancel-noti.active { box-shadow: 0 0 0 2px var(--surface-app), 0 0 0 4px var(--mint-500); }
     .cancel-noti-badge {
       position: absolute;
-      top: -6px;
-      right: -6px;
+      top: 10px;
+      right: 10px;
       min-width: 18px;
       height: 18px;
-      padding: 0 5px;
-      background: #D95C5C;
+      padding: 0 6px;
+      background: var(--danger);
       color: #fff;
-      font-size: 11px;
-      font-weight: 700;
-      border-radius: 9px;
+      font-size: 10px;
+      font-weight: 800;
+      border-radius: 999px;
       display: none;
       align-items: center;
       justify-content: center;
       line-height: 1;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
     }
     .cancel-noti-badge.visible { display: flex; }
     .cancel-new-tag {
@@ -199,30 +272,49 @@
 
 
     .search-sessions {
-      width: 100%; padding: 8px 10px; border: 1px solid #e0e0e0; border-radius: 6px;
-      font-size: 13px; outline: none; margin-bottom: 8px; background: #f9f9f9; color: #333;
+      width: 100%; padding: 0 15px; height: 46px;
+      border: none; box-shadow: inset 0 0 0 1px var(--border-hairline);
+      border-radius: var(--radius-pill);
+      font-size: 13px; font-weight: 500; font-family: var(--font-sans);
+      outline: none; margin-bottom: 0; background: #fff; color: var(--ink-900);
     }
-    .search-sessions:focus { border-color: #7c5cbf; background: #fff; }
-    .search-sessions::placeholder { color: #bbb; }
+    .search-sessions:focus { box-shadow: var(--ring-focus), inset 0 0 0 1px var(--blue-400); }
+    .search-sessions::placeholder { color: var(--ink-400); }
 
-    .chat-history { flex: 1; overflow-y: auto; }
+    /* "Gần đây" section header above the conversation list */
+    .chat-history-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 4px 6px 2px;
+    }
+    .chat-history-head .lbl {
+      font-size: 11px; font-weight: 700; color: var(--ink-400);
+      text-transform: uppercase; letter-spacing: .06em;
+    }
+
+    .chat-history { flex: 1; overflow-y: auto; padding: 0 2px; }
 
     .chat-history-item {
       display: flex;
-      align-items: flex-start;
-      gap: 8px;
-      padding: 8px 10px;
-      border-radius: 8px;
+      align-items: center;
+      gap: 11px;
+      padding: 9px;
+      border-radius: 14px;
       cursor: pointer;
-      margin-bottom: 4px;
-      transition: background 0.15s;
+      margin-bottom: 2px;
+      transition: background 0.15s, box-shadow 0.15s;
       position: relative;
     }
 
-    .chat-history-item:hover,
-    .chat-history-item.active { background: #f3eeff; }
+    .chat-history-item:hover { background: #fff; }
+    .chat-history-item.active { background: #fff; box-shadow: var(--shadow-xs); }
 
-    .chat-history-item .icon { font-size: 15px; color: #aaa; margin-top: 2px; }
+    /* Avatar bubble derived from name (colour set inline by renderer) */
+    .chat-history-item .icon {
+      width: 36px; height: 36px; border-radius: var(--radius-pill);
+      flex: none; display: inline-flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 800; color: var(--blue-600); background: var(--blue-100);
+      margin-top: 0;
+    }
 
     .chat-history-item .info {
       flex: 1;
@@ -230,9 +322,9 @@
     }
 
     .chat-history-item .info .title {
-      font-size: 13px;
-      color: #444;
-      font-weight: 500;
+      font-size: 13.5px;
+      color: var(--ink-900);
+      font-weight: 600;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -240,7 +332,9 @@
 
     .chat-history-item .info .date {
       font-size: 11px;
-      color: #bbb;
+      color: var(--ink-400);
+      font-weight: 500;
+      margin-top: 2px;
     }
 
     .btn-delete-chat {
@@ -268,24 +362,30 @@
       flex-direction: column;
       overflow: hidden;
       position: relative;
+      background: var(--surface-app);
+      border-radius: 26px;
     }
+    @media (max-width: 768px) { .main { border-radius: 0; } }
 
     /* Header */
     .topbar {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 14px 20px;
-      gap: 10px;
+      padding: 16px 22px;
+      gap: 12px;
+      border-bottom: 1px solid var(--border-hairline);
     }
 
     .topbar-search {
       display: flex;
       align-items: center;
-      background: #f5f3fa;
-      border: 1px solid #e0d8f0;
-      border-radius: 8px;
-      padding: 4px 10px;
+      background: #fff;
+      border: none;
+      box-shadow: inset 0 0 0 1px var(--border-hairline);
+      border-radius: var(--radius-pill);
+      padding: 0 16px;
+      height: 40px;
       width: 100%;
       max-width: 400px;
       margin: 0 auto;
@@ -297,16 +397,18 @@
       outline: none;
       background: transparent;
       font-size: 13px;
-      color: #333;
+      font-weight: 500;
+      font-family: var(--font-sans);
+      color: var(--ink-900);
       width: 100%;
       padding: 4px 0;
     }
 
-    .topbar-search input::placeholder { color: #bbb; }
+    .topbar-search input::placeholder { color: var(--ink-400); }
 
     .topbar-search-count {
       font-size: 11px;
-      color: #999;
+      color: var(--ink-400);
       white-space: nowrap;
       margin-left: 4px;
     }
@@ -330,17 +432,24 @@
     }
 
     .btn-logout {
-      background: none;
+      background: #fff;
       border: none;
-      color: #888;
-      font-size: 14px;
+      box-shadow: inset 0 0 0 1px var(--border-hairline);
+      color: var(--ink-700);
+      font-size: 13px;
+      font-weight: 600;
+      font-family: var(--font-sans);
       cursor: pointer;
       display: flex;
       align-items: center;
       gap: 6px;
+      height: 40px;
+      padding: 0 16px;
+      border-radius: var(--radius-pill);
+      transition: background 0.15s, color 0.15s;
     }
 
-    .btn-logout:hover { color: #444; }
+    .btn-logout:hover { color: var(--ink-900); background: var(--blue-050); }
 
     /* Empty state */
     .empty-state {
@@ -673,7 +782,7 @@
     /* ===== MOBILE HAMBURGER ===== */
     .btn-hamburger {
       display: none; background: none; border: none; font-size: 22px;
-      cursor: pointer; color: #00354E; padding: 6px; z-index: 1001;
+      cursor: pointer; color: var(--ink-900); padding: 6px; z-index: 1001;
     }
     .sidebar-overlay {
       display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 999;
@@ -681,7 +790,7 @@
     .sidebar-overlay.open { display: block; }
     .btn-close-sidebar {
       display: none; background: none; border: none; font-size: 28px;
-      color: #888; cursor: pointer; padding: 0 4px; line-height: 1;
+      color: var(--ink-500); cursor: pointer; padding: 0 4px; line-height: 1;
     }
 
     @media (max-width: 768px) {
@@ -689,6 +798,7 @@
         position: fixed; left: 0; top: 0; bottom: 0; z-index: 1000;
         transform: translateX(-100%); transition: transform 0.25s ease;
         box-shadow: 2px 0 12px rgba(0,0,0,0.15);
+        border-radius: 0; width: 280px; min-width: 280px;
       }
       .sidebar.open { transform: translateX(0); }
       .btn-hamburger { display: flex; align-items: center; }
@@ -967,19 +1077,22 @@
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
     </button>
   </div>
-  <button class="btn-dashboard" id="btnDashboard" onclick="toggleDashboard()">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
-    Dashboard
-  </button>
-  <button class="btn-cancel-noti" id="btnCancelNoti" onclick="toggleCancelPanel()">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-    Đơn Cancel
-    <span class="cancel-noti-badge" id="cancelNotiBadge">0</span>
-  </button>
-  <input type="text" class="search-sessions" id="searchSessions" placeholder="Tìm tên, SĐT..." oninput="filterSessions()" />
-  <button class="btn-new-chat" onclick="newChat()">
-    <span>+</span> New Chat
-  </button>
+  <div class="navtiles">
+    <button class="btn-dashboard" id="btnDashboard" onclick="toggleDashboard()">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="2"/><rect x="14" y="3" width="7" height="5" rx="2"/><rect x="14" y="12" width="7" height="9" rx="2"/><rect x="3" y="16" width="7" height="5" rx="2"/></svg>
+      Dashboard
+    </button>
+    <button class="btn-cancel-noti" id="btnCancelNoti" onclick="toggleCancelPanel()">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9 9l6 6M15 9l-6 6"/></svg>
+      Đơn Cancel
+      <span class="cancel-noti-badge" id="cancelNotiBadge">0</span>
+    </button>
+  </div>
+  <input type="text" class="search-sessions" id="searchSessions" placeholder="Tìm khách, mã đơn, chat…" oninput="filterSessions()" />
+  <div class="chat-history-head">
+    <span class="lbl">Gần đây</span>
+    <button class="btn-new-chat mini" onclick="newChat()"><span>＋</span> New</button>
+  </div>
   <div class="chat-history" id="chatHistory"></div>
 </div>
 
@@ -1305,16 +1418,37 @@
     // updated_at do save lại nhưng không có message mới, khiến order
     // lệch khỏi giờ hiển thị.
     filtered.sort((a, b) => lastActiveTs(b) - lastActiveTs(a));
-    el.innerHTML = filtered.map(s => `
+    el.innerHTML = filtered.map(s => {
+      const av = avatarFor(s.title || s.customer?.name || '?');
+      return `
       <div class="chat-history-item ${s.id === activeSessionId ? 'active' : ''}" onclick="selectSession(${s.id})">
-        <span class="icon">&#128172;</span>
+        <span class="icon" style="background:${av.bg};color:${av.fg}">${escapeHtml(av.initials)}</span>
         <div class="info">
           <div class="title">${s.title}</div>
           <div class="date">${formatLastActive(s)}</div>
         </div>
         <button class="btn-delete-chat" onclick="deleteSession(event, ${s.id})" title="Xóa đoạn chat">&#x2715;</button>
       </div>
-    `).join('');
+    `;
+    }).join('');
+  }
+
+  // Avatar tint derived from a name — Bankio palette (blue/mint/amber pastels).
+  function avatarFor(name) {
+    const n = (name || '?').trim();
+    const parts = n.split(/\s+/).filter(Boolean);
+    let initials = parts.length >= 2
+      ? (parts[parts.length - 2][0] + parts[parts.length - 1][0])
+      : (n.slice(0, 2));
+    initials = (initials || '?').toUpperCase();
+    const palette = [
+      ['#e8eefc', '#6f8fed'], ['#e7f2ec', '#5cbd8a'], ['#d8e2fb', '#6f8fed'],
+      ['#d7ecdf', '#5cbd8a'], ['#f2f6fe', '#8aa7f2'], ['#e7f2ec', '#5cbd8a'],
+    ];
+    let h = 0;
+    for (let i = 0; i < n.length; i++) h = (h * 31 + n.charCodeAt(i)) >>> 0;
+    const [bg, fg] = palette[h % palette.length];
+    return { initials, bg, fg };
   }
 
   function filterSessions() {
