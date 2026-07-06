@@ -1321,8 +1321,10 @@
     const origin = window.location.origin;
     const m = (window.location.pathname || '').match(/^\/b\/([^/]+)/);
     if (m) return origin + '/b/' + m[1];
-    const h = window.location.hostname;
-    if (h === 'localhost' || h === '127.0.0.1') return 'http://localhost:3000';
+    // Express serves both the static app and /api on the same port, so the
+    // page's own origin is always the correct API base — works on any local
+    // port (3000, 3005, …) without a hard-coded port that can collide with
+    // another local service.
     return origin;
   })();
 
