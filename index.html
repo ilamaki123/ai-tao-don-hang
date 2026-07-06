@@ -875,11 +875,15 @@
         position: fixed; left: 0; top: 0; bottom: 0; z-index: 1000;
         transform: translateX(-100%); transition: transform 0.25s ease;
         box-shadow: 2px 0 12px rgba(0,0,0,0.15);
-        border-radius: 0; width: 280px; min-width: 280px;
+        border-radius: 0; width: 100%; min-width: 100%;
+        padding-bottom: 78px; /* chừa chỗ cho bottom tab bar */
       }
       .sidebar.open { transform: translateX(0); }
-      .btn-hamburger { display: flex; align-items: center; }
+      /* Bỏ hamburger trên mobile — điều hướng bằng bottom tab bar (giống mobile design) */
+      .btn-hamburger { display: none !important; }
       .btn-close-sidebar { display: block; }
+      /* 2 tile Dashboard/Cancel đã có ở bottom tab bar → ẩn trong sidebar */
+      .sidebar .navtiles { display: none; }
       .topbar { justify-content: space-between; padding: 12px 14px; }
       .messages { padding: 16px 14px; }
       .message { max-width: 100%; }
@@ -1518,6 +1522,15 @@
   loadSessions();
   if (!activeSessionId) renderHistory();
   syncSessionsFromServer();
+
+  // Mobile: mở sẵn danh sách chat (giống mobile design — không có hamburger).
+  // Chọn 1 hội thoại sẽ đóng list, hiện cuộc trò chuyện.
+  if (window.innerWidth <= 768) {
+    setTimeout(() => {
+      const sb = document.getElementById('sidebar');
+      if (sb && !sb.classList.contains('open') && !_dashboardOpen && !_cancelPanelOpen) toggleSidebar();
+    }, 300);
+  }
 
   // Timestamp ms của thao tác cuối: lấy message gần nhất, fallback session.id.
   function lastActiveTs(s) {
@@ -4937,11 +4950,10 @@
     } else { // chat
       if (_dashboardOpen) closeDashboard();
       if (_cancelPanelOpen) closeCancelPanel();
-      if (!activeSessionId) {
-        // Chưa chọn hội thoại → mở danh sách chat (sidebar)
-        const sb = document.getElementById('sidebar');
-        if (sb && !sb.classList.contains('open')) toggleSidebar();
-      }
+      // Mobile không còn hamburger → tab Chat luôn mở danh sách chat
+      // (sidebar full-screen). Chọn 1 hội thoại sẽ đóng list, hiện chat.
+      const sb = document.getElementById('sidebar');
+      if (sb && !sb.classList.contains('open')) toggleSidebar();
     }
     syncMobileTabs();
   }
