@@ -124,6 +124,15 @@
     }
     .sidebar-logout-btn:hover { color: var(--danger); background: rgba(226,104,98,.10); }
 
+    /* Nút "Back → admin dashboard" ở header list (chỉ hiện mobile) */
+    .sidebar-back-admin {
+      display: none; align-items: center; justify-content: center;
+      width: 38px; height: 38px; border-radius: var(--radius-pill); flex: none;
+      background: #fff; border: none; box-shadow: inset 0 0 0 1px var(--border-hairline);
+      color: var(--ink-700); cursor: pointer;
+    }
+    .sidebar-back-admin:hover { background: var(--blue-050); color: var(--ink-900); }
+
     /* Nav tiles row (Dashboard + Đơn Cancel side by side) */
     .navtiles { display: flex; gap: 10px; margin-top: 2px; }
     .btn-new-chat {
@@ -896,7 +905,9 @@
       .sidebar.open { transform: translateX(0); }
       /* Bỏ hamburger trên mobile — điều hướng bằng bottom tab bar (giống mobile design) */
       .btn-hamburger { display: none !important; }
-      .btn-close-sidebar { display: block; }
+      /* Ẩn reload + X trong header list; thay bằng nút Back → admin dashboard */
+      .sidebar .btn-close-sidebar { display: none !important; }
+      .sidebar-back-admin { display: inline-flex; }
       /* 2 tile Dashboard/Cancel đã có ở bottom tab bar → ẩn trong sidebar */
       .sidebar .navtiles { display: none; }
       /* Chat list rows = thẻ trắng có shadow (giống mobile design) */
@@ -1234,6 +1245,9 @@
       </button>
       <button class="btn-close-sidebar" onclick="closeSidebar()" style="font-size:0;padding:6px">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+      <button class="sidebar-back-admin" onclick="backToAdmin()" title="Về Dashboard">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/></svg>
       </button>
     </div>
   </div>
