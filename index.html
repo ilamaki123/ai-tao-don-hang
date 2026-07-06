@@ -1196,7 +1196,7 @@
       <span class="topbar-search-count" id="msgSearchCount"></span>
       <button class="topbar-search-clear" id="msgSearchClear" onclick="clearMsgSearch()" style="display:none">&times;</button>
     </div>
-    <button class="btn-logout" onclick="logout()">&#8594; Logout</button>
+    <button class="btn-logout" onclick="backToAdmin()">&#8592; Back</button>
   </div>
 
   <!-- Empty state (hiện khi chưa có chat) -->
@@ -4869,10 +4869,11 @@
     document.querySelector('.btn-hamburger').style.display = '';
   }
 
-  function logout() {
-    localStorage.removeItem('ai_chat_user');
-    sessionStorage.removeItem('ai_chat_user');
-    window.location.href = 'login.html';
+  // Topbar "Back" — quay về trang admin dashboard của Basso, KHÔNG xoá
+  // session Mon (khác với logoutBot ở sidebar). Muốn đăng xuất hẳn thì
+  // dùng nút logout ở sidebar.
+  function backToAdmin() {
+    window.location.href = 'https://ai.basso.vn/admin/dashboard.html';
   }
 
   function formatPrice(item) {
