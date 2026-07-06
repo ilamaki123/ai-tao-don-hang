@@ -331,8 +331,8 @@
     const origin = window.location.origin;
     const m = (window.location.pathname || '').match(/^\/b\/([^/]+)/);
     if (m) return origin + '/b/' + m[1];
-    const h = window.location.hostname;
-    if (h === 'localhost' || h === '127.0.0.1') return 'http://localhost:3000';
+    // Express serves both the page and /api on one port → origin is always
+    // the right API base (works on any local port, no hard-coded :3000).
     return origin;
   })();
 
