@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#00354E" />
+  <meta name="theme-color" content="#6f8fed" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="manifest" href="manifest.json" />
@@ -213,7 +213,7 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      background: #D95C5C;
+      background: var(--danger);
       color: #fff;
       font-size: 10px;
       font-weight: 700;
@@ -228,7 +228,7 @@
       display: inline-block;
       width: 8px;
       height: 8px;
-      background: #D95C5C;
+      background: var(--danger);
       border-radius: 50%;
       margin-left: 6px;
       vertical-align: middle;
@@ -238,37 +238,77 @@
     .dashboard-view {
       flex: 1;
       overflow-y: auto;
-      padding: 24px;
+      padding: 26px;
       display: none;
     }
     .dashboard-view.show { display: block; }
-    .dashboard-section { margin-bottom: 20px; background: #fff; border: 1px solid #e8d8ff; border-radius: 12px; padding: 16px; }
-    .dashboard-section h3 { font-size: 14px; color: #00354E; margin-bottom: 12px; font-weight: 600; }
-    .dashboard-presets { display: flex; gap: 6px; flex-wrap: wrap; }
+    /* Range chips section: no card wrapper. Other sections: Bankio cards. */
+    .dashboard-section { margin-bottom: 18px; background: var(--surface-card); border: none; border-radius: var(--radius-xl); padding: 24px; box-shadow: var(--shadow-card); }
+    .dashboard-section:first-child { background: transparent; box-shadow: none; padding: 0; margin-bottom: 22px; }
+    .dashboard-section h3 { font-size: 18px; color: var(--ink-900); margin-bottom: 16px; font-weight: 700; }
+    .dashboard-presets { display: inline-flex; gap: 8px; flex-wrap: wrap; background: #fff; padding: 5px; border-radius: var(--radius-pill); box-shadow: inset 0 0 0 1px var(--border-hairline); }
     .dashboard-preset {
-      padding: 6px 12px; border: 1px solid #e0d8f0; background: #fff; color: #666;
-      border-radius: 6px; cursor: pointer; font-size: 13px; transition: all 0.15s;
+      padding: 9px 18px; border: none; background: transparent; color: var(--ink-500);
+      border-radius: var(--radius-pill); cursor: pointer; font-size: 14px; font-weight: 600; font-family: var(--font-sans); transition: all 0.15s;
     }
-    .dashboard-preset.active { background: #7C5ACB; color: #fff; border-color: #7C5ACB; }
-    .dashboard-preset:hover:not(.active) { background: #EFE7FF; color: #7C5ACB; }
-    .dashboard-custom { display: flex; gap: 8px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
+    .dashboard-preset.active { background: var(--ink-900); color: #fff; }
+    .dashboard-preset:hover:not(.active) { color: var(--ink-900); }
+    .dashboard-custom { display: flex; gap: 8px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
     .dashboard-date {
-      padding: 6px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px;
+      padding: 8px 12px; border: none; box-shadow: inset 0 0 0 1px var(--border-hairline); border-radius: var(--radius-md); font-size: 13px; font-family: var(--font-sans);
     }
-    .dashboard-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+    .dashboard-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
     .dashboard-stat-card {
-      background: #fafafa; border: 1px solid #e8d8ff; border-radius: 10px; padding: 14px;
+      background: var(--blue-200); border: none; border-radius: var(--radius-xl); padding: 24px;
     }
-    .dashboard-stat-label { font-size: 12px; color: #888; margin-bottom: 6px; }
-    .dashboard-stat-value { font-size: 22px; font-weight: 700; color: #00354E; }
-    .dashboard-stat-sub { font-size: 11px; color: #999; margin-top: 4px; }
+    .dashboard-stat-card:nth-child(2) { background: var(--mint-200); }
+    .dashboard-stat-label { font-size: 13px; color: var(--ink-500); font-weight: 500; margin-bottom: 8px; }
+    .dashboard-stat-value { font-size: 34px; font-weight: 800; color: var(--ink-900); letter-spacing: -.02em; line-height: 1; }
+    .dashboard-stat-sub { font-size: 12.5px; color: var(--ink-500); font-weight: 600; margin-top: 7px; }
     .dashboard-chart-wrap { position: relative; width: 100%; height: 240px; margin-top: 8px; }
     .dashboard-chart { width: 100% !important; height: 100% !important; display: block; }
     .dashboard-user-select {
-      width: 100%; padding: 8px 12px; border: 1px solid #e0d8f0; border-radius: 8px;
-      font-size: 14px; background: #fff; color: #333;
+      width: 100%; padding: 10px 14px; border: none; box-shadow: inset 0 0 0 1px var(--border-hairline); border-radius: var(--radius-md);
+      font-size: 14px; background: #fff; color: var(--ink-900); font-family: var(--font-sans);
     }
-    .dashboard-user-select:disabled { background: #f5f5f5; cursor: not-allowed; opacity: 0.7; }
+    .dashboard-user-select:disabled { background: var(--surface-app); cursor: not-allowed; opacity: 0.7; }
+    @media (max-width: 768px) { .dashboard-stats { grid-template-columns: 1fr; } }
+
+    /* Cancel panel banner (Bankio) */
+    .cancel-banner {
+      display: flex; align-items: center; gap: 13px;
+      background: var(--mint-200); border-radius: var(--radius-xl);
+      padding: 16px 20px; margin: 0 auto 18px; max-width: 920px;
+    }
+    .cancel-banner-ic {
+      width: 42px; height: 42px; border-radius: 12px; flex: none;
+      background: rgba(226,104,98,.14); color: var(--danger);
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+    .cancel-banner-title { font-size: 16px; font-weight: 700; color: var(--ink-900); }
+    .cancel-banner-sub { font-size: 12px; font-weight: 500; color: var(--ink-500); margin-top: 2px; }
+
+    /* Cancel cards (Bankio) */
+    .cancel-card { background: var(--surface-card); border-radius: var(--radius-xl); padding: 20px 22px; box-shadow: var(--shadow-card); }
+    .cancel-card-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
+    .cancel-card-code { font-size: 13.5px; font-weight: 800; letter-spacing: -.01em; color: var(--ink-900); }
+    .cancel-site-chip { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 999px; background: var(--blue-100); color: var(--blue-600); }
+    .cancel-cust-chip { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 999px; background: var(--mint-100); color: var(--mint-600); }
+    .cancel-items { margin-top: 6px; }
+    .cancel-item { display: flex; gap: 12px; align-items: flex-start; padding: 14px 0; border-bottom: 1px solid var(--border-card); }
+    .cancel-item:last-child { border-bottom: none; }
+    .cancel-thumb { width: 48px; height: 48px; border-radius: 12px; flex: none; object-fit: cover; background-image: repeating-linear-gradient(135deg, var(--ink-200), var(--ink-200) 6px, #eef1f5 6px, #eef1f5 12px); }
+    .cancel-item-name { font-size: 13.5px; font-weight: 600; line-height: 1.35; color: var(--ink-900); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .cancel-item-meta { font-size: 11px; font-weight: 500; color: var(--ink-400); margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .cancel-reason { display: inline-flex; align-items: center; gap: 7px; margin-top: 8px; font-size: 11.5px; font-weight: 600; color: var(--danger); background: rgba(226,104,98,.10); padding: 5px 11px; border-radius: 999px; max-width: 100%; }
+    .cancel-reason span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 360px; }
+    .cancel-item-right { margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; flex: none; }
+    .cancel-item-price { font-size: 14px; font-weight: 800; color: var(--ink-900); }
+    .cancel-xbtn { width: 30px; height: 30px; border-radius: var(--radius-pill); border: none; background: #fff; box-shadow: inset 0 0 0 1px var(--border-hairline); color: var(--ink-500); cursor: pointer; font-size: 16px; line-height: 1; }
+    .cancel-xbtn:hover { color: var(--danger); box-shadow: inset 0 0 0 1px rgba(226,104,98,.4); }
+    .cancel-card-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+    .cancel-order-btn { border: none; background: rgba(226,104,98,.12); color: var(--danger); font-family: var(--font-sans); font-size: 12.5px; font-weight: 700; padding: 10px 18px; border-radius: var(--radius-pill); cursor: pointer; }
+    .cancel-order-btn:hover { background: rgba(226,104,98,.2); }
 
 
     .search-sessions {
@@ -552,7 +592,7 @@
       text-align: center;
     }
     .extracted-thumb-wrap:hover {
-      border-color: #00354E;
+      border-color: var(--blue-500);
       transform: scale(1.05);
     }
     .extracted-thumb {
@@ -807,6 +847,15 @@
       text-align: center;
     }
 
+    /* Composer quick-action buttons */
+    .quickbtn {
+      flex: 1; height: 42px; border: none; border-radius: 12px;
+      background: #fff; box-shadow: inset 0 0 0 1px var(--border-hairline);
+      font-family: var(--font-sans); font-size: 13px; font-weight: 600; color: var(--ink-700);
+      cursor: pointer; transition: background 0.15s;
+    }
+    .quickbtn:hover { background: var(--blue-050); }
+
     /* ===== MOBILE HAMBURGER ===== */
     .btn-hamburger {
       display: none; background: none; border: none; font-size: 22px;
@@ -1024,72 +1073,72 @@
       padding: 5px 6px; font-size: 13px; text-align: center; font-family: var(--font-sans);
     }
 
-    /* ===== EDIT MODAL ===== */
+    /* ===== EDIT MODAL (Bankio) ===== */
     .edit-modal-overlay {
-      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+      display: none; position: fixed; inset: 0; background: rgba(23,27,33,.28); backdrop-filter: blur(2px);
       z-index: 2000; align-items: center; justify-content: center;
     }
     .edit-modal-overlay.show { display: flex; }
     .edit-modal {
-      background: #fff; border-radius: 14px; padding: 24px; width: 90%; max-width: 360px;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+      background: #fff; border-radius: 22px; padding: 22px; width: 90%; max-width: 360px;
+      box-shadow: var(--shadow-lg);
     }
     .edit-modal-title {
-      font-size: 15px; font-weight: 600; color: #00354E; margin-bottom: 16px;
+      font-size: 18px; font-weight: 700; color: var(--ink-900); margin-bottom: 16px;
     }
     .edit-modal-input {
-      width: 100%; padding: 10px 14px; border: 1.5px solid #ddd; border-radius: 8px;
-      font-size: 15px; outline: none; transition: border-color 0.2s;
+      width: 100%; height: 48px; padding: 0 16px; border: none; box-shadow: inset 0 0 0 1px var(--border-hairline); border-radius: 14px;
+      font-size: 15px; font-weight: 500; font-family: var(--font-sans); color: var(--ink-900); outline: none; transition: box-shadow 0.2s;
     }
-    .edit-modal-input:focus { border-color: #7c5cbf; }
+    .edit-modal-input:focus { box-shadow: var(--ring-focus), inset 0 0 0 1px var(--blue-400); }
     .edit-modal-btns {
-      display: flex; gap: 10px; margin-top: 16px; justify-content: flex-end;
+      display: flex; gap: 10px; margin-top: 18px; align-items: center;
     }
     .edit-modal-btn {
-      padding: 8px 20px; border-radius: 8px; border: none; font-size: 14px;
-      cursor: pointer; font-weight: 500;
+      padding: 11px 18px; border-radius: var(--radius-pill); border: none; font-size: 14px;
+      cursor: pointer; font-weight: 700; font-family: var(--font-sans);
     }
-    .edit-modal-btn-cancel { background: #f0f0f0; color: #666; }
-    .edit-modal-btn-cancel:hover { background: #e0e0e0; }
-    .edit-modal-btn-save { background: #7c5cbf; color: #fff; }
-    .edit-modal-btn-save:hover { background: #6a4aad; }
-    .edit-modal-btn-danger { background: #e55; color: #fff; }
-    .edit-modal-btn-danger:hover { background: #d33; }
+    .edit-modal-btn-cancel { background: var(--surface-app); color: var(--ink-700); box-shadow: inset 0 0 0 1px var(--border-hairline); }
+    .edit-modal-btn-cancel:hover { background: var(--blue-050); }
+    .edit-modal-btn-save { background: var(--action-primary); color: #fff; box-shadow: var(--shadow-sm); }
+    .edit-modal-btn-save:hover { background: var(--blue-600); }
+    .edit-modal-btn-danger { background: rgba(226,104,98,.12); color: var(--danger); margin-right: auto; }
+    .edit-modal-btn-danger:hover { background: rgba(226,104,98,.2); }
     .term-modal-list {
       flex: 1; overflow-y: auto; margin-bottom: 12px;
-      border: 1px solid #eee; border-radius: 8px;
+      border: none; border-radius: 14px;
     }
     .term-modal-item {
-      padding: 10px 14px; cursor: pointer;
-      border-bottom: 1px solid #f0f0f0;
-      font-size: 14px; color: #333;
+      padding: 13px 16px; cursor: pointer; border-radius: 14px;
+      border-bottom: none;
+      font-size: 14px; font-weight: 600; color: var(--ink-700);
+      display: flex; align-items: center; justify-content: space-between;
     }
-    .term-modal-item:last-child { border-bottom: none; }
-    .term-modal-item:hover { background: #f8f5ff; }
-    .term-modal-item.selected { background: #efe7ff; color: #7c5acb; font-weight: 600; }
+    .term-modal-item:hover { background: var(--surface-app); }
+    .term-modal-item.selected { background: var(--blue-100); color: var(--blue-600); font-weight: 600; }
 
     .img-uploader-tabs { display: flex; gap: 6px; margin-bottom: 12px; }
     .img-uploader-tab {
-      flex: 1; padding: 8px 10px; border: 1px solid #e0d8f0; border-radius: 8px;
-      background: #fff; color: #666; cursor: pointer; font-size: 13px; font-weight: 500; text-align: center;
+      flex: 1; padding: 9px 10px; border: none; box-shadow: inset 0 0 0 1px var(--border-hairline); border-radius: var(--radius-md);
+      background: #fff; color: var(--ink-500); cursor: pointer; font-size: 13px; font-weight: 600; font-family: var(--font-sans); text-align: center;
     }
-    .img-uploader-tab.active { background: #EFE7FF; color: #7C5ACB; border-color: #7C5ACB; }
+    .img-uploader-tab.active { background: var(--blue-100); color: var(--blue-600); box-shadow: none; }
     .img-uploader-panel { display: none; }
     .img-uploader-panel.active { display: block; }
     .img-uploader-dropzone {
-      border: 2px dashed #d0c4e8; border-radius: 10px; padding: 28px 10px;
-      text-align: center; color: #999; font-size: 13px; background: #fafaff;
+      border: 2px dashed var(--ink-300); border-radius: 14px; padding: 28px 10px;
+      text-align: center; color: var(--ink-400); font-size: 13px; background: var(--blue-050);
       min-height: 120px; display: flex; align-items: center; justify-content: center;
     }
     .img-uploader-dropzone.has-image { border-style: solid; padding: 10px; }
-    .img-uploader-dropzone img { max-width: 100%; max-height: 180px; object-fit: contain; border-radius: 6px; }
+    .img-uploader-dropzone img { max-width: 100%; max-height: 180px; object-fit: contain; border-radius: 10px; }
     .img-uploader-file-btn {
-      display: inline-block; padding: 10px 18px; background: #7c5cbf; color: #fff;
-      border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 500;
+      display: inline-block; padding: 10px 18px; background: var(--action-primary); color: #fff;
+      border: none; border-radius: var(--radius-pill); cursor: pointer; font-size: 13px; font-weight: 700; font-family: var(--font-sans);
     }
-    .img-uploader-file-btn:hover { background: #6a4aad; }
-    .img-uploader-hint { font-size: 11px; color: #999; margin-top: 8px; }
-    .confirm-modal-text { font-size: 14px; color: #555; line-height: 1.5; }
+    .img-uploader-file-btn:hover { background: var(--blue-600); }
+    .img-uploader-hint { font-size: 11px; color: var(--ink-400); margin-top: 8px; }
+    .confirm-modal-text { font-size: 14px; color: var(--ink-500); line-height: 1.5; }
   </style>
 </head>
 <body>
@@ -1190,31 +1239,36 @@
       <div id="dashboardTopDomains" style="display:flex;flex-direction:column;gap:6px;font-size:14px"></div>
     </div>
     <div class="dashboard-section">
-      <h3>Số đơn theo người dùng <span id="dashboardSelectedHint" style="font-size:13px;color:#7c5cbf;font-weight:500"></span></h3>
+      <h3>Số đơn theo người dùng <span id="dashboardSelectedHint" style="font-size:13px;color:var(--blue-600);font-weight:500"></span></h3>
       <div id="dashboardOrdersByUser" style="display:flex;flex-direction:column;gap:8px"></div>
     </div>
   </div>
 
   <!-- Cancel notifications view (ẩn mặc định) -->
   <div class="dashboard-view" id="cancelPanelView">
-    <div class="dashboard-section">
-      <h3>Thông báo sản phẩm bị Cancel</h3>
-      <div style="font-size:13px;color:#666;margin-bottom:8px">Các đơn của bạn vừa có sản phẩm bị hủy.</div>
-      <div id="cancelPanelList" style="display:flex;flex-direction:column;gap:12px"></div>
+    <div class="cancel-banner">
+      <span class="cancel-banner-ic">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M9 9l6 6M15 9l-6 6" stroke-linecap="round"/></svg>
+      </span>
+      <div>
+        <div class="cancel-banner-title">Thông báo sản phẩm bị Cancel</div>
+        <div class="cancel-banner-sub">Các đơn của bạn vừa có sản phẩm bị hủy.</div>
+      </div>
     </div>
+    <div id="cancelPanelList" style="display:flex;flex-direction:column;gap:16px;max-width:920px;margin:0 auto"></div>
   </div>
 
   <!-- Input bar -->
   <div class="input-bar-wrap" id="inputArea" style="display:none;">
     <!-- Nút tạo đơn mới (DONE) / hủy tạo đơn (WAITING_IMAGE) -->
-    <div id="newOrderBtnWrap" style="display:none;padding:5px 0 0;width:100%;max-width:700px;margin:0 auto;">
-      <div style="display:flex;gap:10px;width:100%">
-        <button class="cart-btn" style="flex:1;background:#f0f0f0;color:#666;border:1px solid #ccc;border-radius:14px" onclick="openNewOrderTypeMenu()">Tạo đơn mới</button>
-        <button class="cart-btn" style="flex:1;background:#f0f0f0;color:#666;border:1px solid #ccc;border-radius:14px" onclick="openOrderStatusMenu()">Tình trạng đơn</button>
+    <div id="newOrderBtnWrap" style="display:none;width:100%;max-width:820px;margin:0 auto;">
+      <div style="display:flex;gap:12px;width:100%">
+        <button class="quickbtn" onclick="openNewOrderTypeMenu()">Tạo đơn mới</button>
+        <button class="quickbtn" onclick="openOrderStatusMenu()">Tình trạng đơn</button>
       </div>
     </div>
-    <div id="cancelNewOrderBtnWrap" style="display:none;padding:5px 0 0;text-align:center;width:100%;max-width:700px;margin:0 auto;">
-      <button class="cart-btn" style="background:#FDEBEC;color:#D95C5C;border:1px solid #f0c0c0;border-radius:14px" onclick="cancelNewOrder()">Hủy tạo đơn</button>
+    <div id="cancelNewOrderBtnWrap" style="display:none;text-align:center;width:100%;max-width:820px;margin:0 auto;">
+      <button class="cart-btn" style="background:rgba(226,104,98,.06);color:var(--danger);border:1.5px solid rgba(226,104,98,.35)" onclick="cancelNewOrder()">Hủy tạo đơn</button>
     </div>
     <!-- Preview ảnh trước khi gửi -->
     <div class="preview-wrap" id="previewWrap">
@@ -1225,11 +1279,10 @@
     <div class="input-bar">
       <!-- Nút upload ảnh -->
       <button class="btn-upload" onclick="document.getElementById('fileInput').click()" title="Upload ảnh giỏ hàng">
-        <svg width="26" height="26" viewBox="0 0 36 36" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="18" cy="18" r="18" fill="#062538"/>
-          <path d="M10 13.5C10 12.12 11.12 11 12.5 11h11C24.88 11 26 12.12 26 13.5v9C26 23.88 24.88 25 23.5 25h-11C11.12 25 10 23.88 10 22.5v-9z" fill="white"/>
-          <circle cx="18" cy="18" r="3.2" fill="#062538"/>
-          <circle cx="22.5" cy="14.5" r="1.1" fill="#062538"/>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linejoin="round">
+          <rect x="3" y="6" width="18" height="13" rx="3"/>
+          <circle cx="12" cy="12.5" r="3"/>
+          <path d="M8 6l1.2-2h5.6L16 6"/>
         </svg>
       </button>
       <input type="file" id="fileInput" accept="image/*" multiple onchange="onImageSelect(event)" />
@@ -1723,7 +1776,7 @@
               <div title="${escapeHtml(fullName)}" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px">${escapeHtml(fullName)}</div>
               ${varsStr ? `<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:#888;margin-top:2px">${varsStr}</div>` : ''}
             </div>
-            ${priceStr ? `<span style="flex-shrink:0;font-weight:600;color:#7c5cbf;font-size:13px">${priceStr}</span>` : ''}
+            ${priceStr ? `<span style="flex-shrink:0;font-weight:600;color:var(--blue-600);font-size:13px">${priceStr}</span>` : ''}
           </div>
         `;
       }).join('');
@@ -1731,7 +1784,7 @@
       return `
         <div class="order-card">
           <div class="order-title">${title} — ${orderCode}${siteSuffix}</div>
-          <div style="margin:8px 0;padding:8px 10px;background:#fafafa;border-radius:6px">${itemsHtml}</div>
+          <div style="margin:8px 0;padding:8px 10px;background:var(--surface-app);border-radius:6px">${itemsHtml}</div>
           <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">
             <div><a class="order-link" href="${orderUrl}" target="_blank">Xem đơn hàng &rarr;</a></div>
           </div>
@@ -1745,9 +1798,9 @@
       <div class="order-card">
         <div class="order-title">Chọn tình trạng đơn</div>
         <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">
-          <div><button class="order-link" style="border:none;cursor:pointer;background:#EFE7FF;color:#7C5ACB;font-size:13px;padding:6px 14px" onclick="selectOrderStatus('not_bought')">Đơn chưa mua</button></div>
-          <div><button class="order-link" style="border:none;cursor:pointer;background:#EFE7FF;color:#7C5ACB;font-size:13px;padding:6px 14px" onclick="selectOrderStatus('bought')">Đơn đã mua</button></div>
-          <div><button class="order-link" style="border:none;cursor:pointer;background:#EFE7FF;color:#7C5ACB;font-size:13px;padding:6px 14px" onclick="selectOrderStatus('not_available')">Đơn cancel</button></div>
+          <div><button class="order-link" style="border:none;cursor:pointer;background:var(--blue-100);color:var(--blue-600);font-size:13px;padding:6px 14px" onclick="selectOrderStatus('not_bought')">Đơn chưa mua</button></div>
+          <div><button class="order-link" style="border:none;cursor:pointer;background:var(--blue-100);color:var(--blue-600);font-size:13px;padding:6px 14px" onclick="selectOrderStatus('bought')">Đơn đã mua</button></div>
+          <div><button class="order-link" style="border:none;cursor:pointer;background:var(--blue-100);color:var(--blue-600);font-size:13px;padding:6px 14px" onclick="selectOrderStatus('not_available')">Đơn cancel</button></div>
         </div>
       </div>
     `;
@@ -1836,19 +1889,19 @@
             <div title="${escapeHtml(fullName)}" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px">${escapeHtml(fullName)}</div>
             ${varsStr ? `<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:#888;margin-top:2px">${varsStr}</div>` : ''}
           </div>
-          ${priceStr ? `<span style="flex-shrink:0;font-weight:600;color:#7c5cbf;font-size:13px">${priceStr}</span>` : ''}
+          ${priceStr ? `<span style="flex-shrink:0;font-weight:600;color:var(--blue-600);font-size:13px">${priceStr}</span>` : ''}
         </div>
       `;
     }).join('');
     return `
       <div class="order-card">
         <div class="order-title">${data.title || 'Đơn hàng đã tạo'} — ${code}${siteSuffix}</div>
-        <div style="margin:8px 0;padding:8px 10px;background:#fafafa;border-radius:6px">${itemsHtml}</div>
+        <div style="margin:8px 0;padding:8px 10px;background:var(--surface-app);border-radius:6px">${itemsHtml}</div>
         <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">
           <div><a class="order-link" href="${data.order_url || '#'}" target="_blank">Xem đơn hàng &rarr;</a></div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <button class="order-link" style="border:none;cursor:pointer;background:#EFE7FF;color:#7C5ACB;font-size:13px;padding:6px 14px" onclick="enterEditOrder('${code}')">Chỉnh sửa đơn</button>
-            <button class="order-link" style="border:none;cursor:pointer;background:#FDEBEC;color:#D95C5C;font-size:13px;padding:6px 14px" onclick="cancelOrder('${code}')">Hủy đơn hàng</button>
+            <button class="order-link" style="border:none;cursor:pointer;background:var(--blue-100);color:var(--blue-600);font-size:13px;padding:6px 14px" onclick="enterEditOrder('${code}')">Chỉnh sửa đơn</button>
+            <button class="order-link" style="border:none;cursor:pointer;background:rgba(226,104,98,.12);color:var(--danger);font-size:13px;padding:6px 14px" onclick="cancelOrder('${code}')">Hủy đơn hàng</button>
           </div>
         </div>
       </div>
@@ -1946,8 +1999,8 @@
       <div class="order-card">
         <div class="order-title">Chọn loại đơn hàng</div>
         <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">
-          <div><button class="order-link" style="border:none;cursor:pointer;background:#EFE7FF;color:#7C5ACB;font-size:13px;padding:6px 14px" onclick="startNewOrder()">Tạo đơn Order</button></div>
-          <div><button class="order-link" style="border:none;cursor:pointer;background:#EFE7FF;color:#7C5ACB;font-size:13px;padding:6px 14px" onclick="startCheckoutOrder()">Tạo đơn Checkout</button></div>
+          <div><button class="order-link" style="border:none;cursor:pointer;background:var(--blue-100);color:var(--blue-600);font-size:13px;padding:6px 14px" onclick="startNewOrder()">Tạo đơn Order</button></div>
+          <div><button class="order-link" style="border:none;cursor:pointer;background:var(--blue-100);color:var(--blue-600);font-size:13px;padding:6px 14px" onclick="startCheckoutOrder()">Tạo đơn Checkout</button></div>
         </div>
       </div>
     `;
@@ -1997,8 +2050,8 @@
             <textarea id="${id}_address" rows="4" style="padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;resize:vertical;font-family:inherit">${escapeHtml(data.shipping_address)}</textarea>
           </label>
           <div style="display:flex;gap:8px;margin-top:6px">
-            <button class="order-link" style="flex:1;border:none;cursor:pointer;background:#EFE7FF;color:#7C5ACB;padding:8px 14px" onclick="confirmCheckoutInfo('${id}')">Xác nhận và tiếp tục</button>
-            <button class="order-link" style="flex:0 0 auto;border:none;cursor:pointer;background:#FDEBEC;color:#D95C5C;padding:8px 14px" onclick="cancelCheckoutInfo('${id}')">Hủy</button>
+            <button class="order-link" style="flex:1;border:none;cursor:pointer;background:var(--blue-100);color:var(--blue-600);padding:8px 14px" onclick="confirmCheckoutInfo('${id}')">Xác nhận và tiếp tục</button>
+            <button class="order-link" style="flex:0 0 auto;border:none;cursor:pointer;background:rgba(226,104,98,.12);color:var(--danger);padding:8px 14px" onclick="cancelCheckoutInfo('${id}')">Hủy</button>
           </div>
         </div>
       </div>
@@ -2177,7 +2230,7 @@
       const thumbClick = canEdit ? `onclick="event.stopPropagation();openImageUploader('editOrder',${i})"` : '';
       const thumbHtml = thumbSrc
         ? `<img class="cart-card-thumb" src="${thumbSrc}" ${thumbClick} style="cursor:${canEdit ? 'pointer' : 'default'}" title="${canEdit ? 'Bấm để đổi ảnh' : ''}" />`
-        : (canEdit ? `<div class="cart-card-thumb" ${thumbClick} style="cursor:pointer;display:flex;align-items:center;justify-content:center;background:#f3eeff;color:#7c5cbf;font-size:18px" title="Bấm để thêm ảnh">+</div>` : '');
+        : (canEdit ? `<div class="cart-card-thumb" ${thumbClick} style="cursor:pointer;display:flex;align-items:center;justify-content:center;background:var(--blue-050);color:var(--blue-600);font-size:18px" title="Bấm để thêm ảnh">+</div>` : '');
       const NAME_MAX = 75;
       const displayName = item.name && item.name.length > NAME_MAX
         ? item.name.slice(0, NAME_MAX).trim() + '…'
@@ -2213,7 +2266,7 @@
               <span class="cart-field-value">${item.noSale ? 'Miễn' : item.itemSalePct ? item.itemSalePct + '%' : '—'}</span>
             </span>
             ${(salePct > 0 && canEdit && !item.noSale && !item.itemSalePct) ? `<span class="cart-field" onclick="toggleEditNoSale(${i})" style="color:#e55;font-size:11px;cursor:pointer"><span class="cart-field-value">Miễn sale</span></span>` : ''}
-            ${(item.noSale && canEdit) ? `<span class="cart-field" onclick="toggleEditNoSale(${i})" style="color:#28a745;font-size:11px;cursor:pointer"><span class="cart-field-value">Áp sale lại</span></span>` : ''}
+            ${(item.noSale && canEdit) ? `<span class="cart-field" onclick="toggleEditNoSale(${i})" style="color:var(--success);font-size:11px;cursor:pointer"><span class="cart-field-value">Áp sale lại</span></span>` : ''}
             <span class="cart-field cart-field-link" ${canEdit ? `onclick="editOrderItemField(${i},'link')"` : ''} style="flex:1;min-width:0;max-width:calc(100% - 40px)">
               <span class="cart-field-label">Link</span>
               <span class="cart-field-value" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(linkShow)}</span>
@@ -2231,7 +2284,7 @@
           ${canEdit ? `<div class="cart-card-tools">
             ${status !== 'deleted' ? `<button class="cart-tool-btn" onclick="addOrderItemVariation(${i})" title="Thêm variant"><svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg></button>` : ''}
             <button class="cart-tool-btn" onclick="cloneOrderItem(${i})" title="Copy item"><svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg></button>
-            ${status !== 'deleted' ? `<button class="cart-tool-btn danger" onclick="markDeleteOrderItem(${i})" title="Xóa"><svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>` : `<button class="cart-tool-btn" onclick="unmarkDeleteOrderItem(${i})" title="Hoàn tác" style="color:#28a745">↩</button>`}
+            ${status !== 'deleted' ? `<button class="cart-tool-btn danger" onclick="markDeleteOrderItem(${i})" title="Xóa"><svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>` : `<button class="cart-tool-btn" onclick="unmarkDeleteOrderItem(${i})" title="Hoàn tác" style="color:var(--success)">↩</button>`}
           </div>` : ''}
         </div>
       </div>`;
@@ -2253,8 +2306,8 @@
         <div class="cart-cards">${cards}</div>
         <div class="cart-actions">
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-            <button class="cart-btn" style="background:#EFE7FF;color:#7C5ACB" onclick="applyEditSaleUI()">Giảm giá ${salePct ? salePct + '%' : ''}</button>
-            ${salePct > 0 ? `<button class="cart-btn" style="background:#FDEBEC;color:#D95C5C" onclick="removeEditSaleUI()">Bỏ giảm giá</button>` : ''}
+            <button class="cart-btn" style="background:var(--blue-100);color:var(--blue-600)" onclick="applyEditSaleUI()">Giảm giá ${salePct ? salePct + '%' : ''}</button>
+            ${salePct > 0 ? `<button class="cart-btn" style="background:rgba(226,104,98,.12);color:var(--danger)" onclick="removeEditSaleUI()">Bỏ giảm giá</button>` : ''}
             <span class="cart-field" onclick="editOrderAdminNote()" style="color:${editing.adminNote ? '#333' : '#999'};cursor:pointer">
               <span class="cart-field-label">Note mua hàng</span>
               <span class="cart-field-value" style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${editing.adminNote ? escapeHtml(editing.adminNote) : '—'}</span>
@@ -3703,7 +3756,7 @@
     const thumbSrc = item.thumb || (item.image_path ? (item.image_path.startsWith('http') ? item.image_path : 'https://basso.vn' + item.image_path) : '');
     const thumbHtml = thumbSrc
       ? `<img class="cart-card-thumb" src="${thumbSrc}" onclick="event.stopPropagation();openImageUploader('cart',${i})" style="cursor:pointer" title="Bấm để đổi ảnh" />`
-      : `<div class="cart-card-thumb" onclick="event.stopPropagation();openImageUploader('cart',${i})" style="cursor:pointer;display:flex;align-items:center;justify-content:center;background:#f3eeff;color:#7c5cbf;font-size:18px" title="Bấm để thêm ảnh">+</div>`;
+      : `<div class="cart-card-thumb" onclick="event.stopPropagation();openImageUploader('cart',${i})" style="cursor:pointer;display:flex;align-items:center;justify-content:center;background:var(--blue-050);color:var(--blue-600);font-size:18px" title="Bấm để thêm ảnh">+</div>`;
     const NAME_MAX = 75;
     const displayName = item.name && item.name.length > NAME_MAX
       ? item.name.slice(0, NAME_MAX).trim() + '…'
@@ -3739,7 +3792,7 @@
             <span class="cart-field-value">${item.noSale ? 'Miễn' : item.itemSalePct ? item.itemSalePct + '%' : '—'}</span>
           </span>
           ${(session.salePct > 0 && !item.noSale && !item.itemSalePct) ? `<span class="cart-field" onclick="toggleNoSale(${i})" style="color:#e55;font-size:11px;cursor:pointer"><span class="cart-field-value">Miễn sale</span></span>` : ''}
-          ${item.noSale ? `<span class="cart-field" onclick="toggleNoSale(${i})" style="color:#28a745;font-size:11px;cursor:pointer"><span class="cart-field-value">Áp sale lại</span></span>` : ''}
+          ${item.noSale ? `<span class="cart-field" onclick="toggleNoSale(${i})" style="color:var(--success);font-size:11px;cursor:pointer"><span class="cart-field-value">Áp sale lại</span></span>` : ''}
           <span class="cart-field cart-field-link${item.link ? '' : ' warn'}" onclick="editCartField(${i},'link')" style="flex:1;min-width:0;max-width:calc(100% - 40px)">
             <span class="cart-field-label">Link</span>
             <span class="cart-field-value${item.link ? '' : ' warn'}" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(linkShow)}</span>
@@ -4451,7 +4504,7 @@
       const priceStr = price > 0 ? `${cur}${price}` : '';
       const img = it.image_path || '';
       const imgUrl = img && (img.startsWith('http') || img.startsWith('data:')) ? img : (img ? 'https://basso.vn' + img : '');
-      const thumb = imgUrl ? `<img src="${imgUrl}" style="width:36px;height:36px;object-fit:cover;border-radius:6px;flex-shrink:0" />` : `<div style="width:36px;height:36px;flex-shrink:0"></div>`;
+      const thumb = imgUrl ? `<img src="${imgUrl}" class="cancel-thumb" />` : `<div class="cancel-thumb"></div>`;
       const fullName = it.name || '';
       let vars = it.variations;
       if (typeof vars === 'string') { try { vars = JSON.parse(vars); } catch { vars = []; } }
@@ -4462,18 +4515,19 @@
       const cancelNote = it.cancel_note || '';
       const isNew = isCancelItemNew(orderId, it.id);
       const newTag = isNew ? '<span class="cancel-new-tag">NEW</span>' : '';
-      const deleteBtn = `<button data-order-code="${escapeHtml(orderCode)}" data-item-id="${it.id}" data-item-name="${escapeHtml(fullName)}" onclick="onClickDeleteCancelItem(this)" title="Xóa SP khỏi đơn" style="flex-shrink:0;border:none;background:transparent;cursor:pointer;color:#D95C5C;font-size:18px;line-height:1;padding:4px 6px;margin-top:4px">&times;</button>`;
+      const deleteBtn = `<button class="cancel-xbtn" data-order-code="${escapeHtml(orderCode)}" data-item-id="${it.id}" data-item-name="${escapeHtml(fullName)}" onclick="onClickDeleteCancelItem(this)" title="Xóa SP khỏi đơn">&times;</button>`;
       return `
-        <div style="display:flex;align-items:flex-start;gap:8px;padding:6px 0;min-width:0">
-          <span style="flex-shrink:0;color:#666;min-width:18px;padding-top:8px">${idx + 1}.</span>
+        <div class="cancel-item">
           ${thumb}
           <div style="flex:1;min-width:0;overflow:hidden">
-            <div title="${escapeHtml(fullName)}" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px">${escapeHtml(fullName)}${newTag}</div>
-            ${varsStr ? `<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:#888;margin-top:2px">${varsStr}</div>` : ''}
-            ${cancelNote ? `<div style="font-size:11px;color:#D95C5C;margin-top:3px;line-height:1.4"><span style="font-weight:600">Lý do cancel:</span> ${escapeHtml(cancelNote)}</div>` : ''}
+            <div class="cancel-item-name" title="${escapeHtml(fullName)}">${escapeHtml(fullName)}${newTag}</div>
+            ${varsStr ? `<div class="cancel-item-meta">${varsStr}</div>` : ''}
+            ${cancelNote ? `<div class="cancel-reason"><span style="flex:none;font-weight:700">Lý do:</span> <span>${escapeHtml(cancelNote)}</span></div>` : ''}
           </div>
-          ${priceStr ? `<span style="flex-shrink:0;font-weight:600;color:#7c5cbf;font-size:13px;padding-top:8px">${priceStr}</span>` : ''}
-          ${deleteBtn}
+          <div class="cancel-item-right">
+            ${priceStr ? `<span class="cancel-item-price">${priceStr}</span>` : ''}
+            ${deleteBtn}
+          </div>
         </div>
       `;
     }).join('');
@@ -4483,13 +4537,17 @@
     // qua `total_items` (API mới: tổng dòng SP của đơn). Không cần fetch get-order
     // riêng cho từng đơn nữa.
     const cancelOrderBtn = isOrderFullyCancelled(o)
-      ? `<button class="order-link" style="border:none;cursor:pointer;background:#FDEBEC;color:#D95C5C;font-size:13px;padding:6px 14px" onclick="onClickCancelOrderFromPanel('${escapeHtml(orderCode)}')">Hủy đơn hàng</button>`
+      ? `<button class="cancel-order-btn" onclick="onClickCancelOrderFromPanel('${escapeHtml(orderCode)}')">Hủy đơn hàng</button>`
       : '';
+    const siteChip = site ? `<span class="cancel-site-chip">${escapeHtml(site)}</span>` : '';
+    const custChip = customerName ? `<span class="cancel-cust-chip">${escapeHtml(customerName)}</span>` : '';
     return `
-      <div class="order-card">
-        <div class="order-title">Đơn cancel — ${escapeHtml(orderCode)}${siteSuffix}${customerSuffix}${orderDot}</div>
-        <div style="margin:8px 0;padding:8px 10px;background:#fafafa;border-radius:6px">${itemsHtml}</div>
-        <div style="display:flex;flex-direction:row;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap">
+      <div class="cancel-card">
+        <div class="cancel-card-head">
+          <span class="cancel-card-code">Đơn cancel — ${escapeHtml(orderCode)}</span>${siteChip}${custChip}${orderDot}
+        </div>
+        <div class="cancel-items">${itemsHtml}</div>
+        <div class="cancel-card-foot">
           <a class="order-link" href="${orderUrl}" target="_blank">Xem đơn hàng &rarr;</a>
           ${cancelOrderBtn}
         </div>
@@ -4652,7 +4710,7 @@
 
   function updateDashboardSelectedTitles() {
     const suffix = _dashboardSelectedUser
-      ? ` <span style="font-weight:500;color:#7c5cbf;font-size:14px"> — ${escapeHtml(_dashboardSelectedUser.name)}</span>`
+      ? ` <span style="font-weight:500;color:var(--blue-600);font-size:14px"> — ${escapeHtml(_dashboardSelectedUser.name)}</span>`
       : '';
     const ov = document.getElementById('dashboardOverviewTitle');
     const td = document.getElementById('dashboardTopDomainsTitle');
@@ -4697,15 +4755,15 @@
       const isSelected = selectedId === u.user_id;
       const isDimmed = selectedId && !isSelected;
       const opacity = isDimmed ? '0.35' : '1';
-      const barColor = isSelected ? '#5b3fa3' : '#7C5ACB';
+      const barColor = isSelected ? 'var(--blue-600)' : 'var(--blue-500)';
       const labelText = u.user_name || u.user_email || ('User #' + u.user_id);
       return `<div onclick="onDashboardUserBarClick(${u.user_id}, ${JSON.stringify(labelText).replace(/"/g, '&quot;')})"
-        style="display:grid;grid-template-columns:140px 1fr auto;gap:10px;align-items:center;cursor:pointer;opacity:${opacity};transition:opacity .15s">
-        <span style="font-size:14px;font-weight:600;color:#00354E;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(labelText)}">${escapeHtml(labelText)}</span>
-        <div style="background:#eee;border-radius:6px;height:22px;overflow:hidden">
-          <div style="background:${barColor};height:100%;width:${pct}%;transition:width .2s"></div>
+        style="display:grid;grid-template-columns:150px 1fr auto;gap:12px;align-items:center;cursor:pointer;opacity:${opacity};transition:opacity .15s;padding:10px 0;border-bottom:1px solid var(--border-card)">
+        <span style="font-size:14px;font-weight:600;color:var(--ink-900);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(labelText)}">${escapeHtml(labelText)}</span>
+        <div style="background:var(--ink-200);border-radius:999px;height:8px;overflow:hidden">
+          <div style="background:${barColor};height:100%;border-radius:999px;width:${pct}%;transition:width .2s"></div>
         </div>
-        <span style="font-size:14px;font-weight:600;color:#00354E;min-width:36px;text-align:right">${u.order_count}</span>
+        <span style="font-size:14px;font-weight:700;color:var(--ink-900);min-width:36px;text-align:right">${u.order_count}</span>
       </div>`;
     }).join('');
   }
@@ -4734,9 +4792,12 @@
         return;
       }
       el.innerHTML = list.map((d, i) =>
-        `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:#f9f7ff;border-radius:6px">
-          <span><span style="color:#00354E;font-weight:600;margin-right:8px">${i + 1}.</span>${escapeHtml(d.domain)}</span>
-          <span style="font-weight:600;color:#00354E">$${Number(d.amount).toFixed(2)}</span>
+        `<div style="display:flex;justify-content:space-between;align-items:center;gap:14px;padding:11px 0;border-bottom:1px solid var(--border-card)">
+          <span style="display:flex;align-items:center;gap:12px;min-width:0">
+            <span style="width:26px;height:26px;border-radius:8px;flex:none;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;${i === 0 ? 'background:var(--ink-900);color:#fff' : 'background:var(--blue-100);color:var(--blue-600)'}">${i + 1}</span>
+            <span style="font-size:15px;font-weight:600;color:var(--ink-900);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(d.domain)}</span>
+          </span>
+          <span style="font-weight:700;font-size:14px;color:var(--ink-900);white-space:nowrap">$${Number(d.amount).toFixed(2)}</span>
         </div>`
       ).join('');
     } catch (err) {
