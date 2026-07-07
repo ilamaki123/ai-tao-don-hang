@@ -964,8 +964,10 @@
         gap: 14px;
       }
       .sidebar.open { display: flex; }
-      /* Brand row canh đúng như mobileViewHeader (bỏ padding lệch) */
-      .sidebar .sbhead { padding: 0 !important; }
+      /* Brand row canh đúng như mobileViewHeader (bỏ padding lệch) +
+         khoảng trống dưới header bằng Dashboard/Cancel (~28px:
+         14px gap sidebar + 14px margin) */
+      .sidebar .sbhead { padding: 0 !important; margin-bottom: 14px; }
       /* Logo M + gap giống hệt mvh-logo/mvh-title (đồng bộ 3 tab) */
       .sidebar .sidebar-logo { gap: 11px; font-size: 19px; }
       .sidebar .sidebar-logo::before { font-size: 18px; }
