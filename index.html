@@ -1287,6 +1287,29 @@
       .conv-header-name { font-size: 15px; font-weight: 800; color: var(--ink-900); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       .conv-header-sub { font-size: 11.5px; font-weight: 500; color: var(--ink-400); margin-top: 1px; }
     }
+
+    /* ===== MOBILE HEADER cho Dashboard / Đơn Cancel ===== */
+    .mobile-view-header { display: none; }
+    @media (max-width: 768px) {
+      .mobile-view-header {
+        display: none; align-items: center; gap: 11px;
+        padding: 12px 16px; background: var(--surface-app);
+      }
+      .mobile-view-header.show { display: flex; }
+      .mvh-logo {
+        width: 34px; height: 34px; border-radius: 11px; flex: none;
+        background: linear-gradient(135deg, #5CD6A0, #3FB98A);
+        color: #fff; font-weight: 800; font-size: 18px;
+        display: inline-flex; align-items: center; justify-content: center;
+      }
+      .mvh-title { font-size: 19px; font-weight: 800; color: var(--ink-900); }
+      .mvh-logout {
+        width: 38px; height: 38px; border-radius: var(--radius-pill); flex: none;
+        background: #fff; border: none; box-shadow: inset 0 0 0 1px var(--border-hairline);
+        display: inline-flex; align-items: center; justify-content: center;
+        color: var(--ink-700); cursor: pointer;
+      }
+    }
   </style>
 </head>
 <body>
@@ -1376,6 +1399,16 @@
       <div class="conv-header-name" id="convHeaderName">Doraemon</div>
       <div class="conv-header-sub" id="convHeaderSub"></div>
     </div>
+  </div>
+
+  <!-- Mobile header cho Dashboard / Đơn Cancel (M logo + tiêu đề + logout) -->
+  <div class="mobile-view-header" id="mobileViewHeader">
+    <span class="mvh-logo">M</span>
+    <span class="mvh-title" id="mobileViewTitle">Dashboard</span>
+    <span style="flex:1"></span>
+    <button class="mvh-logout" onclick="logoutBot()" title="Đăng xuất">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 21H6a1 1 0 01-1-1V4a1 1 0 011-1h3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 17l5-5-5-5M21 12H9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
   </div>
 
   <!-- Empty state (hiện khi chưa có chat) -->
@@ -5244,6 +5277,16 @@
     const canc = document.getElementById('btnCancelNoti');
     if (dash) dash.classList.toggle('active', _dashboardOpen);
     if (canc) canc.classList.toggle('active', _cancelPanelOpen);
+    // Mobile header (M + tiêu đề + logout) cho Dashboard / Đơn Cancel
+    const mvh = document.getElementById('mobileViewHeader');
+    if (mvh) {
+      const showMvh = _dashboardOpen || _cancelPanelOpen;
+      mvh.classList.toggle('show', showMvh);
+      if (showMvh) {
+        const t = document.getElementById('mobileViewTitle');
+        if (t) t.textContent = _dashboardOpen ? 'Dashboard' : 'Đơn Cancel';
+      }
+    }
     updateConvHeader();
     updateViewTitle();
   }
