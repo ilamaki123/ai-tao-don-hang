@@ -288,6 +288,7 @@
     .dashboard-stat-card:nth-child(2) { background: var(--mint-200); }
     .dashboard-stat-label { font-size: 13px; color: var(--ink-500); font-weight: 500; margin-bottom: 8px; }
     .dashboard-stat-value { font-size: 34px; font-weight: 800; color: var(--ink-900); letter-spacing: -.02em; line-height: 1; }
+    .dashboard-stat-cents { font-size: 22px; color: var(--ink-400); font-weight: 800; }
     .dashboard-stat-sub { font-size: 12.5px; color: var(--ink-500); font-weight: 600; margin-top: 7px; }
     .dashboard-chart-wrap { position: relative; width: 100%; height: 240px; margin-top: 8px; }
     .dashboard-chart { width: 100% !important; height: 100% !important; display: block; }
@@ -5109,15 +5110,22 @@
         <div class="dashboard-stat-sub" id="dashboardOrdersSub">${labels.period}</div>
       </div>
     `;
+    const CUR_NAME = { '$': 'USD', '€': 'EUR', '£': 'GBP', '₩': 'KRW', '¥': 'JPY', 'đ': 'VND', '₫': 'VND' };
     for (const [cur, info] of Object.entries(stats.byCurrency || {})) {
       const count = info.count || 0;
       const total = info.total || 0;
       const avg = count > 0 ? total / count : 0;
       const fmtMoney = n => n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+      // Tách phần lẻ .xx để tô mờ (giống design)
+      const rounded = Math.round(total * 100) / 100;
+      const intPart = Math.trunc(rounded);
+      const cents = Math.round((rounded - intPart) * 100);
+      const valueHtml = `${cur}${intPart.toLocaleString()}<span class="dashboard-stat-cents">.${String(cents).padStart(2, '0')}</span>`;
+      const curLabel = CUR_NAME[cur] || cur;
       html += `
         <div class="dashboard-stat-card">
-          <div class="dashboard-stat-label">Tổng giá trị (${cur})</div>
-          <div class="dashboard-stat-value">${cur}${fmtMoney(total)}</div>
+          <div class="dashboard-stat-label">Tổng giá trị (${curLabel})</div>
+          <div class="dashboard-stat-value">${valueHtml}</div>
           <div class="dashboard-stat-sub">${count} đơn · TB ${cur}${fmtMoney(Math.round(avg))} / đơn</div>
         </div>
       `;
