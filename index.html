@@ -5157,6 +5157,11 @@
     set('mtabDashboard', _dashboardOpen);
     set('mtabCancel', _cancelPanelOpen);
     set('mtabChat', !_dashboardOpen && !_cancelPanelOpen);
+    // Ring quanh nav tile đang active ở sidebar (design: "raised ring")
+    const dash = document.getElementById('btnDashboard');
+    const canc = document.getElementById('btnCancelNoti');
+    if (dash) dash.classList.toggle('active', _dashboardOpen);
+    if (canc) canc.classList.toggle('active', _cancelPanelOpen);
     updateConvHeader();
     updateViewTitle();
   }
