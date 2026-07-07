@@ -242,6 +242,16 @@ async function getDb() {
           console.error('[mysql] ALTER order_log domains_json FAILED:', e.message);
         }
       }
+      // cancelled_at: NULL = đơn còn hiệu lực; có giá trị = đã hủy (qua Mon hoặc reconcile
+      // với Basso). Dashboard loại các dòng cancelled_at IS NOT NULL khỏi thống kê.
+      try {
+        await dbPool.execute('ALTER TABLE order_log ADD COLUMN cancelled_at TIMESTAMP NULL DEFAULT NULL');
+        console.log('[mysql] order_log.cancelled_at column added');
+      } catch (e) {
+        if (e.code !== 'ER_DUP_FIELDNAME') {
+          console.error('[mysql] ALTER order_log cancelled_at FAILED:', e.message);
+        }
+      }
     } catch (e) {
       console.error('[mysql] CREATE TABLE order_log FAILED:', { message: e.message, code: e.code });
     }
@@ -1217,6 +1227,17 @@ app.post('/api/cancel-order', async (req, res) => {
     if (handleBassoAuthError(response, res)) return;
     const data = await response.json();
     console.log('[cancel-order] Basso response:', JSON.stringify(data).substring(0, 500));
+    // Nhóm A: hủy qua Mon → đánh dấu order_log để dashboard trừ ngay (0 call thêm).
+    if (data?.success) {
+      try {
+        const db = await getDb();
+        const [r] = await db.execute(
+          'UPDATE order_log SET cancelled_at = NOW() WHERE order_code = ? AND cancelled_at IS NULL',
+          [order_code]
+        );
+        if (r.affectedRows) console.log(`[cancel-order] order_log marked cancelled: ${order_code}`);
+      } catch (e) { console.error('[cancel-order] mark order_log error:', e.message); }
+    }
     res.json(data);
   } catch (err) { console.error('[api] error:', req.url, err.message); res.status(500).json({ success: false, message: err.message }); }
 });
@@ -1372,12 +1393,11 @@ app.get('/api/dashboard-stats', async (req, res) => {
     const from = req.query.from;
     const to = req.query.to;
     const db = await getDb();
-    const where = [];
+    const where = ['cancelled_at IS NULL'];
     const params = [];
     if (targetUserId) { where.push('user_id = ?'); params.push(targetUserId); }
     if (from) { where.push('DATE(created_at) >= ?'); params.push(from); }
     if (to) { where.push('DATE(created_at) <= ?'); params.push(to); }
-    if (!where.length) where.push('1=1');
     const whereSql = where.join(' AND ');
     const [totalRows] = await db.execute(
       `SELECT currency, COUNT(*) AS cnt, SUM(total_amount) AS total FROM order_log WHERE ${whereSql} GROUP BY currency`,
@@ -1416,7 +1436,7 @@ app.get('/api/dashboard-orders-by-user', async (req, res) => {
     if (!user) return res.status(401).json({ success: false, message: 'Unauthorized' });
     const from = req.query.from;
     const to = req.query.to;
-    const where = [];
+    const where = ['ol.cancelled_at IS NULL'];
     const params = [];
     if (from) { where.push('DATE(ol.created_at) >= ?'); params.push(from); }
     if (to) { where.push('DATE(ol.created_at) <= ?'); params.push(to); }
@@ -1482,7 +1502,7 @@ app.get('/api/dashboard-top-domains', async (req, res) => {
     const targetUserId = (reqUserId && parseInt(reqUserId)) || null;
     const from = req.query.from;
     const to = req.query.to;
-    const where = ["currency = '$'", "domains_json IS NOT NULL"];
+    const where = ["cancelled_at IS NULL", "currency = '$'", "domains_json IS NOT NULL"];
     const params = [];
     if (targetUserId) { where.push('user_id = ?'); params.push(targetUserId); }
     if (from) { where.push('DATE(created_at) >= ?'); params.push(from); }
@@ -1594,6 +1614,147 @@ process.on('unhandledRejection', (reason) => {
   process.exit(1);
 });
 
+// ============================================================
+// RECONCILE ĐƠN HỦY (Nhóm B) — đối soát order_log với Basso 4×/ngày (giờ VN).
+// Nguồn: getOrdersWithCancelledItems (bulk, phân trang). Đơn hủy TOÀN BỘ có
+// status=cancelled + mọi item chuyển not_available (Partner API §9) nên xuất hiện
+// ở item_status=not_available. Cần token role admin/accounting_manager để thấy đơn
+// của MỌI nhân viên (role khác chỉ thấy đơn của chính mình).
+// ============================================================
+let _svcToken = null, _svcTokenExp = 0;
+
+async function getReconcileToken() {
+  const now = Math.floor(Date.now() / 1000);
+  // 1) Service account trong .env (tự chủ, không phụ thuộc ai đăng nhập)
+  const email = process.env.RECONCILE_EMAIL, pass = process.env.RECONCILE_PASS;
+  if (email && pass) {
+    if (_svcToken && _svcTokenExp - now > 120) return _svcToken;
+    try {
+      const body = new URLSearchParams({ email, pass }).toString();
+      const r = await fetch(`${BASSO_URL}/partner/login`, {
+        method: 'POST',
+        headers: { 'X-Partner-Api-Key': BASSO_KEY, 'Content-Type': 'application/x-www-form-urlencoded' },
+        body,
+      });
+      const d = await r.json().catch(() => null);
+      if (d?.data?.access_token) {
+        const roles = d.data.user?.roles || [];
+        if (!roles.some(x => /admin|accounting_manager/i.test(x))) {
+          console.warn('[reconcile] ⚠️ RECONCILE_EMAIL không phải admin/accounting_manager → chỉ thấy đơn của chính tài khoản đó');
+        }
+        _svcToken = d.data.access_token;
+        _svcTokenExp = Number(d.data.expires_at) || (now + 3600);
+        return _svcToken;
+      }
+      console.error('[reconcile] service login thất bại:', d?.message || 'no token');
+    } catch (e) { console.error('[reconcile] service login error:', e.message); }
+  }
+  // 2) Fallback: token admin gần nhất trong partner_tokens (admin đã đăng nhập dashboard)
+  try {
+    const db = await getDb();
+    const [rows] = await db.execute(
+      `SELECT token FROM partner_tokens
+       WHERE roles_json LIKE '%admin%' OR roles_json LIKE '%accounting_manager%'
+       ORDER BY created_at DESC LIMIT 1`
+    );
+    if (rows.length) return rows[0].token;
+  } catch (e) { console.error('[reconcile] token fallback error:', e.message); }
+  return null;
+}
+
+async function reconcileCancelledOrders() {
+  if (IS_MOCK) return { skipped: 'mock' };
+  const token = await getReconcileToken();
+  if (!token) { console.warn('[reconcile] bỏ qua: chưa có RECONCILE_EMAIL/PASS và chưa có token admin nào'); return { skipped: 'no-token' }; }
+
+  const pad = n => String(n).padStart(2, '0');
+  // Cửa sổ cuộn 400 ngày (phủ preset "Năm nay" + range tùy chọn vắt qua năm).
+  // Đơn có item cancel là tập nhỏ → chỉ vài trang 100/đơn, rất nhẹ.
+  const fromD = new Date(Date.now() - 400 * 24 * 3600 * 1000 + 7 * 3600 * 1000);
+  const from = `${pad(fromD.getUTCDate())}-${pad(fromD.getUTCMonth() + 1)}-${fromD.getUTCFullYear()}`;
+  const vn = new Date(Date.now() + 7 * 3600 * 1000);
+  const to = `${pad(vn.getUTCDate())}-${pad(vn.getUTCMonth() + 1)}-${vn.getUTCFullYear()}`;
+
+  const cancelledCodes = new Set();
+  let page = 1, totalPages = 1, guard = 0, apiCalls = 0;
+  do {
+    const params = new URLSearchParams({
+      item_status: 'not_available', order_status: 'all',
+      from, to, page: String(page), page_size: '100',
+    });
+    let d;
+    try {
+      const r = await fetch(`${BASSO_URL}/partner/getOrdersWithCancelledItems?${params.toString()}`, {
+        headers: { 'X-Partner-Api-Key': BASSO_KEY, 'Authorization': `Bearer ${token}` },
+      });
+      apiCalls++;
+      if (r.status === 401 || r.status === 403) { _svcToken = null; console.warn('[reconcile] token hết hạn giữa chừng, dừng'); break; }
+      d = await r.json().catch(() => null);
+    } catch (e) { console.error('[reconcile] fetch page error:', e.message); break; }
+    if (!d?.success || !d?.data) break;
+    for (const o of (d.data.orders || [])) {
+      if ((o.order_status || '') === 'cancelled' && o.order_code) cancelledCodes.add(o.order_code);
+    }
+    const total = Number(d.data.total_orders) || 0;
+    const ps = Number(d.data.page_size) || 100;
+    totalPages = Math.max(1, Math.ceil(total / ps));
+    page++;
+  } while (page <= totalPages && ++guard < 200);
+
+  if (!cancelledCodes.size) {
+    console.log(`[reconcile] ${apiCalls} call · không có đơn hủy toàn bộ trong ${from}..${to}`);
+    return { apiCalls, cancelled: 0, marked: 0 };
+  }
+
+  let marked = 0;
+  try {
+    const db = await getDb();
+    const codes = [...cancelledCodes];
+    for (let i = 0; i < codes.length; i += 200) {
+      const chunk = codes.slice(i, i + 200);
+      const [res] = await db.execute(
+        `UPDATE order_log SET cancelled_at = NOW() WHERE cancelled_at IS NULL AND order_code IN (${chunk.map(() => '?').join(',')})`,
+        chunk
+      );
+      marked += res.affectedRows || 0;
+    }
+  } catch (e) { console.error('[reconcile] update order_log error:', e.message); }
+  console.log(`[reconcile] ${apiCalls} call · đơn cancelled thấy=${cancelledCodes.size} · order_log đánh dấu mới=${marked}`);
+  return { apiCalls, cancelled: cancelledCodes.size, marked };
+}
+
+// Lịch 10h/14h/18h/22h giờ VN (UTC+7) — tự tính, không cần thư viện cron.
+function msUntilNextReconcile() {
+  const HOURS = [10, 14, 18, 22];
+  const now = Date.now();
+  const vn = new Date(now + 7 * 3600 * 1000); // getUTC* đọc thành giờ VN
+  const Y = vn.getUTCFullYear(), M = vn.getUTCMonth(), D = vn.getUTCDate();
+  for (const h of HOURS) {
+    const epoch = Date.UTC(Y, M, D, h, 0, 0) - 7 * 3600 * 1000; // giờ tường VN → epoch UTC
+    if (epoch > now + 1000) return epoch - now;
+  }
+  return (Date.UTC(Y, M, D + 1, HOURS[0], 0, 0) - 7 * 3600 * 1000) - now;
+}
+
+function scheduleReconcile() {
+  const delay = msUntilNextReconcile();
+  console.log(`[reconcile] lần chạy kế tiếp sau ~${Math.round(delay / 60000)} phút`);
+  setTimeout(async () => {
+    try { await reconcileCancelledOrders(); } catch (e) { console.error('[reconcile] run error:', e.message); }
+    scheduleReconcile();
+  }, delay);
+}
+
+// Trigger thủ công (admin) — test ngay sau deploy, khỏi đợi tới giờ.
+app.get('/api/reconcile-run', async (req, res) => {
+  const user = await resolveUserFull(req);
+  const isAdmin = user && (user.roles || []).some(r => /admin|accounting_manager/i.test(r));
+  if (!isAdmin) return res.status(403).json({ success: false, message: 'Chỉ admin' });
+  try {
+    res.json({ success: true, data: await reconcileCancelledOrders() });
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
+});
+
 // ===== START =====
 if (require.main === module) {
   const PORT = process.env.PORT || 3000;
@@ -1603,6 +1764,7 @@ if (require.main === module) {
       initRules();
       initHelp();
     });
+    scheduleReconcile();
   });
 }
 
