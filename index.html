@@ -278,8 +278,8 @@
     /* Khổ hẹp (vd nhúng iframe panel ~295px / điện thoại nhỏ): 4 nút range xếp LƯỚI 2×2 đều nhau,
        thay vì inline-flex wrap lệch cột do độ dài chữ khác nhau. */
     @media (max-width: 360px) {
-      .dashboard-presets { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
-      .dashboard-preset { padding: 9px 8px; text-align: center; }
+      .dashboard-presets { display: grid; grid-template-columns: 1fr 1fr; width: 100%; border-radius: 22px; padding: 6px; }
+      .dashboard-preset, .dashboard-preset.active { padding: 9px 8px; text-align: center; border-radius: 16px; }
     }
     .dashboard-custom { display: flex; gap: 8px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
     .dashboard-date {
