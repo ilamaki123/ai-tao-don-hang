@@ -956,12 +956,12 @@
     @media (max-width: 768px) {
       .sidebar {
         position: fixed; left: 0; top: 0; bottom: 0; z-index: 1000;
-        transform: translateX(-100%); transition: transform 0.25s ease;
-        box-shadow: 2px 0 12px rgba(0,0,0,0.15);
+        /* Chuyển view tức thì (như Dashboard/Đơn Cancel), không trượt */
+        display: none; box-shadow: none;
         border-radius: 0; width: 100%; min-width: 100%;
         padding-bottom: 78px; /* chừa chỗ cho bottom tab bar */
       }
-      .sidebar.open { transform: translateX(0); }
+      .sidebar.open { display: flex; }
       /* Bỏ hamburger trên mobile — điều hướng bằng bottom tab bar (giống mobile design) */
       .btn-hamburger { display: none !important; }
       /* Ẩn reload + X trong header list; thay bằng nút Back → admin dashboard */
