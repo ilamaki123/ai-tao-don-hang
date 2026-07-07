@@ -1000,9 +1000,11 @@
       .messages { padding: 16px 14px; }
       .message { max-width: 100%; }
       .dashboard-view { padding: 16px 14px; }
-      /* Range chips: 1 hàng, cuộn ngang nếu tràn (không xuống dòng) */
-      .dashboard-presets { display: flex; flex-wrap: nowrap; width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-      .dashboard-preset { flex: none; padding: 8px 13px; font-size: 12.5px; }
+      /* Range chips: từng chip RỜI (giống design mobile .rchip), KHÔNG bọc trong 1 pill trắng lớn.
+         Bỏ nền/viền/padding của container, mỗi chip tự có nền trắng + viền mảnh. */
+      .dashboard-presets { display: flex; flex-wrap: nowrap; gap: 7px; width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; background: transparent; box-shadow: none; padding: 0; }
+      .dashboard-preset { flex: none; padding: 8px 15px; font-size: 12.5px; background: #fff; box-shadow: inset 0 0 0 1px var(--border-hairline); }
+      .dashboard-preset.active { background: var(--ink-900); color: #fff; box-shadow: none; }
       /* Top-web: bỏ thanh bar, cho co giãn theo màn (không cuộn ngang) */
       .tw-bar { display: none; }
       .tw-name { width: auto !important; flex: 1 !important; min-width: 0; }
