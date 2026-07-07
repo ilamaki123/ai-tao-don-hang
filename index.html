@@ -67,7 +67,10 @@
     /* White outer frame (design .frame) holding the app (.app = sidebar+main).
        Fills viewport minus body+frame padding. Full-bleed on mobile. */
     .frame {
-      max-width: 1440px;
+      /* Co giãn theo diện tích màn hình: lấp đầy viewport (trừ 22px viền nổi mỗi bên),
+         chặn trên 2000px để màn siêu rộng (2K/4K) không dàn nội dung quá thưa. */
+      width: 100%;
+      max-width: min(2000px, 100%);
       margin: 0 auto;
       background: #fff;
       border-radius: var(--radius-2xl);
