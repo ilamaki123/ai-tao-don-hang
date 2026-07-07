@@ -275,6 +275,12 @@
     }
     .dashboard-preset.active { background: var(--ink-900); color: #fff; }
     .dashboard-preset:hover:not(.active) { color: var(--ink-900); }
+    /* Khổ hẹp (vd nhúng iframe panel ~295px / điện thoại nhỏ): 4 nút range xếp LƯỚI 2×2 đều nhau,
+       thay vì inline-flex wrap lệch cột do độ dài chữ khác nhau. */
+    @media (max-width: 360px) {
+      .dashboard-presets { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
+      .dashboard-preset { padding: 9px 8px; text-align: center; }
+    }
     .dashboard-custom { display: flex; gap: 8px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
     .dashboard-date {
       padding: 8px 12px; border: none; box-shadow: inset 0 0 0 1px var(--border-hairline); border-radius: var(--radius-md); font-size: 13px; font-family: var(--font-sans);
