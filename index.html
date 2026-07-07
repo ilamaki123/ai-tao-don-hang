@@ -122,15 +122,8 @@
       flex: none;
     }
 
-    .sidebar-welcome {
-      font-size: 12px;
-      color: var(--ink-400);
-      margin-bottom: 4px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 0 4px;
-    }
+    /* Ẩn hàng "Welcome, {name}" + nút logout (logout đã có ở topbar). */
+    .sidebar-welcome { display: none; }
     .sidebar-logout-btn {
       background: none; border: none; cursor: pointer;
       color: var(--ink-400); padding: 2px 4px; border-radius: 6px;
@@ -339,14 +332,21 @@
     .cancel-order-btn:hover { background: rgba(226,104,98,.2); }
 
 
-    .search-sessions {
-      width: 100%; padding: 0 15px; height: 46px;
-      border: none; box-shadow: inset 0 0 0 1px var(--border-hairline);
-      border-radius: var(--radius-pill);
-      font-size: 13px; font-weight: 500; font-family: var(--font-sans);
-      outline: none; margin-bottom: 0; background: #fff; color: var(--ink-900);
+    /* Sidebar search pill (magnifier + input) */
+    .sidebar-search-wrap {
+      display: flex; align-items: center; gap: 9px;
+      height: 46px; padding: 0 15px;
+      background: #fff; box-shadow: inset 0 0 0 1px var(--border-hairline);
+      border-radius: var(--radius-pill); color: var(--ink-400);
+      transition: box-shadow 0.15s;
     }
-    .search-sessions:focus { box-shadow: var(--ring-focus), inset 0 0 0 1px var(--blue-400); }
+    .sidebar-search-wrap:focus-within { box-shadow: var(--ring-focus), inset 0 0 0 1px var(--blue-400); }
+    .sidebar-search-wrap svg { flex: none; }
+    .search-sessions {
+      flex: 1; min-width: 0; border: none; outline: none; background: transparent;
+      font-size: 13px; font-weight: 500; font-family: var(--font-sans);
+      color: var(--ink-900); padding: 0;
+    }
     .search-sessions::placeholder { color: var(--ink-400); }
 
     /* "Gần đây" section header above the conversation list */
@@ -1312,7 +1312,10 @@
       <span class="cancel-noti-badge" id="cancelNotiBadge">0</span>
     </button>
   </div>
-  <input type="text" class="search-sessions" id="searchSessions" placeholder="Tìm khách, mã đơn, chat…" oninput="filterSessions()" />
+  <div class="sidebar-search-wrap">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3-3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    <input type="text" class="search-sessions" id="searchSessions" placeholder="Tìm khách, mã đơn, chat…" oninput="filterSessions()" />
+  </div>
   <div class="chat-history-head">
     <span class="lbl">Gần đây</span>
     <button class="btn-new-chat mini" onclick="newChat()"><span>＋</span> New</button>
@@ -4502,13 +4505,14 @@
 
   function openDashboard() {
     if (_cancelPanelOpen) closeCancelPanel();
+    resetTopbarSearch();
     _dashboardOpen = true;
     document.getElementById('dashboardView').classList.add('show');
     document.getElementById('messageList').style.display = 'none';
     document.getElementById('emptyState').style.display = 'none';
     document.getElementById('inputArea').style.display = 'none';
     const topSearch = document.getElementById('topbarSearch');
-    if (topSearch) topSearch.style.visibility = 'hidden';
+    if (topSearch) topSearch.style.visibility = '';
     closeSidebar();
     initDashboard();
     syncMobileTabs();
@@ -4516,6 +4520,7 @@
 
   function closeDashboard() {
     _dashboardOpen = false;
+    resetTopbarSearch();
     document.getElementById('dashboardView').classList.remove('show');
     const topSearch = document.getElementById('topbarSearch');
     if (topSearch) topSearch.style.visibility = '';
@@ -4534,6 +4539,7 @@
   // ===== CANCEL NOTIFICATIONS PANEL =====
   var _cancelPanelOpen = false;
   var _cancelData = { orders: [] };
+  var _cancelSearchQuery = '';  // lọc panel Đơn Cancel theo mã đơn / tên khách / SP
   var _cancelPollTimer = null;
   // Snapshot seenIds tại thời điểm mở panel — dùng để xác định item nào là "NEW"
   // (chưa có trong snapshot = phát sinh sau lần mở panel trước). Reset khi đóng.
@@ -4649,13 +4655,14 @@
 
   function openCancelPanel() {
     if (_dashboardOpen) closeDashboard();
+    resetTopbarSearch();
     _cancelPanelOpen = true;
     document.getElementById('cancelPanelView').classList.add('show');
     document.getElementById('messageList').style.display = 'none';
     document.getElementById('emptyState').style.display = 'none';
     document.getElementById('inputArea').style.display = 'none';
     const topSearch = document.getElementById('topbarSearch');
-    if (topSearch) topSearch.style.visibility = 'hidden';
+    if (topSearch) topSearch.style.visibility = '';
     closeSidebar();
     // Snapshot seenIds TRƯỚC khi mark — item nào không có trong snapshot → "NEW"
     _cancelSeenAtOpen = loadCancelSeenIds();
@@ -4672,6 +4679,7 @@
   function closeCancelPanel() {
     _cancelPanelOpen = false;
     _cancelSeenAtOpen = null;
+    resetTopbarSearch();
     document.getElementById('cancelPanelView').classList.remove('show');
     const topSearch = document.getElementById('topbarSearch');
     if (topSearch) topSearch.style.visibility = '';
@@ -4702,9 +4710,21 @@
     const list = document.getElementById('cancelPanelList');
     if (!list) return;
     const stickToBottom = opts.keepScroll ? isCancelPanelAtBottom() : true;
-    const orders = _cancelData.orders || [];
+    let orders = _cancelData.orders || [];
+    const q = (_cancelSearchQuery || '').trim().toLowerCase();
+    if (q) {
+      orders = orders.filter(o => {
+        const code = (o.order_code || '').toLowerCase();
+        const cust = (o.customer_name || '').toLowerCase();
+        const site = (o.website || '').toLowerCase();
+        const items = o.items || o.cancelled_items || [];
+        const itemMatch = items.some(it => (it.name || '').toLowerCase().includes(q));
+        return code.includes(q) || cust.includes(q) || site.includes(q) || itemMatch;
+      });
+    }
     if (orders.length === 0) {
-      list.innerHTML = '<div style="padding:24px;text-align:center;color:#888;font-size:13px">Không có sản phẩm bị cancel nào.</div>';
+      const msg = q ? `Không tìm thấy đơn khớp "${escapeHtml(q)}".` : 'Không có sản phẩm bị cancel nào.';
+      list.innerHTML = `<div style="padding:24px;text-align:center;color:var(--ink-400);font-size:13px">${msg}</div>`;
       return;
     }
     list.innerHTML = orders.map(o => renderCancelOrderCard(o)).join('');
@@ -5279,11 +5299,22 @@
     return result;
   }
 
-  // ===== SEARCH MESSAGES IN CURRENT SESSION =====
+  // ===== TOPBAR SEARCH =====
+  // Trên panel Đơn Cancel: lọc đơn theo mã đơn / tên khách / SP.
+  // Trong hội thoại: tìm & highlight tin nhắn.
   function searchMessages() {
     const q = (document.getElementById('msgSearch').value || '').trim().toLowerCase();
     const clearBtn = document.getElementById('msgSearchClear');
     const countEl = document.getElementById('msgSearchCount');
+
+    // Panel Đơn Cancel đang mở → lọc danh sách đơn cancel
+    if (_cancelPanelOpen) {
+      _cancelSearchQuery = q;
+      clearBtn.style.display = q ? '' : 'none';
+      countEl.textContent = '';
+      renderCancelPanel({ keepScroll: false });
+      return;
+    }
 
     // Remove old highlights
     document.querySelectorAll('.msg-highlight').forEach(el => el.classList.remove('msg-highlight'));
@@ -5323,6 +5354,17 @@
     document.getElementById('msgSearch').value = '';
     document.getElementById('msgSearchClear').style.display = 'none';
     document.getElementById('msgSearchCount').textContent = '';
+    document.querySelectorAll('.msg-highlight').forEach(el => el.classList.remove('msg-highlight'));
+    if (_cancelPanelOpen) { _cancelSearchQuery = ''; renderCancelPanel({ keepScroll: false }); }
+  }
+
+  // Reset ô search topbar (dùng khi chuyển view để query không dính sang view khác)
+  function resetTopbarSearch() {
+    const inp = document.getElementById('msgSearch');
+    if (inp) inp.value = '';
+    const clr = document.getElementById('msgSearchClear'); if (clr) clr.style.display = 'none';
+    const cnt = document.getElementById('msgSearchCount'); if (cnt) cnt.textContent = '';
+    _cancelSearchQuery = '';
     document.querySelectorAll('.msg-highlight').forEach(el => el.classList.remove('msg-highlight'));
   }
 
