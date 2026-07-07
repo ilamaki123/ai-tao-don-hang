@@ -1000,6 +1000,15 @@
       .messages { padding: 16px 14px; }
       .message { max-width: 100%; }
       .dashboard-view { padding: 16px 14px; }
+      /* Range chips: 1 hàng, cuộn ngang nếu tràn (không xuống dòng) */
+      .dashboard-presets { display: flex; flex-wrap: nowrap; width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      .dashboard-preset { flex: none; padding: 8px 13px; font-size: 12.5px; }
+      /* Top-web: bỏ thanh bar, cho co giãn theo màn (không cuộn ngang) */
+      .tw-bar { display: none; }
+      .tw-name { width: auto !important; flex: 1 !important; min-width: 0; }
+      .tw-val { width: auto !important; }
+      .byuser-bar { display: none; }
+      .byuser-name { flex: 1 !important; max-width: none !important; }
       .cancel-banner, #cancelPanelList { max-width: 100%; }
       .input-bar-wrap { padding: 12px 14px 10px; }
       .input-bar { max-width: 100%; }
@@ -5107,8 +5116,8 @@
       return `<div onclick="onDashboardUserBarClick(${u.user_id}, ${JSON.stringify(labelText).replace(/"/g, '&quot;')})"
         style="display:flex;gap:11px;align-items:center;cursor:pointer;opacity:${opacity};transition:opacity .15s;padding:10px 0;border-bottom:1px solid var(--border-card)">
         <span style="width:34px;height:34px;border-radius:999px;flex:none;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;background:${av.bg};color:${av.fg}">${escapeHtml(av.initials)}</span>
-        <span style="font-size:14px;font-weight:600;color:var(--ink-900);flex:none;max-width:96px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(labelText)}">${escapeHtml(labelText)}</span>
-        <span style="flex:1;height:8px;border-radius:999px;background:var(--ink-200);overflow:hidden;min-width:20px">
+        <span class="byuser-name" style="font-size:14px;font-weight:600;color:var(--ink-900);flex:none;max-width:96px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(labelText)}">${escapeHtml(labelText)}</span>
+        <span class="byuser-bar" style="flex:1;height:8px;border-radius:999px;background:var(--ink-200);overflow:hidden;min-width:20px">
           <i style="display:block;background:${barColor};height:100%;border-radius:999px;width:${pct}%;transition:width .2s"></i>
         </span>
         <span style="font-size:14px;font-weight:700;color:var(--ink-900);min-width:28px;text-align:right;flex:none">${u.order_count}</span>
@@ -5144,9 +5153,9 @@
         const pct = Math.round(((Number(d.amount) || 0) / dmax) * 100);
         return `<div style="display:flex;align-items:center;gap:14px;padding:11px 0;border-bottom:1px solid var(--border-card)">
           <span style="width:26px;height:26px;border-radius:8px;flex:none;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;${i === 0 ? 'background:var(--ink-900);color:#fff' : 'background:var(--blue-100);color:var(--blue-600)'}">${i + 1}</span>
-          <span style="font-size:15px;font-weight:600;color:var(--ink-900);flex:none;width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(d.domain)}</span>
-          <span style="flex:1;height:8px;border-radius:999px;background:var(--ink-200);overflow:hidden;min-width:24px"><i style="display:block;height:100%;border-radius:999px;background:var(--blue-500);width:${pct}%"></i></span>
-          <span style="font-weight:700;font-size:14px;color:var(--ink-900);white-space:nowrap;width:110px;text-align:right;flex:none">$${Number(d.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+          <span class="tw-name" style="font-size:15px;font-weight:600;color:var(--ink-900);flex:none;width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(d.domain)}</span>
+          <span class="tw-bar" style="flex:1;height:8px;border-radius:999px;background:var(--ink-200);overflow:hidden;min-width:24px"><i style="display:block;height:100%;border-radius:999px;background:var(--blue-500);width:${pct}%"></i></span>
+          <span class="tw-val" style="font-weight:700;font-size:14px;color:var(--ink-900);white-space:nowrap;width:110px;text-align:right;flex:none">$${Number(d.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
         </div>`;
       }).join('');
     } catch (err) {
