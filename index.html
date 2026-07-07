@@ -959,9 +959,13 @@
         /* Chuyển view tức thì (như Dashboard/Đơn Cancel), không trượt */
         display: none; box-shadow: none;
         border-radius: 0; width: 100%; min-width: 100%;
-        padding-bottom: 78px; /* chừa chỗ cho bottom tab bar */
+        /* Header Chat khớp header Dashboard/Cancel (mobileViewHeader 12px 16px) */
+        padding: 12px 16px 78px;
+        gap: 14px;
       }
       .sidebar.open { display: flex; }
+      /* Brand row canh đúng như mobileViewHeader (bỏ padding lệch) */
+      .sidebar .sbhead { padding: 0 !important; }
       /* Bỏ hamburger trên mobile — điều hướng bằng bottom tab bar (giống mobile design) */
       .btn-hamburger { display: none !important; }
       /* Ẩn reload + X trong header list; thay bằng nút Back → admin dashboard */
