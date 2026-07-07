@@ -266,7 +266,11 @@
     .dashboard-date {
       padding: 8px 12px; border: none; box-shadow: inset 0 0 0 1px var(--border-hairline); border-radius: var(--radius-md); font-size: 13px; font-family: var(--font-sans);
     }
-    .dashboard-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .dashboard-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 18px; }
+    .dashboard-cols { display: grid; grid-template-columns: 1.35fr 1fr; gap: 18px; align-items: start; }
+    .dashboard-cols .dashboard-section { margin-bottom: 0; }
+    .dashboard-secsub { font-size: 13px; font-weight: 500; color: var(--ink-400); margin: -8px 0 16px; }
+    @media (max-width: 768px) { .dashboard-cols { grid-template-columns: 1fr; gap: 14px; } }
     .dashboard-stat-card {
       background: var(--blue-200); border: none; border-radius: var(--radius-xl); padding: 24px;
     }
@@ -431,15 +435,38 @@
     }
     @media (max-width: 768px) { .main { border-radius: 0; } }
 
-    /* Header */
+    /* Header (Bankio) */
     .topbar {
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      padding: 16px 22px;
-      gap: 12px;
+      padding: 16px 26px;
+      gap: 16px;
       border-bottom: 1px solid var(--border-hairline);
     }
+    .topbar-back {
+      width: 42px; height: 42px; border-radius: var(--radius-pill); flex: none;
+      background: #fff; border: none; box-shadow: inset 0 0 0 1px var(--border-hairline);
+      display: inline-flex; align-items: center; justify-content: center;
+      color: var(--ink-700); cursor: pointer; transition: background 0.15s;
+    }
+    .topbar-back:hover { background: var(--blue-050); color: var(--ink-900); }
+    .topbar-title {
+      font-size: 17px; font-weight: 700; color: var(--ink-900);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40vw;
+    }
+    .topbar-spacer { flex: 1; }
+    .topbar-avatar {
+      width: 40px; height: 40px; border-radius: var(--radius-pill); flex: none;
+      background: var(--blue-500); color: #fff; font-weight: 700; font-size: 13px;
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+    .topbar-logout-icon {
+      width: 40px; height: 40px; border-radius: var(--radius-pill); flex: none;
+      background: #fff; border: none; box-shadow: inset 0 0 0 1px var(--border-hairline);
+      display: inline-flex; align-items: center; justify-content: center;
+      color: var(--ink-700); cursor: pointer; transition: background 0.15s, color 0.15s;
+    }
+    .topbar-logout-icon:hover { color: var(--danger); background: rgba(226,104,98,.10); }
 
     .topbar-search {
       display: flex;
@@ -450,9 +477,8 @@
       border-radius: var(--radius-pill);
       padding: 0 16px;
       height: 40px;
-      width: 100%;
-      max-width: 400px;
-      margin: 0 auto;
+      width: 260px;
+      flex: none;
       position: relative;
     }
 
@@ -1279,15 +1305,23 @@
 <!-- MAIN -->
 <div class="main" id="mainArea">
 
-  <!-- Topbar -->
+  <!-- Topbar (Bankio: back circle + view title · search + avatar + logout) -->
   <div class="topbar">
     <button class="btn-hamburger" onclick="toggleSidebar()">&#9776;</button>
+    <button class="topbar-back" onclick="backToAdmin()" title="Về Dashboard">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M14 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="topbar-title" id="viewTitle">Doraemon</div>
+    <div class="topbar-spacer"></div>
     <div class="topbar-search" id="topbarSearch">
-      <input type="text" id="msgSearch" placeholder="Tìm tin nhắn..." oninput="searchMessages()" />
+      <input type="text" id="msgSearch" placeholder="Tìm đơn, khách hàng…" oninput="searchMessages()" />
       <span class="topbar-search-count" id="msgSearchCount"></span>
       <button class="topbar-search-clear" id="msgSearchClear" onclick="clearMsgSearch()" style="display:none">&times;</button>
     </div>
-    <button class="btn-logout" onclick="backToAdmin()">&#8592; Back</button>
+    <span class="topbar-avatar" id="topbarAvatar">M</span>
+    <button class="topbar-logout-icon" onclick="logoutBot()" title="Đăng xuất">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 21H6a1 1 0 01-1-1V4a1 1 0 011-1h3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 17l5-5-5-5M21 12H9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
   </div>
 
   <!-- Mobile conversation header (back + tên khách + subtitle) -->
@@ -1328,22 +1362,23 @@
         <input type="date" class="dashboard-date" id="dashboardTo" onchange="loadDashboard()" />
       </div>
     </div>
-    <div class="dashboard-section">
-      <h3 id="dashboardOverviewTitle">Tổng quan</h3>
-      <div class="dashboard-stats" id="dashboardStatsCards">
-        <div class="dashboard-stat-card">
-          <div class="dashboard-stat-label">Tổng số đơn</div>
-          <div class="dashboard-stat-value" id="dashboardTotalOrders">—</div>
-        </div>
+    <div class="dashboard-stats" id="dashboardStatsCards">
+      <div class="dashboard-stat-card">
+        <div class="dashboard-stat-label">Tổng số đơn</div>
+        <div class="dashboard-stat-value" id="dashboardTotalOrders">—</div>
       </div>
     </div>
-    <div class="dashboard-section">
-      <h3 id="dashboardTopDomainsTitle">Top 10 web doanh thu (USD)</h3>
-      <div id="dashboardTopDomains" style="display:flex;flex-direction:column;gap:6px;font-size:14px"></div>
-    </div>
-    <div class="dashboard-section">
-      <h3>Số đơn theo người dùng <span id="dashboardSelectedHint" style="font-size:13px;color:var(--blue-600);font-weight:500"></span></h3>
-      <div id="dashboardOrdersByUser" style="display:flex;flex-direction:column;gap:8px"></div>
+    <div class="dashboard-cols">
+      <div class="dashboard-section">
+        <h3 id="dashboardTopDomainsTitle">Top 10 web doanh thu</h3>
+        <div class="dashboard-secsub">Xếp theo tổng giá trị USD</div>
+        <div id="dashboardTopDomains" style="font-size:14px"></div>
+      </div>
+      <div class="dashboard-section">
+        <h3>Số đơn theo người dùng <span id="dashboardSelectedHint" style="font-size:13px;color:var(--blue-600);font-weight:500"></span></h3>
+        <div class="dashboard-secsub">Nhân viên tạo đơn</div>
+        <div id="dashboardOrdersByUser"></div>
+      </div>
     </div>
   </div>
 
@@ -1433,6 +1468,15 @@
     window.location.href = 'login.html';
   } else {
     document.getElementById('sidebarWelcomeText').textContent = 'Welcome, ' + sessionUser.name;
+    // Avatar chữ cái đầu của nhân viên đang đăng nhập (topbar phải)
+    try {
+      const av = document.getElementById('topbarAvatar');
+      if (av) {
+        const nm = (sessionUser.name || sessionUser.email || 'M').trim();
+        const ps = nm.split(/\s+/).filter(Boolean);
+        av.textContent = ((ps.length >= 2 ? ps[ps.length - 2][0] + ps[ps.length - 1][0] : nm.slice(0, 2)) || 'M').toUpperCase();
+      }
+    } catch (e) {}
   }
 
   const API_BASE = (function () {
@@ -1836,8 +1880,9 @@
     const el = document.getElementById('messageList');
     el.innerHTML = session.messages.map(m => renderMessage(m)).join('');
     el.scrollTop = el.scrollHeight;
-    // Cập nhật header hội thoại mobile (tên/brand đổi sau findCustomer)
+    // Cập nhật header hội thoại mobile + tiêu đề topbar (đổi sau findCustomer)
     updateConvHeader();
+    updateViewTitle();
   }
 
   function renderMessage(m) {
@@ -4880,7 +4925,7 @@
     const td = document.getElementById('dashboardTopDomainsTitle');
     const hint = document.getElementById('dashboardSelectedHint');
     if (ov) ov.innerHTML = 'Tổng quan' + suffix;
-    if (td) td.innerHTML = 'Top 10 web doanh thu (USD)' + suffix;
+    if (td) td.innerHTML = 'Top 10 web doanh thu' + suffix;
     if (hint) hint.textContent = _dashboardSelectedUser ? '(click lại tên để bỏ lọc)' : '';
   }
 
@@ -4921,13 +4966,15 @@
       const opacity = isDimmed ? '0.35' : '1';
       const barColor = isSelected ? 'var(--blue-600)' : 'var(--blue-500)';
       const labelText = u.user_name || u.user_email || ('User #' + u.user_id);
+      const av = avatarFor(labelText);
       return `<div onclick="onDashboardUserBarClick(${u.user_id}, ${JSON.stringify(labelText).replace(/"/g, '&quot;')})"
-        style="display:grid;grid-template-columns:150px 1fr auto;gap:12px;align-items:center;cursor:pointer;opacity:${opacity};transition:opacity .15s;padding:10px 0;border-bottom:1px solid var(--border-card)">
-        <span style="font-size:14px;font-weight:600;color:var(--ink-900);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(labelText)}">${escapeHtml(labelText)}</span>
-        <div style="background:var(--ink-200);border-radius:999px;height:8px;overflow:hidden">
-          <div style="background:${barColor};height:100%;border-radius:999px;width:${pct}%;transition:width .2s"></div>
-        </div>
-        <span style="font-size:14px;font-weight:700;color:var(--ink-900);min-width:36px;text-align:right">${u.order_count}</span>
+        style="display:flex;gap:11px;align-items:center;cursor:pointer;opacity:${opacity};transition:opacity .15s;padding:10px 0;border-bottom:1px solid var(--border-card)">
+        <span style="width:34px;height:34px;border-radius:999px;flex:none;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;background:${av.bg};color:${av.fg}">${escapeHtml(av.initials)}</span>
+        <span style="font-size:14px;font-weight:600;color:var(--ink-900);flex:none;max-width:96px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(labelText)}">${escapeHtml(labelText)}</span>
+        <span style="flex:1;height:8px;border-radius:999px;background:var(--ink-200);overflow:hidden;min-width:20px">
+          <i style="display:block;background:${barColor};height:100%;border-radius:999px;width:${pct}%;transition:width .2s"></i>
+        </span>
+        <span style="font-size:14px;font-weight:700;color:var(--ink-900);min-width:28px;text-align:right;flex:none">${u.order_count}</span>
       </div>`;
     }).join('');
   }
@@ -4955,15 +5002,16 @@
         el.innerHTML = '<div style="color:#999;font-size:13px">Chưa có dữ liệu (chỉ tính đơn USD có link)</div>';
         return;
       }
-      el.innerHTML = list.map((d, i) =>
-        `<div style="display:flex;justify-content:space-between;align-items:center;gap:14px;padding:11px 0;border-bottom:1px solid var(--border-card)">
-          <span style="display:flex;align-items:center;gap:12px;min-width:0">
-            <span style="width:26px;height:26px;border-radius:8px;flex:none;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;${i === 0 ? 'background:var(--ink-900);color:#fff' : 'background:var(--blue-100);color:var(--blue-600)'}">${i + 1}</span>
-            <span style="font-size:15px;font-weight:600;color:var(--ink-900);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(d.domain)}</span>
-          </span>
-          <span style="font-weight:700;font-size:14px;color:var(--ink-900);white-space:nowrap">$${Number(d.amount).toFixed(2)}</span>
-        </div>`
-      ).join('');
+      const dmax = Math.max(...list.map(d => Number(d.amount) || 0), 1);
+      el.innerHTML = list.map((d, i) => {
+        const pct = Math.round(((Number(d.amount) || 0) / dmax) * 100);
+        return `<div style="display:flex;align-items:center;gap:14px;padding:11px 0;border-bottom:1px solid var(--border-card)">
+          <span style="width:26px;height:26px;border-radius:8px;flex:none;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;${i === 0 ? 'background:var(--ink-900);color:#fff' : 'background:var(--blue-100);color:var(--blue-600)'}">${i + 1}</span>
+          <span style="font-size:15px;font-weight:600;color:var(--ink-900);flex:none;width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(d.domain)}</span>
+          <span style="flex:1;height:8px;border-radius:999px;background:var(--ink-200);overflow:hidden;min-width:24px"><i style="display:block;height:100%;border-radius:999px;background:var(--blue-500);width:${pct}%"></i></span>
+          <span style="font-weight:700;font-size:14px;color:var(--ink-900);white-space:nowrap;width:110px;text-align:right;flex:none">$${Number(d.amount).toFixed(2)}</span>
+        </div>`;
+      }).join('');
     } catch (err) {
       console.error('[dashboard-top-domains] error:', err);
       el.innerHTML = '<div style="color:#e55;font-size:13px">Lỗi load top domains</div>';
@@ -5064,6 +5112,7 @@
     set('mtabCancel', _cancelPanelOpen);
     set('mtabChat', !_dashboardOpen && !_cancelPanelOpen);
     updateConvHeader();
+    updateViewTitle();
   }
 
   // Header hội thoại trên mobile: back + tên khách + subtitle (giống mobile design).
@@ -5086,6 +5135,18 @@
   function mobileBackToList() {
     const sb = document.getElementById('sidebar');
     if (sb && !sb.classList.contains('open')) toggleSidebar();
+  }
+
+  // Tiêu đề topbar (desktop) đổi theo view: Dashboard / Đơn Cancel /
+  // "{tên khách} · Tạo đơn" / Doraemon.
+  function updateViewTitle() {
+    const el = document.getElementById('viewTitle');
+    if (!el) return;
+    if (_dashboardOpen) { el.textContent = 'Dashboard'; return; }
+    if (_cancelPanelOpen) { el.textContent = 'Đơn Cancel'; return; }
+    const s = getActiveSession();
+    if (s) el.textContent = (s.customer?.name || s.title || 'Doraemon') + (s.customer ? ' · Tạo đơn' : '');
+    else el.textContent = 'Doraemon';
   }
 
   function formatPrice(item) {
