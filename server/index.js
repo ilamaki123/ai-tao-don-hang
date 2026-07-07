@@ -252,6 +252,20 @@ async function getDb() {
           console.error('[mysql] ALTER order_log cancelled_at FAILED:', e.message);
         }
       }
+      // cancelled_amount / cancelled_domains_json: giá trị phần SP bị hủy trên đơn CÒN
+      // hiệu lực (cancel một phần). Dashboard trừ phần này khỏi tổng giá trị + doanh thu
+      // theo web, nhưng KHÔNG trừ số đơn (đơn vẫn tồn tại). Đơn hủy toàn bộ dùng cancelled_at.
+      for (const [col, ddl] of [
+        ['cancelled_amount', 'ADD COLUMN cancelled_amount DECIMAL(14,2) NOT NULL DEFAULT 0'],
+        ['cancelled_domains_json', 'ADD COLUMN cancelled_domains_json TEXT NULL'],
+      ]) {
+        try {
+          await dbPool.execute(`ALTER TABLE order_log ${ddl}`);
+          console.log(`[mysql] order_log.${col} column added`);
+        } catch (e) {
+          if (e.code !== 'ER_DUP_FIELDNAME') console.error(`[mysql] ALTER order_log ${col} FAILED:`, e.message);
+        }
+      }
     } catch (e) {
       console.error('[mysql] CREATE TABLE order_log FAILED:', { message: e.message, code: e.code });
     }
@@ -1399,12 +1413,14 @@ app.get('/api/dashboard-stats', async (req, res) => {
     if (from) { where.push('DATE(created_at) >= ?'); params.push(from); }
     if (to) { where.push('DATE(created_at) <= ?'); params.push(to); }
     const whereSql = where.join(' AND ');
+    // Giá trị = tổng đơn trừ phần SP đã hủy (cancel một phần). Số đơn (COUNT) giữ nguyên
+    // vì đơn vẫn tồn tại. GREATEST(...,0) tránh âm khi giá lệch nhẹ so với lúc tạo.
     const [totalRows] = await db.execute(
-      `SELECT currency, COUNT(*) AS cnt, SUM(total_amount) AS total FROM order_log WHERE ${whereSql} GROUP BY currency`,
+      `SELECT currency, COUNT(*) AS cnt, SUM(GREATEST(total_amount - cancelled_amount, 0)) AS total FROM order_log WHERE ${whereSql} GROUP BY currency`,
       params
     );
     const [byDayRows] = await db.execute(
-      `SELECT DATE(created_at) AS day, currency, COUNT(*) AS cnt, SUM(total_amount) AS total
+      `SELECT DATE(created_at) AS day, currency, COUNT(*) AS cnt, SUM(GREATEST(total_amount - cancelled_amount, 0)) AS total
        FROM order_log WHERE ${whereSql}
        GROUP BY DATE(created_at), currency
        ORDER BY day ASC`,
@@ -1509,22 +1525,26 @@ app.get('/api/dashboard-top-domains', async (req, res) => {
     if (to) { where.push('DATE(created_at) <= ?'); params.push(to); }
     const db = await getDb();
     const [rows] = await db.execute(
-      `SELECT domains_json FROM order_log WHERE ${where.join(' AND ')}`,
+      `SELECT domains_json, cancelled_domains_json FROM order_log WHERE ${where.join(' AND ')}`,
       params
     );
     const totals = {};
-    for (const r of rows) {
+    const addJson = (json, sign) => {
       let arr;
-      try { arr = JSON.parse(r.domains_json || '[]'); } catch { continue; }
-      if (!Array.isArray(arr)) continue;
+      try { arr = JSON.parse(json || '[]'); } catch { return; }
+      if (!Array.isArray(arr)) return;
       for (const e of arr) {
         if (!e?.domain) continue;
-        const amt = Number(e.amount) || 0;
-        totals[e.domain] = (totals[e.domain] || 0) + amt;
+        totals[e.domain] = (totals[e.domain] || 0) + sign * (Number(e.amount) || 0);
       }
+    };
+    for (const r of rows) {
+      addJson(r.domains_json, 1);
+      addJson(r.cancelled_domains_json, -1); // trừ doanh thu phần SP đã hủy theo từng web
     }
     const top = Object.entries(totals)
-      .map(([domain, amount]) => ({ domain, amount: Math.round(amount * 100) / 100 }))
+      .map(([domain, amount]) => ({ domain, amount: Math.max(0, Math.round(amount * 100) / 100) }))
+      .filter(d => d.amount > 0)
       .sort((a, b) => b.amount - a.amount)
       .slice(0, 10);
     res.json({ success: true, data: { domains: top } });
@@ -1662,6 +1682,23 @@ async function getReconcileToken() {
   return null;
 }
 
+// Merge giá trị hủy theo domain, MONOTONIC (giữ max cũ/mới): khi 1 SP đã hủy bị xóa
+// khỏi đơn, lần chạy sau không thấy nó nữa → nếu lấy giá trị mới sẽ cộng ngược doanh thu.
+// Giữ max đảm bảo giá trị đã trừ không quay lại. Trả {arr, total}.
+function mergeCancelledDomains(existingJson, newMap) {
+  const merged = {};
+  try {
+    const arr = JSON.parse(existingJson || '[]');
+    if (Array.isArray(arr)) for (const e of arr) if (e && e.domain != null) merged[e.domain] = Number(e.amount) || 0;
+  } catch {}
+  for (const [d, amt] of Object.entries(newMap)) merged[d] = Math.max(merged[d] || 0, amt);
+  const arr = Object.entries(merged)
+    .map(([domain, amount]) => ({ domain, amount: Math.round(amount * 100) / 100 }))
+    .filter(e => e.amount > 0);
+  const total = Math.round(arr.reduce((s, e) => s + e.amount, 0) * 100) / 100;
+  return { arr, total };
+}
+
 async function reconcileCancelledOrders() {
   if (IS_MOCK) return { skipped: 'mock' };
   const token = await getReconcileToken();
@@ -1675,7 +1712,8 @@ async function reconcileCancelledOrders() {
   const vn = new Date(Date.now() + 7 * 3600 * 1000);
   const to = `${pad(vn.getUTCDate())}-${pad(vn.getUTCMonth() + 1)}-${vn.getUTCFullYear()}`;
 
-  const cancelledCodes = new Set();
+  const cancelledCodes = new Set();     // đơn hủy TOÀN BỘ (order_status=cancelled)
+  const partialByOrder = new Map();     // đơn CÒN hiệu lực, hủy 1 phần: code -> { domain: amount }
   let page = 1, totalPages = 1, guard = 0, apiCalls = 0;
   do {
     const params = new URLSearchParams({
@@ -1693,7 +1731,18 @@ async function reconcileCancelledOrders() {
     } catch (e) { console.error('[reconcile] fetch page error:', e.message); break; }
     if (!d?.success || !d?.data) break;
     for (const o of (d.data.orders || [])) {
-      if ((o.order_status || '') === 'cancelled' && o.order_code) cancelledCodes.add(o.order_code);
+      const code = o.order_code;
+      if (!code) continue;
+      if ((o.order_status || '') === 'cancelled') { cancelledCodes.add(code); continue; }
+      // Đơn còn hiệu lực: cộng giá trị các dòng not_available theo domain (để trừ cả top web).
+      const m = partialByOrder.get(code) || {};
+      for (const it of (o.items || [])) {
+        const amt = (Number(it.price) || 0) * (Number(it.quantity) || 1);
+        if (amt <= 0) continue;
+        const domain = extractDomain(it.link) || (it.website || '').toLowerCase().replace(/^www\./, '');
+        m[domain] = (m[domain] || 0) + amt;
+      }
+      if (Object.keys(m).length) partialByOrder.set(code, m);
     }
     const total = Number(d.data.total_orders) || 0;
     const ps = Number(d.data.page_size) || 100;
@@ -1701,26 +1750,55 @@ async function reconcileCancelledOrders() {
     page++;
   } while (page <= totalPages && ++guard < 200);
 
-  if (!cancelledCodes.size) {
-    console.log(`[reconcile] ${apiCalls} call · không có đơn hủy toàn bộ trong ${from}..${to}`);
-    return { apiCalls, cancelled: 0, marked: 0 };
-  }
+  const db = await getDb();
 
+  // 1) Hủy toàn bộ → cancelled_at (loại khỏi CẢ số đơn lẫn giá trị).
   let marked = 0;
-  try {
-    const db = await getDb();
+  if (cancelledCodes.size) {
     const codes = [...cancelledCodes];
     for (let i = 0; i < codes.length; i += 200) {
       const chunk = codes.slice(i, i + 200);
-      const [res] = await db.execute(
-        `UPDATE order_log SET cancelled_at = NOW() WHERE cancelled_at IS NULL AND order_code IN (${chunk.map(() => '?').join(',')})`,
-        chunk
-      );
-      marked += res.affectedRows || 0;
+      try {
+        const [res] = await db.execute(
+          `UPDATE order_log SET cancelled_at = NOW() WHERE cancelled_at IS NULL AND order_code IN (${chunk.map(() => '?').join(',')})`,
+          chunk
+        );
+        marked += res.affectedRows || 0;
+      } catch (e) { console.error('[reconcile] update cancelled_at error:', e.message); }
     }
-  } catch (e) { console.error('[reconcile] update order_log error:', e.message); }
-  console.log(`[reconcile] ${apiCalls} call · đơn cancelled thấy=${cancelledCodes.size} · order_log đánh dấu mới=${marked}`);
-  return { apiCalls, cancelled: cancelledCodes.size, marked };
+  }
+
+  // 2) Hủy một phần (không nằm trong nhóm hủy toàn bộ) → cập nhật cancelled_amount +
+  //    cancelled_domains_json. Chỉ đụng đơn do Mon tạo (có trong order_log, cancelled_at NULL).
+  let partialUpdated = 0;
+  const partialCodes = [...partialByOrder.keys()].filter(c => !cancelledCodes.has(c));
+  if (partialCodes.length) {
+    const existing = new Map();
+    for (let i = 0; i < partialCodes.length; i += 200) {
+      const chunk = partialCodes.slice(i, i + 200);
+      try {
+        const [rows] = await db.execute(
+          `SELECT order_code, cancelled_domains_json FROM order_log WHERE cancelled_at IS NULL AND order_code IN (${chunk.map(() => '?').join(',')})`,
+          chunk
+        );
+        for (const r of rows) if (!existing.has(r.order_code)) existing.set(r.order_code, r.cancelled_domains_json);
+      } catch (e) { console.error('[reconcile] select partial error:', e.message); }
+    }
+    for (const code of partialCodes) {
+      if (!existing.has(code)) continue; // không phải đơn do Mon tạo → bỏ qua
+      const { arr, total } = mergeCancelledDomains(existing.get(code), partialByOrder.get(code));
+      try {
+        const [res] = await db.execute(
+          `UPDATE order_log SET cancelled_amount = ?, cancelled_domains_json = ? WHERE order_code = ? AND cancelled_at IS NULL`,
+          [total, arr.length ? JSON.stringify(arr) : null, code]
+        );
+        if (res.affectedRows) partialUpdated++;
+      } catch (e) { console.error('[reconcile] update partial error:', e.message); }
+    }
+  }
+
+  console.log(`[reconcile] ${apiCalls} call · hủy toàn bộ thấy=${cancelledCodes.size} đánh dấu=${marked} · hủy một phần cập nhật=${partialUpdated}`);
+  return { apiCalls, cancelled: cancelledCodes.size, marked, partialUpdated };
 }
 
 // Lịch 10h/14h/18h/22h giờ VN (UTC+7) — tự tính, không cần thư viện cron.
