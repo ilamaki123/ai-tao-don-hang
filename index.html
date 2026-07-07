@@ -264,7 +264,9 @@
     .dashboard-view.show { display: block; }
     /* Range chips section: no card wrapper. Other sections: Bankio cards. */
     .dashboard-section { margin-bottom: 18px; background: var(--surface-card); border: none; border-radius: var(--radius-xl); padding: 24px; box-shadow: var(--shadow-card); }
-    .dashboard-section:first-child { background: transparent; box-shadow: none; padding: 0; margin-bottom: 22px; }
+    /* Chỉ hàng range chips (con trực tiếp đầu tiên của dashboard-view) mới trong suốt —
+       KHÔNG áp cho .dashboard-section đầu trong .dashboard-cols (giữ card cho Top web). */
+    .dashboard-view > .dashboard-section:first-child { background: transparent; box-shadow: none; padding: 0; margin-bottom: 22px; }
     .dashboard-section h3 { font-size: 18px; color: var(--ink-900); margin-bottom: 16px; font-weight: 700; }
     .dashboard-presets { display: inline-flex; gap: 8px; flex-wrap: wrap; background: #fff; padding: 5px; border-radius: var(--radius-pill); box-shadow: inset 0 0 0 1px var(--border-hairline); }
     .dashboard-preset {
@@ -5090,7 +5092,7 @@
           <span style="width:26px;height:26px;border-radius:8px;flex:none;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;${i === 0 ? 'background:var(--ink-900);color:#fff' : 'background:var(--blue-100);color:var(--blue-600)'}">${i + 1}</span>
           <span style="font-size:15px;font-weight:600;color:var(--ink-900);flex:none;width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(d.domain)}</span>
           <span style="flex:1;height:8px;border-radius:999px;background:var(--ink-200);overflow:hidden;min-width:24px"><i style="display:block;height:100%;border-radius:999px;background:var(--blue-500);width:${pct}%"></i></span>
-          <span style="font-weight:700;font-size:14px;color:var(--ink-900);white-space:nowrap;width:110px;text-align:right;flex:none">$${Number(d.amount).toFixed(2)}</span>
+          <span style="font-weight:700;font-size:14px;color:var(--ink-900);white-space:nowrap;width:110px;text-align:right;flex:none">$${Number(d.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
         </div>`;
       }).join('');
     } catch (err) {
