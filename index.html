@@ -5121,12 +5121,14 @@
       const count = info.count || 0;
       const total = info.total || 0;
       const avg = count > 0 ? total / count : 0;
-      const fmtMoney = n => n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+      // Ép locale en-US → dấu phẩy hàng nghìn, chấm thập phân ($x,xxx.xx),
+      // tránh locale máy (vi-VN dùng dấu chấm cho hàng nghìn → $876.634).
+      const fmtMoney = n => n.toLocaleString('en-US', { maximumFractionDigits: 2 });
       // Tách phần lẻ .xx để tô mờ (giống design)
       const rounded = Math.round(total * 100) / 100;
       const intPart = Math.trunc(rounded);
       const cents = Math.round((rounded - intPart) * 100);
-      const valueHtml = `${cur}${intPart.toLocaleString()}<span class="dashboard-stat-cents">.${String(cents).padStart(2, '0')}</span>`;
+      const valueHtml = `${cur}${intPart.toLocaleString('en-US')}<span class="dashboard-stat-cents">.${String(cents).padStart(2, '0')}</span>`;
       const curLabel = CUR_NAME[cur] || cur;
       html += `
         <div class="dashboard-stat-card">
