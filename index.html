@@ -4934,6 +4934,31 @@
     return { from: from ? fmt(from) : '', to: to ? fmt(to) : '' };
   }
 
+  // Nhãn kỳ hiện tại + cụm "so với …" cho card Tổng số đơn (giống design).
+  function dashboardPeriodLabels() {
+    switch (_dashboardPreset) {
+      case 'today': return { period: 'Hôm nay', vs: 'hôm qua' };
+      case 'yesterday': return { period: 'Hôm qua', vs: 'hôm kia' };
+      case '7d': return { period: '7 ngày qua', vs: '7 ngày trước' };
+      case '30d': return { period: '30 ngày qua', vs: '30 ngày trước' };
+      case 'month': return { period: 'Tháng này', vs: 'tháng trước' };
+      case 'year': return { period: 'Năm nay', vs: 'năm trước' };
+      default: return { period: 'Khoảng đã chọn', vs: 'kỳ trước' };
+    }
+  }
+
+  // Kỳ liền trước cùng độ dài (để tính % thay đổi số đơn).
+  function prevDashboardRange(from, to) {
+    if (!from || !to) return null;
+    const f = new Date(from + 'T00:00:00'), t = new Date(to + 'T00:00:00');
+    if (isNaN(f) || isNaN(t)) return null;
+    const days = Math.round((t - f) / 86400000) + 1;
+    const pt = new Date(f); pt.setDate(pt.getDate() - 1);
+    const pf = new Date(pt); pf.setDate(pf.getDate() - (days - 1));
+    const fmt = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    return { from: fmt(pf), to: fmt(pt) };
+  }
+
   function buildDashboardParams() {
     const { from, to } = getDashboardRange();
     const params = new URLSearchParams();
@@ -4960,6 +4985,7 @@
       }
       renderDashboardStats(data.data, from, to);
       loadDashboardTopDomains(params);
+      loadDashboardPrevChange(from, to, data.data.totalOrders);
     } catch (err) {
       console.error('[dashboard] error:', err);
       document.getElementById('dashboardTotalOrders').textContent = 'Lỗi';
@@ -5070,24 +5096,56 @@
   }
 
   function renderDashboardStats(stats, from, to) {
-    // Cards: total orders + per currency
+    // Cards: total orders (+ % vs kỳ trước) + per currency (+ TB / đơn)
     const cardsEl = document.getElementById('dashboardStatsCards');
+    const labels = dashboardPeriodLabels();
     let html = `
       <div class="dashboard-stat-card">
         <div class="dashboard-stat-label">Tổng số đơn</div>
         <div class="dashboard-stat-value">${stats.totalOrders}</div>
+        <div class="dashboard-stat-sub" id="dashboardOrdersSub">${labels.period}</div>
       </div>
     `;
     for (const [cur, info] of Object.entries(stats.byCurrency || {})) {
+      const count = info.count || 0;
+      const total = info.total || 0;
+      const avg = count > 0 ? total / count : 0;
+      const fmtMoney = n => n.toLocaleString(undefined, { maximumFractionDigits: 2 });
       html += `
         <div class="dashboard-stat-card">
           <div class="dashboard-stat-label">Tổng giá trị (${cur})</div>
-          <div class="dashboard-stat-value">${cur}${(info.total || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
-          <div class="dashboard-stat-sub">${info.count} đơn</div>
+          <div class="dashboard-stat-value">${cur}${fmtMoney(total)}</div>
+          <div class="dashboard-stat-sub">${count} đơn · TB ${cur}${fmtMoney(Math.round(avg))} / đơn</div>
         </div>
       `;
     }
     cardsEl.innerHTML = html;
+  }
+
+  // Tính % thay đổi số đơn so với kỳ liền trước, cập nhật sub card Tổng số đơn.
+  async function loadDashboardPrevChange(from, to, curOrders) {
+    const subEl = document.getElementById('dashboardOrdersSub');
+    if (!subEl) return;
+    const labels = dashboardPeriodLabels();
+    const pr = prevDashboardRange(from, to);
+    if (!pr) { subEl.textContent = labels.period; return; }
+    try {
+      const p = new URLSearchParams();
+      p.set('from', pr.from); p.set('to', pr.to);
+      if (_dashboardSelectedUser) p.set('user_id', String(_dashboardSelectedUser.id));
+      p.set('_t', Date.now());
+      const res = await fetch(`${API_BASE}/api/dashboard-stats?${p.toString()}`, { headers: getAuthHeaders(), cache: 'no-store' });
+      const d = await res.json();
+      if (!d.success) { subEl.textContent = labels.period; return; }
+      const prev = d.data.totalOrders || 0;
+      if (prev <= 0) { subEl.textContent = `${labels.period} · ${curOrders > 0 ? 'mới' : '—'}`; return; }
+      const pct = Math.round(((curOrders - prev) / prev) * 100);
+      const sign = pct > 0 ? '+' : '';
+      const color = pct > 0 ? 'var(--success)' : (pct < 0 ? 'var(--danger)' : 'var(--ink-500)');
+      subEl.innerHTML = `${labels.period} · <span style="color:${color};font-weight:700">${sign}${pct}%</span> so với ${labels.vs}`;
+    } catch (e) {
+      subEl.textContent = labels.period;
+    }
   }
   // ===== END DASHBOARD =====
 
