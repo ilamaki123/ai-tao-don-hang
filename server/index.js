@@ -1819,9 +1819,12 @@ function scheduleReconcile() {
 app.get('/api/reconcile-run', async (req, res) => {
   const user = await resolveUserFull(req);
   if (!user) return res.status(401).json({ success: false, message: 'Cần đăng nhập' });
-  try {
-    res.json({ success: true, data: await reconcileCancelledOrders() });
-  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
+  // Chạy NỀN + trả về ngay: quét ~77 trang mất ~15-40s → nếu await thì proxy
+  // timeout 502. Kết quả xem ở Log bot (dòng "[reconcile] (manual) …").
+  reconcileCancelledOrders()
+    .then(r => console.log('[reconcile] (manual) kết quả:', JSON.stringify(r)))
+    .catch(e => console.error('[reconcile] (manual) error:', e.message));
+  res.json({ success: true, message: 'Đã bắt đầu đối soát ở nền — xem kết quả trong Log bot (dòng "[reconcile] (manual) …"). Xong thì refresh dashboard.' });
 });
 
 // Debug: các đơn đóng góp doanh thu cho 1 domain + trạng thái hủy trong order_log.
