@@ -1609,19 +1609,6 @@ app.get('/api/dashboard-users', async (req, res) => {
   }
 });
 
-// ===== DEBUG: catch all unmatched routes =====
-app.use((req, res) => {
-  console.log('[404]', req.method, req.url, req.originalUrl);
-  res.status(404).json({ error: 'Route not found', method: req.method, url: req.url, originalUrl: req.originalUrl });
-});
-
-// Global error handler — catch request aborted, JSON parse errors, etc.
-app.use((err, req, res, next) => {
-  if (err.type === 'request.aborted' || err.code === 'ECONNRESET') return;
-  console.error('[error]', req.method, req.url, err.message);
-  if (!res.headersSent) res.status(500).json({ success: false, message: err.message });
-});
-
 // On unhandled errors: log full info and EXIT so PM2 restarts cleanly.
 // Continuing after uncaughtException keeps a corrupted-state process running,
 // which is what causes "bot ngủ" — process alive but DB pool / state broken.
@@ -1912,6 +1899,20 @@ app.get('/api/debug-order', async (req, res) => {
     }
     res.json({ success: true, data: { order_log: rows[0] || '(không có trong order_log — đơn không do Mon tạo)', basso_order_status, in_cancelled_feed, basso_error } });
   } catch (e) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+// ===== 404 + ERROR HANDLER (phải đăng ký SAU tất cả route) =====
+// Catch-all cho route không khớp — đặt cuối để không nuốt các route thật.
+app.use((req, res) => {
+  console.log('[404]', req.method, req.url, req.originalUrl);
+  res.status(404).json({ error: 'Route not found', method: req.method, url: req.url, originalUrl: req.originalUrl });
+});
+
+// Global error handler — catch request aborted, JSON parse errors, etc.
+app.use((err, req, res, next) => {
+  if (err.type === 'request.aborted' || err.code === 'ECONNRESET') return;
+  console.error('[error]', req.method, req.url, err.message);
+  if (!res.headersSent) res.status(500).json({ success: false, message: err.message });
 });
 
 // ===== START =====
