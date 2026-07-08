@@ -1714,6 +1714,8 @@ async function reconcileCancelledOrders() {
 
   const cancelledCodes = new Set();     // đơn hủy TOÀN BỘ (order_status=cancelled)
   const partialByOrder = new Map();     // đơn CÒN hiệu lực, hủy 1 phần: code -> { domain: amount }
+  const statusCounts = {};              // chẩn đoán: đếm order_status Basso trả về
+  let ordersSeen = 0;
   let page = 1, totalPages = 1, guard = 0, apiCalls = 0;
   do {
     const params = new URLSearchParams({
@@ -1732,8 +1734,11 @@ async function reconcileCancelledOrders() {
     if (!d?.success || !d?.data) break;
     for (const o of (d.data.orders || [])) {
       const code = o.order_code;
+      ordersSeen++;
+      const st = o.order_status || '?';
+      statusCounts[st] = (statusCounts[st] || 0) + 1;
       if (!code) continue;
-      if ((o.order_status || '') === 'cancelled') { cancelledCodes.add(code); continue; }
+      if (st === 'cancelled') { cancelledCodes.add(code); continue; }
       // Đơn còn hiệu lực: cộng giá trị các dòng not_available theo domain (để trừ cả top web).
       const m = partialByOrder.get(code) || {};
       for (const it of (o.items || [])) {
@@ -1797,8 +1802,8 @@ async function reconcileCancelledOrders() {
     }
   }
 
-  console.log(`[reconcile] ${apiCalls} call · hủy toàn bộ thấy=${cancelledCodes.size} đánh dấu=${marked} · hủy một phần cập nhật=${partialUpdated}`);
-  return { apiCalls, cancelled: cancelledCodes.size, marked, partialUpdated };
+  console.log(`[reconcile] ${apiCalls} call · window=${from}..${to} · orders thấy=${ordersSeen} statuses=${JSON.stringify(statusCounts)} · hủy toàn bộ=${cancelledCodes.size} đánh dấu order_log=${marked} · hủy một phần cập nhật=${partialUpdated}`);
+  return { apiCalls, window: `${from}..${to}`, ordersSeen, statusCounts, cancelled: cancelledCodes.size, marked, partialUpdated };
 }
 
 // Lịch 10h/14h/18h/22h giờ VN (UTC+7) — tự tính, không cần thư viện cron.
@@ -1843,6 +1848,11 @@ if (require.main === module) {
       initHelp();
     });
     scheduleReconcile();
+    // Chạy 1 lần ngay sau khi khởi động (chờ 20s cho DB/bảng sẵn sàng) để đối soát
+    // ngay sau mỗi lần reload bot, khỏi phải đợi tới mốc 10/14/18/22h. Rất nhẹ.
+    setTimeout(() => {
+      reconcileCancelledOrders().catch(e => console.error('[reconcile] bootstrap error:', e.message));
+    }, 20000);
   });
 }
 
