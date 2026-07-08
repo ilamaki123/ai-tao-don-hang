@@ -258,6 +258,8 @@ async function getDb() {
       for (const [col, ddl] of [
         ['cancelled_amount', 'ADD COLUMN cancelled_amount DECIMAL(14,2) NOT NULL DEFAULT 0'],
         ['cancelled_domains_json', 'ADD COLUMN cancelled_domains_json TEXT NULL'],
+        // value_checked_at: lần cuối đối soát GIÁ đơn với Basso (auto-sync đơn lệch giá).
+        ['value_checked_at', 'ADD COLUMN value_checked_at TIMESTAMP NULL DEFAULT NULL'],
       ]) {
         try {
           await dbPool.execute(`ALTER TABLE order_log ${ddl}`);
@@ -337,6 +339,15 @@ async function resolveUserFull(req) {
     }
   } catch (e) { console.error('[resolveUserFull] DB error:', e.message); }
   return cached;
+}
+
+// Gate cho endpoint chỉ admin/accounting_manager. Trả về user nếu OK; nếu không thì
+// gửi 403 và trả null (caller phải return ngay).
+async function requireAdmin(req, res) {
+  const user = await resolveUserFull(req);
+  const isAdmin = user && (user.roles || []).some(r => /admin|accounting_manager/i.test(String(r)));
+  if (!isAdmin) { res.status(403).json({ success: false, message: 'Chỉ admin/accounting_manager' }); return null; }
+  return user;
 }
 
 async function loadUserSessions(userId) {
@@ -1798,8 +1809,69 @@ async function reconcileCancelledOrders() {
     }
   }
 
-  console.log(`[reconcile] ${apiCalls} call · window=${from}..${to} · orders thấy=${ordersSeen} statuses=${JSON.stringify(statusCounts)} · hủy toàn bộ=${cancelledCodes.size} đánh dấu order_log=${marked} · hủy một phần cập nhật=${partialUpdated}`);
-  return done({ apiCalls, window: `${from}..${to}`, ordersSeen, statusCounts, cancelled: cancelledCodes.size, marked, partialUpdated });
+  // Auto-sync GIÁ: dò 1 lô đơn USD, so giá order_log với Basso, lệch thì sửa (xoay vòng).
+  const value = await resyncDriftedValues(token, db).catch(e => { console.error('[reconcile] value-sync error:', e.message); return { checked: 0, fixed: 0 }; });
+
+  console.log(`[reconcile] ${apiCalls} call · window=${from}..${to} · orders thấy=${ordersSeen} statuses=${JSON.stringify(statusCounts)} · hủy toàn bộ=${cancelledCodes.size} đánh dấu order_log=${marked} · hủy một phần cập nhật=${partialUpdated} · dò giá=${value.checked} sửa lệch=${value.fixed}`);
+  return done({ apiCalls, window: `${from}..${to}`, ordersSeen, statusCounts, cancelled: cancelledCodes.size, marked, partialUpdated, valueChecked: value.checked, valueFixed: value.fixed });
+}
+
+// Auto-sync giá: lấy 1 lô đơn USD (chưa hủy, chưa cancel một phần) theo thứ tự lâu chưa
+// kiểm nhất → gọi getOrderByCode → tính lại tổng từ item → lệch >= 0.01 thì sửa
+// total_amount + domains_json. Xoay vòng nên sau nhiều lần phủ hết mà mỗi lần chỉ N call.
+async function resyncDriftedValues(token, db) {
+  const BATCH = parseInt(process.env.RECONCILE_VALUE_BATCH) || 60;
+  const [rows] = await db.execute(
+    `SELECT order_code, total_amount FROM order_log
+     WHERE cancelled_at IS NULL AND cancelled_amount = 0 AND currency = '$'
+     ORDER BY (value_checked_at IS NULL) DESC, value_checked_at ASC
+     LIMIT ${BATCH}`
+  );
+  let checked = 0, fixed = 0;
+  for (const row of rows) {
+    const code = row.order_code;
+    try {
+      const r = await fetch(`${BASSO_URL}/partner/getOrderByCode?order_code=${encodeURIComponent(code)}`, {
+        headers: { 'X-Partner-Api-Key': BASSO_KEY, 'Authorization': `Bearer ${token}` },
+      });
+      if (r.status === 401 || r.status === 403) { _svcToken = null; break; } // token hết hạn → dừng lô
+      const d = await r.json().catch(() => null);
+      checked++;
+      if (!d?.success) {
+        // đơn không đọc được (đã xóa / lỗi) → vẫn đánh dấu để không kẹt vòng lặp
+        await db.execute('UPDATE order_log SET value_checked_at = NOW() WHERE order_code = ?', [code]).catch(() => {});
+        continue;
+      }
+      const items = d.data?.items || [];
+      let total = 0; const domainMap = {};
+      for (const it of items) {
+        const p = parseFloat(it.price ?? 0) || 0;
+        const q = parseInt(it.quantity) || 1;
+        const amt = p * q;
+        total += amt;
+        const dom = extractDomain(it.link || '');
+        if (dom) domainMap[dom] = (domainMap[dom] || 0) + amt;
+      }
+      total = Math.round(total * 100) / 100;
+      const domainsArr = Object.entries(domainMap)
+        .map(([domain, amount]) => ({ domain, amount: Math.round(amount * 100) / 100 }))
+        .sort((a, b) => b.amount - a.amount);
+      if (Math.abs(total - (Number(row.total_amount) || 0)) >= 0.01) {
+        await db.execute(
+          'UPDATE order_log SET total_amount = ?, domains_json = ?, value_checked_at = NOW() WHERE order_code = ?',
+          [total, domainsArr.length ? JSON.stringify(domainsArr) : null, code]
+        );
+        fixed++;
+        console.log(`[reconcile] sửa lệch giá ${code}: ${row.total_amount} → ${total}`);
+      } else {
+        await db.execute('UPDATE order_log SET value_checked_at = NOW() WHERE order_code = ?', [code]);
+      }
+    } catch (e) {
+      // lỗi mạng → KHÔNG đánh dấu để thử lại lần sau
+      console.error('[reconcile] value-sync đơn', code, 'lỗi:', e.message);
+    }
+  }
+  return { checked, fixed };
 }
 
 // Lịch 10h/14h/18h/22h giờ VN (UTC+7) — tự tính, không cần thư viện cron.
@@ -1826,8 +1898,7 @@ function scheduleReconcile() {
 
 // Trigger thủ công (admin) — test ngay sau deploy, khỏi đợi tới giờ.
 app.get('/api/reconcile-run', async (req, res) => {
-  const user = await resolveUserFull(req);
-  if (!user) return res.status(401).json({ success: false, message: 'Cần đăng nhập' });
+  if (!(await requireAdmin(req, res))) return;
   // Chạy NỀN + trả về ngay: quét ~77 trang mất ~15-40s → nếu await thì proxy
   // timeout 502. Kết quả xem ở Log bot (dòng "[reconcile] (manual) …").
   reconcileCancelledOrders()
@@ -1839,6 +1910,7 @@ app.get('/api/reconcile-run', async (req, res) => {
 // Debug: các đơn đóng góp doanh thu cho 1 domain + trạng thái hủy trong order_log.
 // Cho biết đơn nào đang "gánh" tổng của domain, đã bị trừ chưa.
 app.get('/api/debug-domain', async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
   const domain = (req.query.domain || '').toLowerCase().trim();
   if (!domain) return res.status(400).json({ success: false, message: 'Thiếu domain' });
   const limit = Math.min(parseInt(req.query.limit) || 20, 100);
@@ -1870,6 +1942,7 @@ app.get('/api/debug-domain', async (req, res) => {
 
 // Debug 1 đơn: so trạng thái lưu trong order_log với trạng thái THẬT trên Basso.
 app.get('/api/debug-order', async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
   const code = (req.query.order_code || '').trim();
   if (!code) return res.status(400).json({ success: false, message: 'Thiếu order_code' });
   try {
@@ -1909,6 +1982,7 @@ app.get('/api/debug-order', async (req, res) => {
 // Đồng bộ lại giá trị đơn trong order_log từ Basso (sửa đơn ghi sai giá lúc tạo,
 // hoặc đơn bị sửa giá sau này). Mặc định DRY-RUN (chỉ xem); thêm &apply=1 để ghi.
 app.get('/api/debug-resync-order', async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
   const code = (req.query.order_code || '').trim();
   if (!code) return res.status(400).json({ success: false, message: 'Thiếu order_code' });
   const token = await getReconcileToken();
@@ -1961,6 +2035,7 @@ app.get('/api/debug-resync-order', async (req, res) => {
 // Master diagnostic: server nhìn thấy gì về (1) session hiện tại (role admin?)
 // và (2) cấu hình reconcile (env đã load chưa, login service account có ra admin?).
 app.get('/api/debug-status', async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
   const token = (req.headers['authorization'] || '').replace('Bearer ', '').trim();
   const out = { is_mock: IS_MOCK };
   // (1) whoami — vì sao session này (không) là admin
