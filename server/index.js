@@ -1838,6 +1838,82 @@ app.get('/api/reconcile-run', async (req, res) => {
   } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
+// Debug: các đơn đóng góp doanh thu cho 1 domain + trạng thái hủy trong order_log.
+// Cho biết đơn nào đang "gánh" tổng của domain, đã bị trừ chưa.
+app.get('/api/debug-domain', async (req, res) => {
+  const user = await resolveUserFull(req);
+  const isAdmin = user && (user.roles || []).some(r => /admin|accounting_manager/i.test(r));
+  if (!isAdmin) return res.status(403).json({ success: false, message: 'Chỉ admin' });
+  const domain = (req.query.domain || '').toLowerCase().trim();
+  if (!domain) return res.status(400).json({ success: false, message: 'Thiếu domain' });
+  const limit = Math.min(parseInt(req.query.limit) || 20, 100);
+  const domAmt = (json) => {
+    try { const arr = JSON.parse(json || '[]'); if (Array.isArray(arr)) { const e = arr.find(x => (x.domain || '') === domain); return e ? Number(e.amount) || 0 : 0; } } catch {}
+    return 0;
+  };
+  try {
+    const db = await getDb();
+    const [rows] = await db.execute(
+      `SELECT order_code, user_name, created_at, currency, total_amount, cancelled_at, cancelled_amount, domains_json, cancelled_domains_json
+       FROM order_log WHERE domains_json LIKE ?`,
+      [`%${domain}%`]
+    );
+    const orders = rows.map(r => {
+      const gross = domAmt(r.domains_json);
+      const domCancelled = domAmt(r.cancelled_domains_json);
+      return {
+        order_code: r.order_code, user: r.user_name, created_at: r.created_at, currency: r.currency,
+        domain_gross: gross, domain_cancelled: domCancelled,
+        counted_in_dashboard: r.cancelled_at ? 0 : Math.max(0, Math.round((gross - domCancelled) * 100) / 100),
+        order_total: Number(r.total_amount), cancelled_at: r.cancelled_at, cancelled_amount: Number(r.cancelled_amount),
+      };
+    }).filter(x => x.domain_gross > 0).sort((a, b) => b.domain_gross - a.domain_gross).slice(0, limit);
+    const dashboardTotal = orders.reduce((s, x) => s + x.counted_in_dashboard, 0);
+    res.json({ success: true, data: { domain, shown: orders.length, dashboard_total: Math.round(dashboardTotal * 100) / 100, orders } });
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+// Debug 1 đơn: so trạng thái lưu trong order_log với trạng thái THẬT trên Basso.
+app.get('/api/debug-order', async (req, res) => {
+  const user = await resolveUserFull(req);
+  const isAdmin = user && (user.roles || []).some(r => /admin|accounting_manager/i.test(r));
+  if (!isAdmin) return res.status(403).json({ success: false, message: 'Chỉ admin' });
+  const code = (req.query.order_code || '').trim();
+  if (!code) return res.status(400).json({ success: false, message: 'Thiếu order_code' });
+  try {
+    const db = await getDb();
+    const [rows] = await db.execute(
+      `SELECT order_code, user_name, created_at, currency, total_amount, cancelled_at, cancelled_amount, domains_json, cancelled_domains_json FROM order_log WHERE order_code = ?`,
+      [code]
+    );
+    let basso_order_status = null, basso_error = null, in_cancelled_feed = null;
+    const token = await getReconcileToken();
+    if (!token) { basso_error = 'không có token admin (set RECONCILE_EMAIL/PASS hoặc admin đăng nhập Mon)'; }
+    else {
+      try {
+        const r = await fetch(`${BASSO_URL}/partner/getOrderByCode?order_code=${encodeURIComponent(code)}`, {
+          headers: { 'X-Partner-Api-Key': BASSO_KEY, 'Authorization': `Bearer ${token}` },
+        });
+        const d = await r.json().catch(() => null);
+        if (d?.success) basso_order_status = d?.data?.order?.status ?? d?.data?.order?.order_status ?? '(response không có field status)';
+        else basso_error = d?.message || `HTTP ${r.status}`;
+      } catch (e) { basso_error = e.message; }
+      // Đơn này có nằm trong feed đơn-có-SP-cancel không?
+      try {
+        const rr = await fetch(`${BASSO_URL}/partner/getOrdersWithCancelledItems?item_status=not_available&order_status=all&page_size=100&key=${encodeURIComponent(code)}`, {
+          headers: { 'X-Partner-Api-Key': BASSO_KEY, 'Authorization': `Bearer ${token}` },
+        });
+        const dd = await rr.json().catch(() => null);
+        if (dd?.success) {
+          const found = (dd.data?.orders || []).find(o => o.order_code === code);
+          in_cancelled_feed = found ? { order_status: found.order_status, cancelled_items: (found.items || []).length } : 'không có trong feed';
+        }
+      } catch (e) { /* ignore */ }
+    }
+    res.json({ success: true, data: { order_log: rows[0] || '(không có trong order_log — đơn không do Mon tạo)', basso_order_status, in_cancelled_feed, basso_error } });
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
+});
+
 // ===== START =====
 if (require.main === module) {
   const PORT = process.env.PORT || 3000;
