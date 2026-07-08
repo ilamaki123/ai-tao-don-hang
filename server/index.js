@@ -1630,6 +1630,8 @@ process.on('unhandledRejection', (reason) => {
 // ============================================================
 let _svcToken = null, _svcTokenExp = 0;
 let _lastReconcile = null; // kết quả lần reconcile gần nhất (để soi qua /api/debug-status)
+let _bootAtVn = null, _schedulerStarted = false; // dấu hiệu code khởi tạo nền đã chạy chưa
+const vnStamp = () => new Date(Date.now() + 7 * 3600 * 1000).toISOString().replace('T', ' ').slice(0, 19) + ' (GMT+7)';
 
 async function getReconcileToken() {
   const now = Math.floor(Date.now() / 1000);
@@ -1946,6 +1948,8 @@ app.get('/api/debug-status', async (req, res) => {
     } catch (e) { rec.login_error = e.message; }
   }
   out.reconcile = rec;
+  out.boot_at_vn = _bootAtVn || '(?)';
+  out.scheduler_started = _schedulerStarted;
   out.last_reconcile = _lastReconcile || '(chưa chạy lần nào kể từ khi bot khởi động)';
   res.json({ success: true, data: out });
 });
@@ -1973,13 +1977,18 @@ initConfigTables().then(() => {
   initHelp();
 }).catch(e => console.error('[init] config error:', e.message));
 
+_bootAtVn = vnStamp();
 if (!IS_MOCK) {
-  console.log('[reconcile] scheduler khởi động (module load)');
+  _schedulerStarted = true;
+  console.log('[reconcile] scheduler khởi động (module load) lúc', _bootAtVn);
   scheduleReconcile();
-  // Chạy 1 lần sau ~20s (chờ DB/bảng sẵn sàng) để đối soát ngay sau mỗi lần reload bot.
+  // Chạy 1 lần sau ~5s (getDb tự kết nối lazy) để đối soát ngay sau mỗi lần reload bot.
   setTimeout(() => {
-    reconcileCancelledOrders().catch(e => console.error('[reconcile] bootstrap error:', e.message));
-  }, 20000);
+    reconcileCancelledOrders().catch(e => {
+      _lastReconcile = { error: e.message, at_vn: vnStamp() }; // để lỗi hiện ở debug-status thay vì null
+      console.error('[reconcile] bootstrap error:', e.message);
+    });
+  }, 5000);
 }
 
 // ===== START (chỉ listen khi chạy trực tiếp; platform require thì tự listen) =====
