@@ -1964,22 +1964,28 @@ app.use((err, req, res, next) => {
   if (!res.headersSent) res.status(500).json({ success: false, message: err.message });
 });
 
-// ===== START =====
+// ===== INIT + RECONCILE (chạy BẤT KỂ launch kiểu nào) =====
+// QUAN TRỌNG: platform mount bot bằng require() rồi tự listen → require.main !== module.
+// Nếu để init/scheduler trong guard require.main thì chúng KHÔNG BAO GIỜ chạy khi được
+// require → reconcile không tự chạy. Vì vậy đặt ngoài guard, chỉ chạy 1 lần khi module load.
+initConfigTables().then(() => {
+  initRules();
+  initHelp();
+}).catch(e => console.error('[init] config error:', e.message));
+
+if (!IS_MOCK) {
+  console.log('[reconcile] scheduler khởi động (module load)');
+  scheduleReconcile();
+  // Chạy 1 lần sau ~20s (chờ DB/bảng sẵn sàng) để đối soát ngay sau mỗi lần reload bot.
+  setTimeout(() => {
+    reconcileCancelledOrders().catch(e => console.error('[reconcile] bootstrap error:', e.message));
+  }, 20000);
+}
+
+// ===== START (chỉ listen khi chạy trực tiếp; platform require thì tự listen) =====
 if (require.main === module) {
   const PORT = process.env.PORT || 3000;
-  app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-    initConfigTables().then(() => {
-      initRules();
-      initHelp();
-    });
-    scheduleReconcile();
-    // Chạy 1 lần ngay sau khi khởi động (chờ 20s cho DB/bảng sẵn sàng) để đối soát
-    // ngay sau mỗi lần reload bot, khỏi phải đợi tới mốc 10/14/18/22h. Rất nhẹ.
-    setTimeout(() => {
-      reconcileCancelledOrders().catch(e => console.error('[reconcile] bootstrap error:', e.message));
-    }, 20000);
-  });
+  app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
 }
 
 module.exports = app;
