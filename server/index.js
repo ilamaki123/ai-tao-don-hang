@@ -1418,7 +1418,8 @@ app.get('/api/dashboard-stats', async (req, res) => {
     const from = req.query.from;
     const to = req.query.to;
     const db = await getDb();
-    const where = ['cancelled_at IS NULL'];
+    // Dashboard chỉ tính đơn USD ($); ẩn các currency khác (EUR, VND, …).
+    const where = ['cancelled_at IS NULL', "currency = '$'"];
     const params = [];
     if (targetUserId) { where.push('user_id = ?'); params.push(targetUserId); }
     if (from) { where.push('DATE(created_at) >= ?'); params.push(from); }
@@ -1463,7 +1464,8 @@ app.get('/api/dashboard-orders-by-user', async (req, res) => {
     if (!user) return res.status(401).json({ success: false, message: 'Unauthorized' });
     const from = req.query.from;
     const to = req.query.to;
-    const where = ['ol.cancelled_at IS NULL'];
+    // Chỉ đếm đơn USD ($) cho đồng bộ với phần thống kê tổng.
+    const where = ['ol.cancelled_at IS NULL', "ol.currency = '$'"];
     const params = [];
     if (from) { where.push('DATE(ol.created_at) >= ?'); params.push(from); }
     if (to) { where.push('DATE(ol.created_at) <= ?'); params.push(to); }
