@@ -1906,6 +1906,58 @@ app.get('/api/debug-order', async (req, res) => {
   } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
+// Đồng bộ lại giá trị đơn trong order_log từ Basso (sửa đơn ghi sai giá lúc tạo,
+// hoặc đơn bị sửa giá sau này). Mặc định DRY-RUN (chỉ xem); thêm &apply=1 để ghi.
+app.get('/api/debug-resync-order', async (req, res) => {
+  const code = (req.query.order_code || '').trim();
+  if (!code) return res.status(400).json({ success: false, message: 'Thiếu order_code' });
+  const token = await getReconcileToken();
+  if (!token) return res.status(400).json({ success: false, message: 'Không có token admin (RECONCILE_EMAIL/PASS)' });
+  try {
+    const r = await fetch(`${BASSO_URL}/partner/getOrderByCode?order_code=${encodeURIComponent(code)}`, {
+      headers: { 'X-Partner-Api-Key': BASSO_KEY, 'Authorization': `Bearer ${token}` },
+    });
+    const d = await r.json().catch(() => null);
+    if (!d?.success) return res.json({ success: false, message: 'Basso: ' + (d?.message || ('HTTP ' + r.status)) });
+    const items = d.data?.items || [];
+    let total = 0; const domainMap = {};
+    for (const it of items) {
+      const p = parseFloat(it.price ?? 0) || 0;
+      const q = parseInt(it.quantity) || 1;
+      const amt = p * q;
+      total += amt;
+      const dom = extractDomain(it.link || '');
+      if (dom) domainMap[dom] = (domainMap[dom] || 0) + amt;
+    }
+    total = Math.round(total * 100) / 100;
+    const domainsArr = Object.entries(domainMap)
+      .map(([domain, amount]) => ({ domain, amount: Math.round(amount * 100) / 100 }))
+      .sort((a, b) => b.amount - a.amount);
+    const db = await getDb();
+    const [before] = await db.execute('SELECT total_amount, currency, domains_json FROM order_log WHERE order_code = ?', [code]);
+    const apply = req.query.apply === '1';
+    let updated = 0;
+    if (apply) {
+      const [u] = await db.execute(
+        'UPDATE order_log SET total_amount = ?, domains_json = ? WHERE order_code = ?',
+        [total, domainsArr.length ? JSON.stringify(domainsArr) : null, code]
+      );
+      updated = u.affectedRows || 0;
+    }
+    res.json({ success: true, data: {
+      order_code: code,
+      basso_order_status: d.data?.order?.status ?? d.data?.order?.order_status,
+      basso_item_count: items.length,
+      recomputed_total: total,
+      recomputed_domains: domainsArr,
+      order_log_before: before[0] || '(không có trong order_log)',
+      applied: apply,
+      updated,
+      note: apply ? 'Đã ghi. Refresh dashboard.' : 'DRY-RUN — thêm &apply=1 để ghi thật.',
+    }});
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
+});
+
 // Master diagnostic: server nhìn thấy gì về (1) session hiện tại (role admin?)
 // và (2) cấu hình reconcile (env đã load chưa, login service account có ra admin?).
 app.get('/api/debug-status', async (req, res) => {
