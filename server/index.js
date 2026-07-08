@@ -1839,8 +1839,6 @@ app.get('/api/reconcile-run', async (req, res) => {
 // Debug: các đơn đóng góp doanh thu cho 1 domain + trạng thái hủy trong order_log.
 // Cho biết đơn nào đang "gánh" tổng của domain, đã bị trừ chưa.
 app.get('/api/debug-domain', async (req, res) => {
-  const user = await resolveUserFull(req);
-  if (!user) return res.status(401).json({ success: false, message: 'Cần đăng nhập' });
   const domain = (req.query.domain || '').toLowerCase().trim();
   if (!domain) return res.status(400).json({ success: false, message: 'Thiếu domain' });
   const limit = Math.min(parseInt(req.query.limit) || 20, 100);
@@ -1872,8 +1870,6 @@ app.get('/api/debug-domain', async (req, res) => {
 
 // Debug 1 đơn: so trạng thái lưu trong order_log với trạng thái THẬT trên Basso.
 app.get('/api/debug-order', async (req, res) => {
-  const user = await resolveUserFull(req);
-  if (!user) return res.status(401).json({ success: false, message: 'Cần đăng nhập' });
   const code = (req.query.order_code || '').trim();
   if (!code) return res.status(400).json({ success: false, message: 'Thiếu order_code' });
   try {
@@ -1951,6 +1947,18 @@ app.get('/api/debug-status', async (req, res) => {
   out.boot_at_vn = _bootAtVn || '(?)';
   out.scheduler_started = _schedulerStarted;
   out.last_reconcile = _lastReconcile || '(chưa chạy lần nào kể từ khi bot khởi động)';
+  // Thống kê order_log: đã đánh dấu hủy bao nhiêu (xác nhận reconcile đã trừ chưa).
+  try {
+    const db = await getDb();
+    const [rows] = await db.execute(
+      `SELECT COUNT(*) AS total,
+              SUM(cancelled_at IS NOT NULL) AS full_cancelled,
+              SUM(cancelled_amount > 0) AS partial_cancelled
+       FROM order_log`
+    );
+    const s = rows[0] || {};
+    out.order_log_stats = { total: Number(s.total) || 0, full_cancelled: Number(s.full_cancelled) || 0, partial_cancelled: Number(s.partial_cancelled) || 0 };
+  } catch (e) { out.order_log_stats_error = e.message; }
   res.json({ success: true, data: out });
 });
 
