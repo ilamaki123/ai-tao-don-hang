@@ -1406,7 +1406,7 @@
   <!-- Topbar (Bankio: back circle + view title · search + avatar + logout) -->
   <div class="topbar">
     <button class="btn-hamburger" onclick="toggleSidebar()">&#9776;</button>
-    <button class="topbar-back" onclick="backToAdmin()" title="Về Dashboard">
+    <button class="topbar-back" onclick="backToWelcome()" title="Quay lại">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M14 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </button>
     <div class="topbar-title" id="viewTitle">Doraemon</div>
@@ -5277,6 +5277,20 @@
   // dùng nút logout ở sidebar.
   function backToAdmin() {
     window.location.href = 'https://ai.basso.vn/admin/dashboard.html';
+  }
+
+  // Nút "‹" desktop: BACK TRONG APP — bỏ chọn hội thoại đang mở, về màn welcome
+  // (không thoát ra ai.basso.vn nữa). Về dashboard ngoài dùng nút ⇥ góc phải.
+  function backToWelcome() {
+    if (_dashboardOpen) closeDashboard();
+    if (_cancelPanelOpen) closeCancelPanel();
+    activeSessionId = null;
+    document.getElementById('emptyState').style.display = 'flex';
+    document.getElementById('messageList').style.display = 'none';
+    document.getElementById('inputArea').style.display = 'none';
+    renderHistory();
+    updateConvHeader();
+    updateViewTitle();
   }
 
   // ===== MOBILE BOTTOM TAB BAR =====
