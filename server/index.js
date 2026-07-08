@@ -1818,8 +1818,7 @@ function scheduleReconcile() {
 // Trigger thủ công (admin) — test ngay sau deploy, khỏi đợi tới giờ.
 app.get('/api/reconcile-run', async (req, res) => {
   const user = await resolveUserFull(req);
-  const isAdmin = user && (user.roles || []).some(r => /admin|accounting_manager/i.test(r));
-  if (!isAdmin) return res.status(403).json({ success: false, message: 'Chỉ admin' });
+  if (!user) return res.status(401).json({ success: false, message: 'Cần đăng nhập' });
   try {
     res.json({ success: true, data: await reconcileCancelledOrders() });
   } catch (e) { res.status(500).json({ success: false, message: e.message }); }
@@ -1829,8 +1828,7 @@ app.get('/api/reconcile-run', async (req, res) => {
 // Cho biết đơn nào đang "gánh" tổng của domain, đã bị trừ chưa.
 app.get('/api/debug-domain', async (req, res) => {
   const user = await resolveUserFull(req);
-  const isAdmin = user && (user.roles || []).some(r => /admin|accounting_manager/i.test(r));
-  if (!isAdmin) return res.status(403).json({ success: false, message: 'Chỉ admin' });
+  if (!user) return res.status(401).json({ success: false, message: 'Cần đăng nhập' });
   const domain = (req.query.domain || '').toLowerCase().trim();
   if (!domain) return res.status(400).json({ success: false, message: 'Thiếu domain' });
   const limit = Math.min(parseInt(req.query.limit) || 20, 100);
@@ -1863,8 +1861,7 @@ app.get('/api/debug-domain', async (req, res) => {
 // Debug 1 đơn: so trạng thái lưu trong order_log với trạng thái THẬT trên Basso.
 app.get('/api/debug-order', async (req, res) => {
   const user = await resolveUserFull(req);
-  const isAdmin = user && (user.roles || []).some(r => /admin|accounting_manager/i.test(r));
-  if (!isAdmin) return res.status(403).json({ success: false, message: 'Chỉ admin' });
+  if (!user) return res.status(401).json({ success: false, message: 'Cần đăng nhập' });
   const code = (req.query.order_code || '').trim();
   if (!code) return res.status(400).json({ success: false, message: 'Thiếu order_code' });
   try {
