@@ -1629,6 +1629,7 @@ process.on('unhandledRejection', (reason) => {
 // của MỌI nhân viên (role khác chỉ thấy đơn của chính mình).
 // ============================================================
 let _svcToken = null, _svcTokenExp = 0;
+let _lastReconcile = null; // kết quả lần reconcile gần nhất (để soi qua /api/debug-status)
 
 async function getReconcileToken() {
   const now = Math.floor(Date.now() / 1000);
@@ -1687,9 +1688,15 @@ function mergeCancelledDomains(existingJson, newMap) {
 }
 
 async function reconcileCancelledOrders() {
-  if (IS_MOCK) return { skipped: 'mock' };
+  // Ghi lại kết quả lần chạy gần nhất để soi qua /api/debug-status (kèm mốc giờ VN).
+  const done = (r) => {
+    const vn = new Date(Date.now() + 7 * 3600 * 1000);
+    _lastReconcile = { at_vn: vn.toISOString().replace('T', ' ').slice(0, 19) + ' (GMT+7)', ...r };
+    return r;
+  };
+  if (IS_MOCK) return done({ skipped: 'mock' });
   const token = await getReconcileToken();
-  if (!token) { console.warn('[reconcile] bỏ qua: chưa có RECONCILE_EMAIL/PASS và chưa có token admin nào'); return { skipped: 'no-token' }; }
+  if (!token) { console.warn('[reconcile] bỏ qua: chưa có RECONCILE_EMAIL/PASS và chưa có token admin nào'); return done({ skipped: 'no-token' }); }
 
   const pad = n => String(n).padStart(2, '0');
   // Cửa sổ cuộn 400 ngày (phủ preset "Năm nay" + range tùy chọn vắt qua năm).
@@ -1790,7 +1797,7 @@ async function reconcileCancelledOrders() {
   }
 
   console.log(`[reconcile] ${apiCalls} call · window=${from}..${to} · orders thấy=${ordersSeen} statuses=${JSON.stringify(statusCounts)} · hủy toàn bộ=${cancelledCodes.size} đánh dấu order_log=${marked} · hủy một phần cập nhật=${partialUpdated}`);
-  return { apiCalls, window: `${from}..${to}`, ordersSeen, statusCounts, cancelled: cancelledCodes.size, marked, partialUpdated };
+  return done({ apiCalls, window: `${from}..${to}`, ordersSeen, statusCounts, cancelled: cancelledCodes.size, marked, partialUpdated });
 }
 
 // Lịch 10h/14h/18h/22h giờ VN (UTC+7) — tự tính, không cần thư viện cron.
@@ -1939,6 +1946,7 @@ app.get('/api/debug-status', async (req, res) => {
     } catch (e) { rec.login_error = e.message; }
   }
   out.reconcile = rec;
+  out.last_reconcile = _lastReconcile || '(chưa chạy lần nào kể từ khi bot khởi động)';
   res.json({ success: true, data: out });
 });
 
