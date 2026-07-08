@@ -1898,6 +1898,47 @@ app.get('/api/debug-order', async (req, res) => {
   } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
+// Master diagnostic: server nhìn thấy gì về (1) session hiện tại (role admin?)
+// và (2) cấu hình reconcile (env đã load chưa, login service account có ra admin?).
+app.get('/api/debug-status', async (req, res) => {
+  const token = (req.headers['authorization'] || '').replace('Bearer ', '').trim();
+  const out = { is_mock: IS_MOCK };
+  // (1) whoami — vì sao session này (không) là admin
+  let dbRow = null;
+  try {
+    const db = await getDb();
+    const [rows] = await db.execute('SELECT user_id, email, roles_json, created_at FROM partner_tokens WHERE token = ?', [token]);
+    dbRow = rows[0] || null;
+  } catch (e) { out.db_error = e.message; }
+  const resolved = await resolveUserFull(req).catch(() => null);
+  const roles = (resolved && resolved.roles) || [];
+  out.whoami = {
+    token_masked: token ? (token.slice(0, 6) + '…' + token.slice(-4)) : '(không gửi token)',
+    in_memory_cache: tokenUserMap.has(token),
+    in_partner_tokens: !!dbRow,
+    partner_tokens_roles: dbRow ? dbRow.roles_json : null,
+    resolved_roles: roles,
+    is_admin: roles.some(r => /admin|accounting_manager/i.test(String(r))),
+  };
+  // (2) reconcile — env đã vào server chưa, tài khoản có phải admin không
+  const envEmail = process.env.RECONCILE_EMAIL || '';
+  const envPass = process.env.RECONCILE_PASS || '';
+  const rec = { env_RECONCILE_EMAIL: envEmail || '(TRỐNG — chưa vào server)', env_RECONCILE_PASS_set: !!envPass };
+  if (envEmail && envPass && !IS_MOCK) {
+    try {
+      const body = new URLSearchParams({ email: envEmail, pass: envPass }).toString();
+      const r = await fetch(`${BASSO_URL}/partner/login`, { method: 'POST', headers: { 'X-Partner-Api-Key': BASSO_KEY, 'Content-Type': 'application/x-www-form-urlencoded' }, body });
+      const d = await r.json().catch(() => null);
+      rec.login_success = !!d?.success;
+      rec.login_message = d?.message;
+      rec.account_roles = d?.data?.user?.roles || null;
+      rec.account_is_admin = (d?.data?.user?.roles || []).some(x => /admin|accounting_manager/i.test(String(x)));
+    } catch (e) { rec.login_error = e.message; }
+  }
+  out.reconcile = rec;
+  res.json({ success: true, data: out });
+});
+
 // ===== 404 + ERROR HANDLER (phải đăng ký SAU tất cả route) =====
 // Catch-all cho route không khớp — đặt cuối để không nuốt các route thật.
 app.use((req, res) => {
