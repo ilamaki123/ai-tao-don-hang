@@ -1,11 +1,11 @@
 {
-  "name": "AI Tạo Đơn Hàng - Basso",
-  "short_name": "AI Basso",
-  "description": "Tạo đơn hàng tự động từ ảnh giỏ hàng",
+  "name": "Mon help",
+  "short_name": "Mon help",
+  "description": "Mon - trợ lý tạo đơn hàng tự động từ ảnh giỏ hàng",
   "start_url": "login.html",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#00354E",
+  "theme_color": "#6f8fed",
   "orientation": "any",
   "icons": [
     {
