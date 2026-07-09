@@ -68,23 +68,23 @@
       color: var(--ink-900);
       padding: 22px;
     }
-    /* White outer frame (design .frame) holding the app (.app = sidebar+main).
-       Fills viewport minus body+frame padding. Full-bleed on mobile. */
+    /* Khung chứa app (.app = sidebar + main). KHÔNG còn khung trắng bọc ngoài:
+       sidebar & main nằm trực tiếp trên nền gradient của body. */
     .frame {
       /* Co giãn theo diện tích màn hình: lấp đầy viewport (trừ 22px viền nổi mỗi bên),
          chặn trên 2000px để màn siêu rộng (2K/4K) không dàn nội dung quá thưa. */
       width: 100%;
       max-width: min(2000px, 100%);
       margin: 0 auto;
-      background: #fff;
-      border-radius: var(--radius-2xl);
-      padding: 6px;
-      box-shadow: var(--shadow-lg);
+      background: transparent;
+      border-radius: 0;
+      padding: 0;
+      box-shadow: none;
       height: calc(100vh - 44px);
     }
     .app {
       display: flex;
-      gap: 8px;
+      gap: 18px;
       height: 100%;
     }
     @media (max-width: 768px) {
