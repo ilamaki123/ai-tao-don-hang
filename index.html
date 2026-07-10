@@ -1266,6 +1266,57 @@
     .edit-modal-btn-save:hover { background: var(--blue-600); }
     .edit-modal-btn-danger { background: rgba(226,104,98,.12); color: var(--danger); margin-right: auto; }
     .edit-modal-btn-danger:hover { background: rgba(226,104,98,.2); }
+
+    /* ===== Hướng dẫn sử dụng Mon ===== */
+    .topbar-help {
+      width: 40px; height: 40px; border-radius: var(--radius-pill); flex: none;
+      background: #fff; border: none; box-shadow: inset 0 0 0 1px var(--border-hairline);
+      display: inline-flex; align-items: center; justify-content: center;
+      color: var(--ink-700); cursor: pointer; transition: background 0.15s, color 0.15s;
+    }
+    .topbar-help:hover { background: var(--blue-050); color: var(--blue-600); }
+    .guide-modal {
+      max-width: 600px; width: 92%; max-height: 82vh; overflow-y: auto; padding: 0;
+    }
+    .guide-head {
+      position: sticky; top: 0; background: #fff; z-index: 1;
+      display: flex; align-items: center; gap: 12px;
+      padding: 22px 24px 14px; border-bottom: 1px solid var(--border-hairline);
+    }
+    .guide-logo {
+      width: 38px; height: 38px; border-radius: 12px; flex: none;
+      background: linear-gradient(135deg, #5CD6A0, #3FB98A);
+      color: #fff; font-weight: 800; font-size: 20px;
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+    .guide-head h2 { font-size: 18px; font-weight: 800; color: var(--ink-900); margin: 0; }
+    .guide-head p { font-size: 12.5px; color: var(--ink-400); margin: 2px 0 0; }
+    .guide-close {
+      margin-left: auto; width: 34px; height: 34px; border-radius: 50%; border: none;
+      background: var(--surface-app); color: var(--ink-700); cursor: pointer; font-size: 18px;
+      display: inline-flex; align-items: center; justify-content: center; flex: none;
+    }
+    .guide-close:hover { background: var(--blue-050); }
+    .guide-body { padding: 6px 24px 24px; }
+    .guide-sec { margin-top: 18px; }
+    .guide-sec-title {
+      display: flex; align-items: center; gap: 9px;
+      font-size: 15px; font-weight: 800; color: var(--ink-900); margin-bottom: 9px;
+    }
+    .guide-num {
+      width: 24px; height: 24px; border-radius: 8px; flex: none;
+      background: var(--blue-100); color: var(--blue-600); font-size: 13px; font-weight: 800;
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+    .guide-list { list-style: none; padding: 0; margin: 0 0 0 33px; display: flex; flex-direction: column; gap: 7px; }
+    .guide-list li { font-size: 13.5px; line-height: 1.5; color: var(--ink-700); position: relative; padding-left: 15px; }
+    .guide-list li::before { content: "•"; position: absolute; left: 0; color: var(--blue-400); font-weight: 700; }
+    .guide-chip {
+      display: inline-block; padding: 1px 8px; border-radius: 7px; font-size: 12.5px; font-weight: 700;
+      background: var(--blue-100); color: var(--blue-600); white-space: nowrap;
+    }
+    .guide-chip.mint { background: rgba(63,185,138,.14); color: #2f9e75; }
+    .guide-chip.danger { background: rgba(226,104,98,.12); color: var(--danger); }
     .term-modal-list {
       flex: 1; overflow-y: auto; margin-bottom: 12px;
       border: none; border-radius: 14px;
@@ -1419,6 +1470,9 @@
       <button class="topbar-search-clear" id="msgSearchClear" onclick="clearMsgSearch()" style="display:none">&times;</button>
       <span class="topbar-search-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3-3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
     </div>
+    <button class="topbar-help" onclick="openGuide()" title="Hướng dẫn sử dụng Mon">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M9.2 9.2a2.8 2.8 0 015.4 1c0 1.8-2.6 2.2-2.6 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="17.4" r="1" fill="currentColor"/></svg>
+    </button>
     <span class="topbar-avatar" id="topbarAvatar">M</span>
     <button class="topbar-logout-icon" onclick="backToAdmin()" title="Về Dashboard">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 21H6a1 1 0 01-1-1V4a1 1 0 011-1h3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 17l5-5-5-5M21 12H9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -4467,6 +4521,19 @@
     _editModalDelete = null;
   }
 
+  // ===== Hướng dẫn sử dụng Mon =====
+  function openGuide() {
+    const m = document.getElementById('guideModal');
+    if (m) { m.classList.add('show'); m.querySelector('.guide-modal').scrollTop = 0; }
+  }
+  function closeGuide() {
+    const m = document.getElementById('guideModal');
+    if (m) m.classList.remove('show');
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeGuide();
+  });
+
   function saveEditModal() {
     const val = document.getElementById('editModalInput').value.trim();
     if (_editModalCallback && val !== '') _editModalCallback(val);
@@ -5557,6 +5624,76 @@
     return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 </script>
+
+<!-- Hướng dẫn sử dụng Mon -->
+<div class="edit-modal-overlay" id="guideModal" onclick="if(event.target===this)closeGuide()">
+  <div class="edit-modal guide-modal">
+    <div class="guide-head">
+      <span class="guide-logo">M</span>
+      <div>
+        <h2>Hướng dẫn sử dụng Mon</h2>
+        <p>Trợ lý tạo đơn hàng tự động từ ảnh &amp; link</p>
+      </div>
+      <button class="guide-close" onclick="closeGuide()" title="Đóng">&times;</button>
+    </div>
+    <div class="guide-body">
+
+      <div class="guide-sec">
+        <div class="guide-sec-title"><span class="guide-num">1</span> Bắt đầu một đơn mới</div>
+        <ul class="guide-list">
+          <li>Bấm <span class="guide-chip">＋ New</span> ở cột trái để mở hội thoại mới.</li>
+          <li>Nhập <b>số điện thoại khách hàng</b> vào ô chat. Mon tự tra cứu khách trên hệ thống (nếu chưa có sẽ tạo mới).</li>
+        </ul>
+      </div>
+
+      <div class="guide-sec">
+        <div class="guide-sec-title"><span class="guide-num">2</span> Thêm sản phẩm &amp; tạo đơn</div>
+        <ul class="guide-list">
+          <li>Bấm <span class="guide-chip">Tạo đơn mới</span> rồi chọn loại: <span class="guide-chip">Tạo đơn Order</span> (mua hộ thường) hoặc <span class="guide-chip">Tạo đơn Checkout</span>.</li>
+          <li>Bấm nút <b>máy ảnh</b> 📷 để <b>upload ảnh giỏ hàng</b>, đồng thời <b>dán link sản phẩm</b> vào ô chat.</li>
+          <li>Mon nhận diện và báo <i>“Đã thêm N sản phẩm”</i> — kiểm tra màu, size, số lượng, giá.</li>
+          <li>Đúng rồi thì bấm <span class="guide-chip">Tạo đơn</span>. Mon báo <i>“đã tạo đơn hàng thành công”</i> kèm <b>mã đơn</b> (VD: BS10072613).</li>
+        </ul>
+      </div>
+
+      <div class="guide-sec">
+        <div class="guide-sec-title"><span class="guide-num">3</span> Sau khi tạo đơn</div>
+        <ul class="guide-list">
+          <li><span class="guide-chip">Xem đơn hàng →</span> mở đơn trên hệ thống Basso.</li>
+          <li><span class="guide-chip">Chỉnh sửa đơn</span> sửa số lượng / thuộc tính sản phẩm.</li>
+          <li><span class="guide-chip danger">Hủy đơn hàng</span> hủy đơn (nhập lý do hủy).</li>
+          <li><span class="guide-chip">Tạo đơn mới</span> tạo tiếp cho cùng khách · <span class="guide-chip">Tình trạng đơn</span> tra các đơn đã tạo.</li>
+        </ul>
+      </div>
+
+      <div class="guide-sec">
+        <div class="guide-sec-title"><span class="guide-num">4</span> Dashboard thống kê</div>
+        <ul class="guide-list">
+          <li>Mở <span class="guide-chip">Dashboard</span> ở cột trái để xem <b>tổng số đơn</b>, <b>tổng giá trị (USD)</b>, <b>Top 10 web</b> và <b>số đơn theo nhân viên</b>.</li>
+          <li>Lọc theo <b>7 ngày · Tháng này · Năm nay · Tùy chọn</b>. Dashboard chỉ tính đơn USD và tự trừ các đơn đã bị hủy.</li>
+        </ul>
+      </div>
+
+      <div class="guide-sec">
+        <div class="guide-sec-title"><span class="guide-num">5</span> Đơn Cancel</div>
+        <ul class="guide-list">
+          <li>Mở <span class="guide-chip mint">Đơn Cancel</span> để xem các đơn của bạn vừa có sản phẩm bị hủy. Số đỏ trên nút là số thông báo chưa xem.</li>
+          <li>Mỗi thẻ hiện <b>mã đơn, sản phẩm bị hủy và lý do hủy</b> đầy đủ.</li>
+        </ul>
+      </div>
+
+      <div class="guide-sec">
+        <div class="guide-sec-title"><span class="guide-num">6</span> Mẹo nhỏ</div>
+        <ul class="guide-list">
+          <li>Ô <b>tìm kiếm</b> trên cùng: tìm nhanh mã đơn / khách trong hội thoại đang mở.</li>
+          <li>Nút <b>‹</b> (góc trái topbar): quay về màn hình trống.</li>
+          <li>Danh sách <b>Gần đây</b> ở cột trái: bấm để mở lại hội thoại cũ.</li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+</div>
 
 <!-- Edit Modal -->
 <div class="edit-modal-overlay" id="editModal">
