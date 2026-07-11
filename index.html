@@ -5841,7 +5841,14 @@
       var phone = (data.customer && data.customer.phone && typeof normalizePhone === 'function') ? normalizePhone(data.customer.phone) : '';
       var existing = phone ? sessions.find(function (s) { return s.customer && normalizePhone(s.customer.phone) === phone; }) : null;
       if (existing) {
-        existing.items = (existing.items || []).concat(newItems);
+        // Chat cũ đang dở dang (INIT / WAITING_IMAGE / EDITING_ORDER) → ép về DONE + bỏ đơn đang sửa dở,
+        // để sẵn sàng nhận giỏ mới từ extension.
+        existing.state = 'DONE';
+        delete existing.editingOrder;
+        // THAY giỏ cũ bằng giỏ mới (extension giữ giỏ → mỗi lần gửi là giỏ ĐẦY ĐỦ; cộng dồn sẽ trùng SP).
+        existing.items = newItems;
+        existing.cartImages = [];
+        existing.salePct = 0;
         if (data.customer) existing.customer = Object.assign({}, existing.customer || {}, data.customer); // merge, giữ field cũ
         // Đổi tên chat cũ "Giỏ extension …" → tên khách (không đụng tiêu đề user đã đặt tay).
         if (data.customer && data.customer.name && (!existing.title || /^Giỏ extension/.test(existing.title))) existing.title = data.customer.name;
@@ -5849,7 +5856,7 @@
         if (_idx > -1) { sessions.splice(_idx, 1); sessions.unshift(existing); }
         if (typeof renderHistory === 'function') renderHistory();
         selectSession(existing.id);
-        if (typeof addMessage === 'function') addMessage('ai', 'Mon đã thêm ' + newItems.length + ' SP từ extension vào giỏ của ' + ((data.customer && data.customer.name) || 'khách') + ' — ' + (data.customer.phone || '') + ' (' + (data.website || '') + ').');
+        if (typeof addMessage === 'function') addMessage('ai', 'Mon đã nhận ' + newItems.length + ' SP từ extension (thay giỏ cũ) cho ' + ((data.customer && data.customer.name) || 'khách') + ' — ' + ((data.customer && data.customer.phone) || '') + ' (' + (data.website || '') + ').');
         ensureCartMessage();
         if (typeof saveSessions === 'function') saveSessions();
         return;
