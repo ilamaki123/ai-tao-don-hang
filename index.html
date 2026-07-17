@@ -2,12 +2,16 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- viewport-fit=cover BẮT BUỘC để env(safe-area-inset-*) trả về giá trị thật
+       (thiếu nó thì mọi env() = 0 → header chui dưới Dynamic Island / tai thỏ). -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#6f8fed" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-title" content="Mon help" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <!-- default = chữ status bar ĐEN, đọc được trên nền sáng --surface-app (#ecf2fc).
+       black-translucent cho chữ TRẮNG → chìm mất trên nền sáng. -->
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" type="image/svg+xml" href="icon.svg" />
   <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
@@ -89,8 +93,10 @@
     }
     @media (max-width: 768px) {
       body { padding: 0; }
-      .frame { max-width: none; border-radius: 0; padding: 0; box-shadow: none; height: 100vh; }
-      .app { gap: 0; height: 100vh; }
+      /* 100dvh = chiều cao viewport động, khớp với body (JS set = innerHeight).
+         100vh trên iOS bỏ qua thanh công cụ → lệch. vh giữ làm fallback. */
+      .frame { max-width: none; border-radius: 0; padding: 0; box-shadow: none; height: 100vh; height: 100dvh; }
+      .app { gap: 0; height: 100vh; height: 100dvh; }
     }
 
     /* ===== SIDEBAR (Bankio) ===== */
@@ -972,8 +978,9 @@
         /* Chuyển view tức thì (như Dashboard/Đơn Cancel), không trượt */
         display: none; box-shadow: none;
         border-radius: 0; width: 100%; min-width: 100%;
-        /* Header Chat khớp header Dashboard/Cancel (mobileViewHeader 12px 16px) */
-        padding: 12px 16px 78px;
+        /* Header Chat khớp header Dashboard/Cancel (mobileViewHeader 12px 16px).
+           Cộng safe-area: tránh Dynamic Island trên, home indicator dưới. */
+        padding: calc(12px + env(safe-area-inset-top, 0px)) 16px calc(78px + env(safe-area-inset-bottom, 0px));
         gap: 14px;
       }
       .sidebar.open { display: flex; }
@@ -1025,8 +1032,8 @@
       .btn-delete-chat { display: block; color: var(--ink-300); }
       /* Ẩn dòng gợi ý dưới composer trên mobile (đỡ rối, tránh đè tab bar) */
       .input-hint { display: none; }
-      /* Chừa chỗ cho bottom tab bar (68px) */
-      .main { padding-bottom: 68px; }
+      /* Chừa chỗ cho bottom tab bar (68px + home indicator) */
+      .main { padding-bottom: calc(68px + env(safe-area-inset-bottom, 0px)); }
     }
 
     /* ===== MOBILE BOTTOM TAB BAR ===== */
@@ -1034,9 +1041,12 @@
     @media (max-width: 768px) {
       .mobile-tabbar {
         display: flex; position: fixed; left: 0; right: 0; bottom: 0;
-        height: 68px; background: #fff; border-top: 1px solid var(--border-hairline);
-        align-items: stretch; padding: 0 8px; z-index: 1500;
-        padding-bottom: env(safe-area-inset-bottom, 0px);
+        background: #fff; border-top: 1px solid var(--border-hairline);
+        align-items: stretch; z-index: 1500;
+        /* box-sizing:border-box → phải cộng inset vào height, nếu không
+           padding-bottom sẽ ăn vào 68px và bóp dẹp icon tab. */
+        height: calc(68px + env(safe-area-inset-bottom, 0px));
+        padding: 0 calc(8px + env(safe-area-inset-right, 0px)) env(safe-area-inset-bottom, 0px) calc(8px + env(safe-area-inset-left, 0px));
       }
       .mobile-tab {
         flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -1360,7 +1370,8 @@
       .topbar { display: none; }
       .conv-header-mobile {
         display: none; align-items: center; gap: 10px;
-        padding: 12px 16px; border-bottom: 1px solid var(--border-hairline);
+        padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 12px;
+        border-bottom: 1px solid var(--border-hairline);
         background: var(--surface-app);
       }
       .conv-header-mobile.show { display: flex; }
@@ -1379,7 +1390,8 @@
     @media (max-width: 768px) {
       .mobile-view-header {
         display: none; align-items: center; gap: 11px;
-        padding: 12px 16px; background: var(--surface-app);
+        padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 12px;
+        background: var(--surface-app);
       }
       .mobile-view-header.show { display: flex; }
       .mvh-logo {
