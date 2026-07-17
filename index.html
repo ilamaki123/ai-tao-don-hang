@@ -1081,9 +1081,7 @@
 
     .cart-title { font-size: 18px; font-weight: 800; color: var(--ink-900); margin-right: auto; }
     .cart-header .cart-field { margin-right: 12px; }
-    /* PC: 1 hàng — tiêu đề | Kênh sale | Ship web | tổng (theo đúng DOM).
-       Phần tử ngắt dòng chỉ dùng ở mobile. */
-    .cart-header-break { display: none; }
+    /* PC: 1 hàng flex — tiêu đề | Kênh sale | Ship web | tổng (theo đúng DOM). */
     .cart-total { font-size: 20px; font-weight: 800; color: var(--blue-600); letter-spacing: -.01em; }
 
     .cart-cards { display: flex; flex-direction: column; gap: 11px; padding: 0; }
@@ -1202,16 +1200,29 @@
       .hide-mobile { display: none !important; }
       .cart-panel { padding: 12px 10px; width: 100%; max-width: 100%; box-sizing: border-box; overflow: hidden; min-width: 0; }
       .cart-card { padding: 14px 14px; width: 100%; max-width: 100%; box-sizing: border-box; overflow: hidden; min-width: 0; }
-      .cart-header .cart-field { margin-right: 10px; }
       .cart-header { min-width: 0; }
       .cart-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .cart-total { flex-shrink: 0; white-space: nowrap; }
-      /* Mobile: hàng 1 giữ NGUYÊN (tiêu đề | Ship web | tổng), Kênh sale
-         xuống hẳn dòng 2. .cart-header-break (flex-basis:100%) ép ngắt dòng
-         trước nó; order đẩy break + Kênh sale xuống cuối. */
-      .cart-header { flex-wrap: wrap; row-gap: 8px; }
-      .cart-header-break { display: block; flex-basis: 100%; height: 0; order: 9; }
-      .cart-header .cart-field-sale { order: 10; margin-left: auto; margin-right: 0; }
+      /* Mobile: grid 2 hàng. Hàng 1 giữ NGUYÊN (tiêu đề | Ship web | tổng),
+         Kênh sale nằm ĐÚNG cột Ship web ở hàng 2 — flex không làm được vì
+         phải chừa đúng bề rộng cột tổng tiền (thay đổi theo số). */
+      .cart-header {
+        display: grid;
+        grid-template-columns: 1fr auto auto;
+        grid-template-areas:
+          "title ship  total"
+          ".     sale  .";
+        align-items: center;
+        justify-items: end;
+        column-gap: 10px;
+        row-gap: 8px;
+      }
+      .cart-title { grid-area: title; justify-self: start; }
+      .cart-header .cart-field-ship { grid-area: ship; }
+      .cart-header .cart-field-sale { grid-area: sale; }
+      .cart-total { grid-area: total; }
+      /* dùng column-gap thay margin */
+      .cart-header .cart-field { margin-right: 0; }
       .cart-card-compact, .cart-card-details, .cart-card-fields { max-width: 100%; box-sizing: border-box; min-width: 0; }
       .cart-card-thumb { width: 36px; height: 36px; }
       .cart-card-fields { font-size: 12px; }
@@ -4080,12 +4091,11 @@
             <span class="cart-field-label">Kênh sale</span>
             <span class="cart-field-value">${session.saleChannel ? escapeHtml(getSaleChannelName(session.saleChannel)) : '—'}</span>
           </span>
-          <span class="cart-field" onclick="editCartShipFee()" style="color:${webFee ? '#333' : '#999'};cursor:pointer">
+          <span class="cart-field cart-field-ship" onclick="editCartShipFee()" style="color:${webFee ? '#333' : '#999'};cursor:pointer">
             <span class="cart-field-label">Ship web</span>
             <span class="cart-field-value">${webFee ? webFee : '—'}</span>
           </span>
           <span class="cart-total">${totalStr}</span>
-          <i class="cart-header-break"></i>
         </div>
         <div class="cart-cards">${cards}</div>
         <div class="cart-actions">
