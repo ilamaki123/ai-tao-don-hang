@@ -1081,6 +1081,11 @@
 
     .cart-title { font-size: 18px; font-weight: 800; color: var(--ink-900); margin-right: auto; }
     .cart-header .cart-field { margin-right: 12px; }
+    /* Kênh sale + Ship web: PC nằm ngang (Kênh sale bên trái Ship web).
+       DOM order = [Kênh sale, Ship web] → mobile dùng column-reverse để
+       Ship web lên trên, Kênh sale xuống dưới.
+       Khoảng cách do .cart-header .cart-field (margin-right) lo. */
+    .cart-header-fields { display: flex; align-items: center; }
     .cart-total { font-size: 20px; font-weight: 800; color: var(--blue-600); letter-spacing: -.01em; }
 
     .cart-cards { display: flex; flex-direction: column; gap: 11px; padding: 0; }
@@ -1203,6 +1208,9 @@
       .cart-header { min-width: 0; }
       .cart-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .cart-total { flex-shrink: 0; white-space: nowrap; }
+      /* Mobile: Kênh sale xuống DƯỚI Ship web (column-reverse vì DOM là
+         [Kênh sale, Ship web]) */
+      .cart-header-fields { flex-direction: column-reverse; align-items: flex-end; gap: 6px; }
       .cart-card-compact, .cart-card-details, .cart-card-fields { max-width: 100%; box-sizing: border-box; min-width: 0; }
       .cart-card-thumb { width: 36px; height: 36px; }
       .cart-card-fields { font-size: 12px; }
@@ -3597,6 +3605,8 @@
       website: extractWebsiteFromItems(session.items),
       ...(session.webShippingFee ? { web_shipping_fee: Number(session.webShippingFee) } : {}),
       ...(session.adminNote ? { admin_note: session.adminNote } : {}),
+      // Không chọn → không gửi, để Basso tự mặc định theo brand.
+      ...(session.saleChannel ? { sale_channel: session.saleChannel } : {}),
       items: JSON.stringify(session.items.map(item => {
         const pct = getItemSalePct(item, session.salePct || 0);
         // Round to 3 decimals — must match what the cart card displays
@@ -4065,10 +4075,16 @@
       <div class="cart-panel" style="display:block;border:none;max-height:none;padding:8px 0;">
         <div class="cart-header">
           <span class="cart-title">Giỏ hàng (${session.items.length} sản phẩm)</span>
-          <span class="cart-field" onclick="editCartShipFee()" style="color:${webFee ? '#333' : '#999'};cursor:pointer">
-            <span class="cart-field-label">Ship web</span>
-            <span class="cart-field-value">${webFee ? webFee : '—'}</span>
-          </span>
+          <div class="cart-header-fields">
+            <span class="cart-field" onclick="editCartSaleChannel()" style="color:${session.saleChannel ? '#333' : '#999'};cursor:pointer">
+              <span class="cart-field-label">Kênh sale</span>
+              <span class="cart-field-value">${session.saleChannel ? escapeHtml(getSaleChannelName(session.saleChannel)) : '—'}</span>
+            </span>
+            <span class="cart-field" onclick="editCartShipFee()" style="color:${webFee ? '#333' : '#999'};cursor:pointer">
+              <span class="cart-field-label">Ship web</span>
+              <span class="cart-field-value">${webFee ? webFee : '—'}</span>
+            </span>
+          </div>
           <span class="cart-total">${totalStr}</span>
         </div>
         <div class="cart-cards">${cards}</div>
@@ -4227,6 +4243,45 @@
     const num = Number(id);
     const t = TERM_CATEGORIES.find(c => c.id === num);
     return t ? t.name : 'Hàng thông thường';
+  }
+
+  // Kênh sale — gửi field `sale_channel` trong body createOrder.
+  // Không chọn (—) thì KHÔNG gửi, để Basso tự mặc định:
+  // brand shipus/basso -> "shipus", brand khác -> "cty".
+  const SALE_CHANNELS = [
+    { code: 'basso', name: 'Basso' },
+    { code: 'linh_duong', name: 'Linh Dương' },
+    { code: 'linh_thao', name: 'Linh Thảo' },
+    { code: 'keho_co', name: 'Kênh CO' },
+    { code: 'shipus', name: 'ShipUS' },
+    { code: 'cty', name: 'Cty' },
+  ];
+  function getSaleChannelName(code) {
+    const c = SALE_CHANNELS.find(x => x.code === code);
+    return c ? c.name : '';
+  }
+
+  function editCartSaleChannel() {
+    const session = getActiveSession();
+    if (!session) return;
+    const list = document.getElementById('saleChannelModalList');
+    const cur = session.saleChannel || '';
+    list.innerHTML = [{ code: '', name: '— (mặc định)' }, ...SALE_CHANNELS].map(c =>
+      `<div class="term-modal-item${c.code === cur ? ' selected' : ''}" onclick="selectSaleChannelAndClose('${c.code}')">${escapeHtml(c.name)}</div>`
+    ).join('');
+    document.getElementById('saleChannelModal').classList.add('show');
+  }
+  function closeSaleChannelModal() {
+    document.getElementById('saleChannelModal').classList.remove('show');
+  }
+  function selectSaleChannelAndClose(code) {
+    const session = getActiveSession();
+    if (session) {
+      session.saleChannel = code || '';
+      saveSessions();
+    }
+    closeSaleChannelModal();
+    renderCart();
   }
 
   let _termModalCtx = null;
@@ -5781,6 +5836,17 @@
     <div class="term-modal-list" id="termModalList"></div>
     <div class="edit-modal-btns">
       <button class="edit-modal-btn edit-modal-btn-cancel" onclick="closeTermModal()">Đóng</button>
+    </div>
+  </div>
+</div>
+
+<!-- Chọn kênh sale (sale_channel) -->
+<div class="edit-modal-overlay" id="saleChannelModal" onclick="if(event.target===this)closeSaleChannelModal()">
+  <div class="edit-modal" style="max-width:420px;max-height:80vh;display:flex;flex-direction:column">
+    <div class="edit-modal-title">Chọn kênh sale</div>
+    <div class="term-modal-list" id="saleChannelModalList"></div>
+    <div class="edit-modal-btns">
+      <button class="edit-modal-btn edit-modal-btn-cancel" onclick="closeSaleChannelModal()">Đóng</button>
     </div>
   </div>
 </div>
