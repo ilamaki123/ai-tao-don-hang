@@ -1081,11 +1081,9 @@
 
     .cart-title { font-size: 18px; font-weight: 800; color: var(--ink-900); margin-right: auto; }
     .cart-header .cart-field { margin-right: 12px; }
-    /* Kênh sale + Ship web: PC nằm ngang (Kênh sale bên trái Ship web).
-       DOM order = [Kênh sale, Ship web] → mobile dùng column-reverse để
-       Ship web lên trên, Kênh sale xuống dưới.
-       Khoảng cách do .cart-header .cart-field (margin-right) lo. */
-    .cart-header-fields { display: flex; align-items: center; }
+    /* PC: 1 hàng — tiêu đề | Kênh sale | Ship web | tổng (theo đúng DOM).
+       Phần tử ngắt dòng chỉ dùng ở mobile. */
+    .cart-header-break { display: none; }
     .cart-total { font-size: 20px; font-weight: 800; color: var(--blue-600); letter-spacing: -.01em; }
 
     .cart-cards { display: flex; flex-direction: column; gap: 11px; padding: 0; }
@@ -1208,9 +1206,12 @@
       .cart-header { min-width: 0; }
       .cart-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .cart-total { flex-shrink: 0; white-space: nowrap; }
-      /* Mobile: Kênh sale xuống DƯỚI Ship web (column-reverse vì DOM là
-         [Kênh sale, Ship web]) */
-      .cart-header-fields { flex-direction: column-reverse; align-items: flex-end; gap: 6px; }
+      /* Mobile: hàng 1 giữ NGUYÊN (tiêu đề | Ship web | tổng), Kênh sale
+         xuống hẳn dòng 2. .cart-header-break (flex-basis:100%) ép ngắt dòng
+         trước nó; order đẩy break + Kênh sale xuống cuối. */
+      .cart-header { flex-wrap: wrap; row-gap: 8px; }
+      .cart-header-break { display: block; flex-basis: 100%; height: 0; order: 9; }
+      .cart-header .cart-field-sale { order: 10; margin-left: auto; margin-right: 0; }
       .cart-card-compact, .cart-card-details, .cart-card-fields { max-width: 100%; box-sizing: border-box; min-width: 0; }
       .cart-card-thumb { width: 36px; height: 36px; }
       .cart-card-fields { font-size: 12px; }
@@ -4075,17 +4076,16 @@
       <div class="cart-panel" style="display:block;border:none;max-height:none;padding:8px 0;">
         <div class="cart-header">
           <span class="cart-title">Giỏ hàng (${session.items.length} sản phẩm)</span>
-          <div class="cart-header-fields">
-            <span class="cart-field" onclick="editCartSaleChannel()" style="color:${session.saleChannel ? '#333' : '#999'};cursor:pointer">
-              <span class="cart-field-label">Kênh sale</span>
-              <span class="cart-field-value">${session.saleChannel ? escapeHtml(getSaleChannelName(session.saleChannel)) : '—'}</span>
-            </span>
-            <span class="cart-field" onclick="editCartShipFee()" style="color:${webFee ? '#333' : '#999'};cursor:pointer">
-              <span class="cart-field-label">Ship web</span>
-              <span class="cart-field-value">${webFee ? webFee : '—'}</span>
-            </span>
-          </div>
+          <span class="cart-field cart-field-sale" onclick="editCartSaleChannel()" style="color:${session.saleChannel ? '#333' : '#999'};cursor:pointer">
+            <span class="cart-field-label">Kênh sale</span>
+            <span class="cart-field-value">${session.saleChannel ? escapeHtml(getSaleChannelName(session.saleChannel)) : '—'}</span>
+          </span>
+          <span class="cart-field" onclick="editCartShipFee()" style="color:${webFee ? '#333' : '#999'};cursor:pointer">
+            <span class="cart-field-label">Ship web</span>
+            <span class="cart-field-value">${webFee ? webFee : '—'}</span>
+          </span>
           <span class="cart-total">${totalStr}</span>
+          <i class="cart-header-break"></i>
         </div>
         <div class="cart-cards">${cards}</div>
         <div class="cart-actions">
