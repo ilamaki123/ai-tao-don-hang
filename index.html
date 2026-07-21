@@ -2314,17 +2314,20 @@
       session.adminNote = val.trim();
       saveSessions();
       renderCart();
-    });
+    }, null, true);
   }
 
   function editOrderAdminNote() {
     const session = getActiveSession();
     if (!session || !session.editingOrder) return;
     openEditModal('Note mua hàng (nội bộ)', session.editingOrder.adminNote || '', (val) => {
-      session.editingOrder.adminNote = val.trim();
+      const v = val.trim();
+      session.editingOrder.adminNote = v;
+      // Nhớ ở cấp cuộc trò chuyện: đơn "Tạo đơn mới" tiếp theo tự điền note này.
+      session.adminNote = v;
       saveSessions();
       renderEditOrder();
-    });
+    }, null, true);
   }
 
   function editCartShipFee() {
@@ -2785,7 +2788,7 @@
       if (isOrig) item._status = 'modified';
       saveSessions();
       renderEditOrder();
-    }, onDelete);
+    }, onDelete, field === 'note');
   }
 
   function applyEditSaleUI() {
@@ -4450,7 +4453,7 @@
       }
       saveSessions();
       renderCart();
-    }, onDelete);
+    }, onDelete, field === 'note');
   }
 
   // ===== CONFIRM MODAL =====
@@ -4580,9 +4583,13 @@
   // ===== END IMAGE UPLOADER MODAL =====
 
   let _editModalDelete = null;
-  function openEditModal(title, value, callback, onDelete) {
+  let _editModalAllowEmpty = false;
+  // allowEmpty=true: cho phép lưu chuỗi rỗng (dùng cho Note mua hàng / Note
+  // sản phẩm — để xóa note). Mặc định false để không cho xóa trắng tên/giá/link.
+  function openEditModal(title, value, callback, onDelete, allowEmpty) {
     _editModalCallback = callback;
     _editModalDelete = onDelete || null;
+    _editModalAllowEmpty = !!allowEmpty;
     document.getElementById('editModalTitle').textContent = title;
     const input = document.getElementById('editModalInput');
     input.value = value;
@@ -4596,6 +4603,7 @@
     document.getElementById('editModal').classList.remove('show');
     _editModalCallback = null;
     _editModalDelete = null;
+    _editModalAllowEmpty = false;
   }
 
   // ===== Hướng dẫn sử dụng Mon =====
@@ -4613,7 +4621,7 @@
 
   function saveEditModal() {
     const val = document.getElementById('editModalInput').value.trim();
-    if (_editModalCallback && val !== '') _editModalCallback(val);
+    if (_editModalCallback && (val !== '' || _editModalAllowEmpty)) _editModalCallback(val);
     closeEditModal();
   }
 
