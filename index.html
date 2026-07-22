@@ -1759,6 +1759,22 @@
       }).catch(() => {});
   }
 
+  // Kênh sale KHÔNG lấy được từ ai_chat_user: trang đăng nhập do platform phục
+  // vụ (title "Chat Basso"), chỉ ghi id/name/token/roles — login.html của repo
+  // không được dùng ở production. Nên luôn hỏi server bằng token hiện tại.
+  if (sessionUser && !Array.isArray(sessionUser.sale_channel_options)) {
+    fetch(`${API_BASE}/api/sale-channels`, { headers: { 'Authorization': `Bearer ${sessionUser.token}` } })
+      .then(r => r.json()).then(d => {
+        if (!d.success) return;
+        sessionUser.sale_channels = d.sale_channels || [];
+        sessionUser.sale_channel_options = d.sale_channel_options || [];
+        const key = localStorage.getItem('ai_chat_user') ? 'localStorage' : 'sessionStorage';
+        window[key].setItem('ai_chat_user', JSON.stringify(sessionUser));
+        // Giỏ hàng có thể đã render trước khi fetch xong -> vẽ lại để hiện kênh
+        try { if (typeof renderCart === 'function') renderCart(); } catch (e) {}
+      }).catch(() => {});
+  }
+
 
 
   // ===== STATE =====

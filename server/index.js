@@ -283,6 +283,23 @@ async function getDb() {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
       `);
       console.log('[mysql] table partner_tokens ready');
+      // Kênh sale Basso gán cho tài khoản (từ user object lúc /partner/login).
+      // Phải lưu server-side vì trang đăng nhập của PLATFORM (không phải
+      // login.html của repo này) chỉ ghi id/name/token/roles vào ai_chat_user,
+      // nên frontend không tự có dữ liệu kênh sale.
+      for (const [col, ddl] of [
+        ['sale_channels_json', 'ADD COLUMN sale_channels_json TEXT NULL'],
+        ['sale_channel_options_json', 'ADD COLUMN sale_channel_options_json TEXT NULL'],
+      ]) {
+        try {
+          await dbPool.execute(`ALTER TABLE partner_tokens ${ddl}`);
+          console.log(`[mysql] partner_tokens.${col} column added`);
+        } catch (e) {
+          if (e.code !== 'ER_DUP_FIELDNAME') {
+            console.error(`[mysql] ALTER partner_tokens ${col} FAILED:`, e.message);
+          }
+        }
+      }
     } catch (e) {
       console.error('[mysql] CREATE TABLE partner_tokens FAILED:', { message: e.message, code: e.code });
     }
@@ -501,6 +518,41 @@ app.get('/api/get-roles', async (req, res) => {
   res.json({ success: true, roles: user.roles || [] });
 });
 
+// Kênh sale của tài khoản đang đăng nhập. Frontend BẮT BUỘC phải hỏi server:
+// trang đăng nhập do platform phục vụ (không phải login.html của repo) chỉ ghi
+// id/name/token/roles vào ai_chat_user nên không có dữ liệu kênh sale.
+app.get('/api/sale-channels', async (req, res) => {
+  const token = (req.headers['authorization'] || '').replace('Bearer ', '').trim();
+  const cached = token ? tokenUserMap.get(token) : null;
+  if (cached && Array.isArray(cached.sale_channel_options)) {
+    return res.json({
+      success: true,
+      sale_channels: cached.sale_channels || [],
+      sale_channel_options: cached.sale_channel_options || [],
+    });
+  }
+  if (!token) return res.json({ success: false, sale_channels: [], sale_channel_options: [] });
+  try {
+    const db = await getDb();
+    const [rows] = await db.execute(
+      'SELECT sale_channels_json, sale_channel_options_json FROM partner_tokens WHERE token = ?', [token]
+    );
+    if (!rows.length) return res.json({ success: false, sale_channels: [], sale_channel_options: [] });
+    let ch = [], opts = [];
+    try { ch = JSON.parse(rows[0].sale_channels_json || '[]'); } catch {}
+    try { opts = JSON.parse(rows[0].sale_channel_options_json || '[]'); } catch {}
+    // Chưa từng lưu (đăng nhập từ trước bản này) -> báo không có dữ liệu để
+    // frontend hiện đúng "hãy đăng nhập lại", thay vì tưởng chưa được gán kênh.
+    if (rows[0].sale_channel_options_json == null) {
+      return res.json({ success: false, sale_channels: [], sale_channel_options: [] });
+    }
+    res.json({ success: true, sale_channels: ch, sale_channel_options: opts });
+  } catch (e) {
+    console.error('[sale-channels] error:', e.message);
+    res.json({ success: false, sale_channels: [], sale_channel_options: [] });
+  }
+});
+
 // ===== PRICE RULES =====
 app.get('/api/price-rules', (req, res) => {
   res.json({ success: true, data: loadRules() });
@@ -639,15 +691,22 @@ app.post('/api/basso-login', async (req, res) => {
       const composedName = u.name || u.full_name
         || [u.first_name, u.last_name].filter(Boolean).join(' ').trim()
         || u.email || u.username;
-      const userInfo = { id: u.id, email: u.email || u.username, name: composedName, roles: u.roles || [] };
+      const userInfo = {
+        id: u.id, email: u.email || u.username, name: composedName, roles: u.roles || [],
+        sale_channels: Array.isArray(u.sale_channels) ? u.sale_channels : [],
+        sale_channel_options: Array.isArray(u.sale_channel_options) ? u.sale_channel_options : [],
+      };
       tokenUserMap.set(data.data.access_token, userInfo);
       // Persist to DB so cache survives restart
       try {
         const db = await getDb();
         await db.execute(
-          `INSERT INTO partner_tokens (token, user_id, email, name, roles_json) VALUES (?, ?, ?, ?, ?)
-           ON DUPLICATE KEY UPDATE user_id=VALUES(user_id), email=VALUES(email), name=VALUES(name), roles_json=VALUES(roles_json)`,
-          [data.data.access_token, userInfo.id, userInfo.email, userInfo.name, JSON.stringify(userInfo.roles)]
+          `INSERT INTO partner_tokens (token, user_id, email, name, roles_json, sale_channels_json, sale_channel_options_json)
+           VALUES (?, ?, ?, ?, ?, ?, ?)
+           ON DUPLICATE KEY UPDATE user_id=VALUES(user_id), email=VALUES(email), name=VALUES(name), roles_json=VALUES(roles_json),
+             sale_channels_json=VALUES(sale_channels_json), sale_channel_options_json=VALUES(sale_channel_options_json)`,
+          [data.data.access_token, userInfo.id, userInfo.email, userInfo.name, JSON.stringify(userInfo.roles),
+           JSON.stringify(userInfo.sale_channels), JSON.stringify(userInfo.sale_channel_options)]
         );
       } catch (e) { console.error('[partner_tokens] save error:', e.message); }
     }
