@@ -504,7 +504,15 @@
       background: var(--blue-500); color: #fff; font-weight: 700; font-size: 13px;
       display: inline-flex; align-items: center; justify-content: center;
     }
-    /* ===== USER MENU (bấm avatar -> dropdown: Liên kết Basso / Đăng xuất) ===== */
+    .topbar-logout-icon {
+      width: 40px; height: 40px; border-radius: var(--radius-pill); flex: none;
+      background: #fff; border: none; box-shadow: inset 0 0 0 1px var(--border-hairline);
+      display: inline-flex; align-items: center; justify-content: center;
+      color: var(--ink-700); cursor: pointer; transition: background 0.15s, color 0.15s;
+    }
+    .topbar-logout-icon:hover { color: var(--danger); background: rgba(226,104,98,.10); }
+
+    /* ===== USER MENU (bấm avatar -> dropdown: tên + Đăng xuất) ===== */
     .topbar-user { position: relative; flex: none; }
     .topbar-user-btn {
       display: inline-flex; align-items: center; gap: 6px;
@@ -1546,16 +1554,15 @@
           <div class="tum-status">Online</div>
         </div>
         <div class="tum-sep"></div>
-        <button class="tum-item" onclick="closeUserMenu(); backToAdmin()">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M16 17l5-5-5-5M21 12H9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 21H6a1 1 0 01-1-1V4a1 1 0 011-1h3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          Liên kết Basso
-        </button>
         <button class="tum-item tum-danger" onclick="closeUserMenu(); logoutBot()">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M10 21H6a1 1 0 01-1-1V4a1 1 0 011-1h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M17 16l4-4-4-4M21 12H10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
           Đăng xuất
         </button>
       </div>
     </div>
+    <button class="topbar-logout-icon" onclick="logoutBot()" title="Đăng xuất">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 21H6a1 1 0 01-1-1V4a1 1 0 011-1h3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 17l5-5-5-5M21 12H9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
   </div>
 
   <!-- Mobile conversation header (back + tên khách + subtitle) -->
@@ -5509,12 +5516,14 @@
   // ===== END DASHBOARD =====
 
   function logoutBot() {
-    openConfirmModal('Bạn muốn đăng xuất khỏi Doraemon và quay về dashboard?', () => {
+    openConfirmModal('Bạn muốn đăng xuất khỏi Mon?', () => {
       try {
         localStorage.removeItem('ai_chat_user');
         sessionStorage.removeItem('ai_chat_user');
       } catch {}
-      window.location.replace('https://ai.basso.vn/');
+      // Về thẳng trang đăng nhập của Mon để đăng nhập lại / đổi tài khoản ngay
+      // (trước đây nhảy ra ai.basso.vn, muốn vào lại phải mò URL bot).
+      window.location.replace('login.html');
     }, { title: 'Đăng xuất', okText: 'Đăng xuất' });
   }
 
