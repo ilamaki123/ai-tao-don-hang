@@ -3583,6 +3583,15 @@
       addMessage('ai', 'Giỏ hàng trống. Vui lòng thêm sản phẩm trước.');
       return;
     }
+    // Bắt buộc có kênh sale mới cho tạo đơn (chặn trước khi log "Tạo đơn").
+    if (!getEffectiveSaleChannel(session)) {
+      openConfirmModal(
+        'Đơn hàng chưa có Kênh sale. Vui lòng chọn Kênh sale ở giỏ hàng trước khi tạo đơn.',
+        () => editCartSaleChannel(),
+        { title: 'Thiếu kênh sale', okText: 'Chọn kênh sale' }
+      );
+      return;
+    }
     addMessage('user', 'Tạo đơn');
     _orderSubmitting = true;
     showTyping();
