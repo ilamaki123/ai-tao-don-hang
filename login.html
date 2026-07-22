@@ -389,7 +389,13 @@
       const user = await callLoginAPI(username, password);
       clearTimeout(slowTimer);
 
-      const sessionData = { id: user.id, username: user.username, name: user.name, token: user.token, roles: user.roles };
+      // Phải giữ cả 2 field kênh sale — index.html dựa vào sale_channel_options
+      // để biết tài khoản được phép chọn kênh nào (thiếu = tưởng phiên cũ).
+      const sessionData = {
+        id: user.id, username: user.username, name: user.name, token: user.token, roles: user.roles,
+        sale_channels: user.sale_channels || [],
+        sale_channel_options: user.sale_channel_options || [],
+      };
       if (remember) {
         localStorage.setItem('ai_chat_user', JSON.stringify(sessionData));
       } else {
