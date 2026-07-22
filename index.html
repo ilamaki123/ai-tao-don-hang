@@ -4383,14 +4383,22 @@
     return c ? c.name : '';
   }
 
-  // Kênh Basso đã gán cho tài khoản (user.sale_channels). Chỉ tự điền khi có
-  // ĐÚNG 1 kênh — nhiều kênh thì để user tự chọn, tránh gán sai kênh doanh thu.
+  // Kênh mặc định điền sẵn, từ kênh Basso đã gán (user.sale_channels).
+  // 'cty' được coi là kênh PHỤ: có nó cũng không tính khi xác định mặc định,
+  // nhưng vẫn chọn được trong picker.
+  //   1 kênh                        -> tự điền kênh đó
+  //   cty + đúng 1 kênh khác        -> tự điền kênh khác (cty là lựa chọn phụ)
+  //   từ 2 kênh khác trở lên        -> để trống, buộc tự chọn
+  //   (vd 3 kênh gồm cty cũng để trống)
   function getAccountSaleChannel() {
     const list = (sessionUser && sessionUser.sale_channels) || [];
     const codes = list
       .filter(c => typeof c === 'string' && c.trim())
       .map(c => c.trim().toLowerCase());
-    return codes.length === 1 ? codes[0] : '';
+    if (codes.length === 1) return codes[0];
+    const others = codes.filter(c => c !== 'cty');
+    if (codes.includes('cty') && others.length === 1) return others[0];
+    return '';
   }
 
   // undefined = user CHƯA tự chọn -> dùng kênh của tài khoản.
