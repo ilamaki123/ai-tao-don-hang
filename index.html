@@ -4281,13 +4281,18 @@
     { code: 'shipus', name: 'ShipUS' },
     { code: 'cty', name: 'Cty' },
   ];
-  // Kênh tài khoản ĐƯỢC PHÉP chọn — lấy từ user.sale_channel_options lúc login
-  // (đúng nguồn của select trên web admin). Session cũ chưa có field này thì
-  // fallback về danh sách đầy đủ.
+  function isAdminUser() {
+    return !!(sessionUser && sessionUser.roles && sessionUser.roles.includes('admin'));
+  }
+
+  // Kênh tài khoản ĐƯỢC PHÉP chọn — lấy từ user.sale_channel_options trong
+  // token lúc login. Chỉ admin mới thấy toàn bộ kênh; tài khoản thường chỉ
+  // thấy đúng kênh trong token của mình (KHÔNG fallback danh sách đầy đủ,
+  // tránh chọn nhầm kênh không thuộc quyền).
   function getSaleChannelOptions() {
+    if (isAdminUser()) return SALE_CHANNELS;
     const opts = (sessionUser && sessionUser.sale_channel_options) || [];
-    const valid = opts.filter(o => o && typeof o.code === 'string' && o.code);
-    return valid.length ? valid : SALE_CHANNELS;
+    return opts.filter(o => o && typeof o.code === 'string' && o.code);
   }
 
   function getSaleChannelName(code) {
@@ -4318,9 +4323,18 @@
     if (!session) return;
     const list = document.getElementById('saleChannelModalList');
     const cur = getEffectiveSaleChannel(session) || '';
-    list.innerHTML = [{ code: '', name: '— (mặc định)' }, ...getSaleChannelOptions()].map(c =>
-      `<div class="term-modal-item${c.code === cur ? ' selected' : ''}" onclick="selectSaleChannelAndClose('${c.code}')">${escapeHtml(c.name)}</div>`
-    ).join('');
+    const opts = getSaleChannelOptions();
+    // Kênh sale là bắt buộc → không còn option "— (mặc định)" để tránh ngõ cụt
+    // (chọn rỗng rồi lại bị chặn khi bấm Tạo đơn).
+    list.innerHTML = opts.length
+      ? opts.map(c =>
+          `<div class="term-modal-item${c.code === cur ? ' selected' : ''}" onclick="selectSaleChannelAndClose('${c.code}')">${escapeHtml(c.name)}</div>`
+        ).join('')
+      : `<div style="padding:14px 4px;font-size:13px;color:var(--ink-400);line-height:1.6">
+           Tài khoản của bạn chưa được gán kênh sale nào.<br>
+           Vui lòng liên hệ quản lý để được cấp kênh sale.<br>
+           <span style="color:var(--ink-300)">Nếu vừa được cấp, hãy đăng xuất rồi đăng nhập lại.</span>
+         </div>`;
     document.getElementById('saleChannelModal').classList.add('show');
   }
   function closeSaleChannelModal() {
