@@ -428,6 +428,17 @@
       if (!data.success) throw new Error(data.message || 'Đăng nhập thất bại. Vui lòng thử lại.');
 
       const user = data.data.user;
+      // Kênh sale Basso phân cho tài khoản này (nếu có trong user object).
+      // Ưu tiên key 'sale_channel'; fallback key nào chứa 'channel'.
+      // Giá trị được index.html đối chiếu với danh sách mã hợp lệ trước khi dùng.
+      let saleChannel = '';
+      if (typeof user.sale_channel === 'string') {
+        saleChannel = user.sale_channel;
+      } else {
+        for (const k of Object.keys(user || {})) {
+          if (/channel/i.test(k) && typeof user[k] === 'string' && user[k]) { saleChannel = user[k]; break; }
+        }
+      }
       return {
         id: user.id,
         username: user.email,
@@ -435,6 +446,7 @@
         token: data.data.access_token,
         expires_at: data.data.expires_at,
         roles: user.roles || [],
+        sale_channel: saleChannel || '',
       };
     } catch (err) {
       clearTimeout(timeout);

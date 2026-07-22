@@ -3600,6 +3600,7 @@
     const c = session.customer;
     const useCheckout = !!session.checkoutMode && !!session.checkoutInfo;
     const ci = session.checkoutInfo || {};
+    const saleChannel = getEffectiveSaleChannel(session);
     const orderBody = {
       customer_id: useCheckout ? (ci.customer_id || c.id) : c.id,
       name: useCheckout ? ci.name : c.name,
@@ -3620,8 +3621,9 @@
       website: extractWebsiteFromItems(session.items),
       ...(session.webShippingFee ? { web_shipping_fee: Number(session.webShippingFee) } : {}),
       ...(session.adminNote ? { admin_note: session.adminNote } : {}),
-      // Không chọn → không gửi, để Basso tự mặc định theo brand.
-      ...(session.saleChannel ? { sale_channel: session.saleChannel } : {}),
+      // Mặc định theo kênh của tài khoản; user chọn "—" thì không gửi, để
+      // Basso tự mặc định theo brand.
+      ...(saleChannel ? { sale_channel: saleChannel } : {}),
       items: JSON.stringify(session.items.map(item => {
         const pct = getItemSalePct(item, session.salePct || 0);
         // Round to 3 decimals — must match what the cart card displays
@@ -4083,6 +4085,7 @@
     const session = getActiveSession();
     if (!session || session.items.length === 0) return '<div class="cart-panel" style="display:block;border:none;padding:8px 0;">Giỏ hàng trống.</div>';
     const webFee = Number(session.webShippingFee) || 0;
+    const effSaleChannel = getEffectiveSaleChannel(session);
     const totals = calcCartTotal(session.items, session.salePct || 0, webFee);
     const totalStr = Object.keys(totals).length > 0 ? formatTotal(totals) : '';
     const cards = session.items.map((item, i) => renderCartCard(item, i, session)).join('');
@@ -4090,9 +4093,9 @@
       <div class="cart-panel" style="display:block;border:none;max-height:none;padding:8px 0;">
         <div class="cart-header">
           <span class="cart-title">Giỏ hàng (${session.items.length} sản phẩm)</span>
-          <span class="cart-field cart-field-sale" onclick="editCartSaleChannel()" style="color:${session.saleChannel ? '#333' : '#999'};cursor:pointer">
+          <span class="cart-field cart-field-sale" onclick="editCartSaleChannel()" style="color:${effSaleChannel ? '#333' : '#999'};cursor:pointer">
             <span class="cart-field-label">Kênh sale</span>
-            <span class="cart-field-value">${session.saleChannel ? escapeHtml(getSaleChannelName(session.saleChannel)) : '—'}</span>
+            <span class="cart-field-value">${effSaleChannel ? escapeHtml(getSaleChannelName(effSaleChannel)) : '—'}</span>
           </span>
           <span class="cart-field cart-field-ship" onclick="editCartShipFee()" style="color:${webFee ? '#333' : '#999'};cursor:pointer">
             <span class="cart-field-label">Ship web</span>
@@ -4274,11 +4277,27 @@
     return c ? c.name : '';
   }
 
+  // Kênh sale Basso phân cho tài khoản đang đăng nhập (lấy từ user object lúc
+  // login). Chỉ nhận khi khớp mã hợp lệ; không khớp/không có -> '' (giữ nguyên
+  // hành vi cũ: không gửi sale_channel, để Basso tự mặc định theo brand).
+  function getAccountSaleChannel() {
+    const raw = (sessionUser && sessionUser.sale_channel) || '';
+    const code = String(raw).trim().toLowerCase();
+    return SALE_CHANNELS.some(x => x.code === code) ? code : '';
+  }
+
+  // undefined = user CHƯA tự chọn -> dùng kênh của tài khoản.
+  // '' = user đã chủ động chọn "— (mặc định)" -> tôn trọng, không tự điền lại.
+  function getEffectiveSaleChannel(session) {
+    if (session && session.saleChannel !== undefined) return session.saleChannel;
+    return getAccountSaleChannel();
+  }
+
   function editCartSaleChannel() {
     const session = getActiveSession();
     if (!session) return;
     const list = document.getElementById('saleChannelModalList');
-    const cur = session.saleChannel || '';
+    const cur = getEffectiveSaleChannel(session) || '';
     list.innerHTML = [{ code: '', name: '— (mặc định)' }, ...SALE_CHANNELS].map(c =>
       `<div class="term-modal-item${c.code === cur ? ' selected' : ''}" onclick="selectSaleChannelAndClose('${c.code}')">${escapeHtml(c.name)}</div>`
     ).join('');
