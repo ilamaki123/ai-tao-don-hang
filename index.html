@@ -4344,6 +4344,13 @@
     return !!(sessionUser && sessionUser.roles && sessionUser.roles.includes('admin'));
   }
 
+  // Phiên đăng nhập có kèm dữ liệu kênh sale hay không. Session đăng nhập từ
+  // TRƯỚC khi Mon đọc kênh sale sẽ thiếu hẳn field này (khác với "được gán
+  // rỗng") — dùng để báo đúng lý do thay vì kết luận nhầm là chưa được gán.
+  function hasSaleChannelData() {
+    return !!(sessionUser && Array.isArray(sessionUser.sale_channel_options));
+  }
+
   // Kênh tài khoản ĐƯỢC PHÉP chọn — lấy từ user.sale_channel_options trong
   // token lúc login. Chỉ admin mới thấy toàn bộ kênh; tài khoản thường chỉ
   // thấy đúng kênh trong token của mình (KHÔNG fallback danh sách đầy đủ,
@@ -4389,11 +4396,20 @@
       ? opts.map(c =>
           `<div class="term-modal-item${c.code === cur ? ' selected' : ''}" onclick="selectSaleChannelAndClose('${c.code}')">${escapeHtml(c.name)}</div>`
         ).join('')
-      : `<div style="padding:14px 4px;font-size:13px;color:var(--ink-400);line-height:1.6">
-           Tài khoản của bạn chưa được gán kênh sale nào.<br>
-           Vui lòng liên hệ quản lý để được cấp kênh sale.<br>
-           <span style="color:var(--ink-300)">Nếu vừa được cấp, hãy đăng xuất rồi đăng nhập lại.</span>
-         </div>`;
+      : (hasSaleChannelData()
+          // Có dữ liệu kênh trong token nhưng rỗng -> thật sự chưa được gán.
+          ? `<div style="padding:14px 4px;font-size:13px;color:var(--ink-400);line-height:1.6">
+               Tài khoản của bạn chưa được gán kênh sale nào.<br>
+               Vui lòng liên hệ quản lý để được cấp kênh sale.
+             </div>`
+          // Thiếu hẳn field -> phiên đăng nhập cũ (trước khi Mon đọc kênh sale),
+          // KHÔNG phải chưa được gán. Chỉ cần đăng nhập lại là có.
+          : `<div style="padding:14px 4px;font-size:13px;color:var(--ink-400);line-height:1.6">
+               Phiên đăng nhập của bạn đã cũ nên Mon chưa có dữ liệu kênh sale.<br>
+               Hãy <b>đăng xuất rồi đăng nhập lại</b> để Mon lấy kênh sale của tài khoản.
+               <button class="edit-modal-btn edit-modal-btn-save" style="margin-top:12px"
+                       onclick="closeSaleChannelModal(); logoutBot()">Đăng xuất &amp; đăng nhập lại</button>
+             </div>`);
     document.getElementById('saleChannelModal').classList.add('show');
   }
   function closeSaleChannelModal() {
