@@ -3701,7 +3701,13 @@
       isStock: false,
       country_id: detectCountryId(session.items),
       payment_limit_id: 1,
-      brand: useCheckout ? 'checkout' : (c.brand || 'shipus'),
+      // Tiền tố mã đơn do brand quyết định (shipus->SU, checkout->CO), sale_channel
+      // KHÔNG ảnh hưởng. "Tạo đơn Order" (useCheckout=false) không bao giờ được ra
+      // đơn checkout: khách có brand='checkout' sẵn trên Basso vẫn phải ra đơn SU
+      // đúng nút đã chọn. Đơn CO chỉ tạo qua "Tạo đơn Checkout". Brand khác (vd
+      // basso) vẫn giữ nguyên.
+      brand: useCheckout ? 'checkout'
+        : (c.brand && String(c.brand).toLowerCase() !== 'checkout' ? c.brand : 'shipus'),
       website: extractWebsiteFromItems(session.items),
       ...(session.webShippingFee ? { web_shipping_fee: Number(session.webShippingFee) } : {}),
       ...(session.adminNote ? { admin_note: session.adminNote } : {}),
