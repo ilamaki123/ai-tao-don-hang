@@ -1772,6 +1772,8 @@
         window[key].setItem('ai_chat_user', JSON.stringify(sessionUser));
         // Giỏ hàng có thể đã render trước khi fetch xong -> vẽ lại để hiện kênh
         try { if (typeof renderCart === 'function') renderCart(); } catch (e) {}
+        // Panel Đơn Cancel có thể đã fetch trước khi biết kênh -> fetch lại để lọc
+        try { if (typeof fetchCancelNotifications === 'function') fetchCancelNotifications(); } catch (e) {}
       }).catch(() => {});
   }
 
@@ -4971,6 +4973,24 @@
   }
   function getCancelItemKey(orderId, itemId) { return orderId + ':' + itemId; }
 
+  // Đơn Cancel chỉ hiện đơn thuộc kênh sale được gán cho tài khoản (o.sale_channel
+  // đã có sẵn trong từng đơn). Áp dụng cho cả badge lẫn danh sách.
+  //   - Admin: KHÔNG lọc (vai trò giám sát toàn hệ thống, thấy mọi kênh).
+  //   - Tài khoản chưa có kênh (session cũ / chưa gán): KHÔNG lọc, tránh ẩn hết.
+  function filterCancelOrdersByChannel(orders) {
+    orders = orders || [];
+    if (isAdminUser()) return orders;
+    const chans = (sessionUser && sessionUser.sale_channels) || [];
+    const set = new Set(
+      chans.filter(c => typeof c === 'string' && c.trim()).map(c => c.trim().toLowerCase())
+    );
+    if (set.size === 0) return orders;
+    return orders.filter(o => {
+      const sc = String(o.sale_channel || '').trim().toLowerCase();
+      return sc && set.has(sc);
+    });
+  }
+
   function getUnseenCancelCount() {
     const seen = loadCancelSeenIds();
     let count = 0;
@@ -5008,6 +5028,9 @@
       const data = await res.json();
       if (data?.success) {
         const payload = data.data || { orders: [] };
+        // Lọc theo kênh sale của tài khoản TRƯỚC mọi xử lý (sort/badge/render/seen
+        // đều dùng chung _cancelData nên chỉ cần lọc ở đây một lần).
+        payload.orders = filterCancelOrdersByChannel(payload.orders || []);
         // Sort theo created_time tăng dần — đơn cũ ở trên, mới ở dưới (chat-style).
         // Fallback theo id nếu thiếu created_time.
         (payload.orders || []).sort((a, b) => {
