@@ -1355,6 +1355,49 @@ app.get('/api/orders-by-item-status', async (req, res) => {
 
 // ===== PROXY: ĐƠN CÓ SP CANCEL (scope theo user của token) =====
 // Basso tự lọc theo approve_user_id = user_id của Bearer token (trừ admin/accounting_manager).
+// Metadata đơn (sale_channel + approve_user) — danh sách cancel KHÔNG có, phải
+// lấy từ getOrderByCode. Cả 2 field không đổi theo thời gian nên cache vĩnh viễn
+// theo order_code; mỗi đơn chỉ fetch getOrderByCode đúng 1 lần.
+const _cancelOrderMetaCache = new Map();
+
+async function enrichCancelOrders(orders, headers) {
+  const codes = [...new Set(orders.map(o => o.order_code).filter(c => c && !_cancelOrderMetaCache.has(c)))];
+  let i = 0;
+  async function worker() {
+    while (i < codes.length) {
+      const code = codes[i++];
+      try {
+        const r = await fetch(`${BASSO_URL}/partner/getOrderByCode?order_code=${encodeURIComponent(code)}`, { headers });
+        const o = (await r.json())?.data?.order || {};
+        _cancelOrderMetaCache.set(code, {
+          sale_channel: String(o.sale_channel || ''),
+          approve_user: String(o.approve_user || ''),
+        });
+      } catch { _cancelOrderMetaCache.set(code, { sale_channel: '', approve_user: '' }); }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(6, codes.length) }, worker));
+  orders.forEach(o => {
+    const m = _cancelOrderMetaCache.get(o.order_code) || {};
+    o.sale_channel = m.sale_channel || '';
+    o.approve_user = m.approve_user || '';
+  });
+}
+
+// Kênh sale gán cho tài khoản của token (từ tokenUserMap hoặc partner_tokens).
+async function getAccountSaleChannels(req) {
+  const token = (req.headers['authorization'] || '').replace('Bearer ', '').trim();
+  const cached = token ? tokenUserMap.get(token) : null;
+  if (cached && Array.isArray(cached.sale_channels)) return cached.sale_channels;
+  if (!token) return [];
+  try {
+    const db = await getDb();
+    const [rows] = await db.execute('SELECT sale_channels_json FROM partner_tokens WHERE token = ?', [token]);
+    if (rows.length && rows[0].sale_channels_json) { try { return JSON.parse(rows[0].sale_channels_json) || []; } catch {} }
+  } catch {}
+  return [];
+}
+
 app.get('/api/cancel-notifications', async (req, res) => {
   if (IS_MOCK) {
     return res.json({ success: true, data: { orders: [], total_orders: 0 }, _mock: true });
@@ -1374,6 +1417,24 @@ app.get('/api/cancel-notifications', async (req, res) => {
     try { data = JSON.parse(rawText); } catch {
       // Basso trả HTML (endpoint lỗi/chưa sẵn) → silent skip thay vì 500
       return res.json({ success: false, message: 'Endpoint chưa khả dụng', data: { orders: [], total_orders: 0 } });
+    }
+    // Gắn sale_channel + approve_user cho từng đơn (getOrderByCode), rồi CHỈ giữ
+    // đơn thuộc kênh sale của tài khoản. Admin (hoặc tài khoản chưa gán kênh) xem
+    // tất cả.
+    if (data?.success && Array.isArray(data?.data?.orders) && data.data.orders.length) {
+      const orders = data.data.orders;
+      await enrichCancelOrders(orders, bassoHeaders(req));
+      const user = await resolveUserFull(req);
+      const isAdmin = (user?.roles || []).includes('admin');
+      const set = new Set(
+        (await getAccountSaleChannels(req))
+          .filter(c => typeof c === 'string' && c.trim())
+          .map(c => c.trim().toLowerCase())
+      );
+      if (!isAdmin && set.size) {
+        data.data.orders = orders.filter(o => set.has(String(o.sale_channel || '').trim().toLowerCase()));
+        if (data.data.total_orders != null) data.data.total_orders = data.data.orders.length;
+      }
     }
     res.json(data);
   } catch (err) {
