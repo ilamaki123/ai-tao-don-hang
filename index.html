@@ -340,6 +340,7 @@
     .cancel-card-code { font-size: 13.5px; font-weight: 800; letter-spacing: -.01em; color: var(--ink-900); }
     .cancel-site-chip { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 999px; background: var(--blue-100); color: var(--blue-600); }
     .cancel-cust-chip { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 999px; background: var(--mint-100); color: var(--mint-600); }
+    .cancel-approver-chip { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 999px; background: var(--ink-200); color: var(--ink-700); display: inline-flex; align-items: center; gap: 4px; }
     .cancel-items { margin-top: 6px; }
     .cancel-item { display: flex; gap: 12px; align-items: flex-start; padding: 14px 0; border-bottom: 1px solid var(--border-card); }
     .cancel-item:last-child { border-bottom: none; }
@@ -4957,6 +4958,10 @@
   // ===== CANCEL NOTIFICATIONS PANEL =====
   var _cancelPanelOpen = false;
   var _cancelData = { orders: [] };
+  // Tên nhân viên duyệt đơn — danh sách cancel KHÔNG có, phải lấy từ /api/get-order
+  // (field approve_user). Cache theo order_code (không đổi) để chỉ fetch 1 lần/đơn.
+  var _approveUserCache = {};      // order_code -> tên ('' = đã fetch, đơn không có người duyệt)
+  var _approveUserPending = new Set();
   var _cancelSearchQuery = '';  // lọc panel Đơn Cancel theo mã đơn / tên khách / SP
   var _cancelPollTimer = null;
   // Snapshot seenIds tại thời điểm mở panel — dùng để xác định item nào là "NEW"
@@ -5145,6 +5150,31 @@
     if (view) view.scrollTop = view.scrollHeight;
   }
 
+  // Lấy tên NV duyệt cho các đơn ĐANG hiển thị mà chưa có trong cache. Giới hạn
+  // đồng thời để không dội request. Xong thì render lại 1 lần để hiện chip.
+  async function ensureApproveUsers(orders) {
+    const codes = (orders || [])
+      .map(o => o.order_code)
+      .filter(c => c && !(c in _approveUserCache) && !_approveUserPending.has(c));
+    if (!codes.length) return;
+    codes.forEach(c => _approveUserPending.add(c));
+    let idx = 0, changed = false;
+    async function worker() {
+      while (idx < codes.length) {
+        const code = codes[idx++];
+        try {
+          const r = await fetch(`${API_BASE}/api/get-order?order_code=${encodeURIComponent(code)}`, { headers: getAuthHeaders() });
+          const d = await r.json();
+          _approveUserCache[code] = (d?.data?.order?.approve_user || '').toString().trim();
+        } catch { _approveUserCache[code] = ''; }
+        finally { _approveUserPending.delete(code); }
+        changed = true;
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(6, codes.length) }, worker));
+    if (changed && _cancelPanelOpen) renderCancelPanel({ keepScroll: true });
+  }
+
   function renderCancelPanel(opts = {}) {
     const list = document.getElementById('cancelPanelList');
     if (!list) return;
@@ -5170,6 +5200,8 @@
     if (stickToBottom) {
       requestAnimationFrame(scrollCancelPanelToBottom);
     }
+    // Nạp tên NV duyệt cho các đơn đang hiển thị (lazy, cache) rồi render lại.
+    ensureApproveUsers(orders);
   }
 
   function isCancelItemNew(orderId, itemId) {
@@ -5229,10 +5261,14 @@
       : '';
     const siteChip = site ? `<span class="cancel-site-chip">${escapeHtml(site)}</span>` : '';
     const custChip = customerName ? `<span class="cancel-cust-chip">${escapeHtml(customerName)}</span>` : '';
+    const approver = _approveUserCache[orderCode];
+    const approverChip = approver
+      ? `<span class="cancel-approver-chip" title="Nhân viên duyệt đơn"><svg width="11" height="11" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="2"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Duyệt: ${escapeHtml(approver)}</span>`
+      : '';
     return `
       <div class="cancel-card">
         <div class="cancel-card-head">
-          <span class="cancel-card-code">${escapeHtml(orderCode)}</span>${siteChip}${custChip}${orderDot}
+          <span class="cancel-card-code">${escapeHtml(orderCode)}</span>${siteChip}${custChip}${approverChip}${orderDot}
         </div>
         <div class="cancel-items">${itemsHtml}</div>
         <div class="cancel-card-foot">

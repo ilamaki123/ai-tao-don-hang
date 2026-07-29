@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ai-basso-v121';
+const CACHE_NAME = 'ai-basso-v122';
 const STATIC_ASSETS = [
   'login.html',
   'index.html',
