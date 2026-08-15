@@ -1226,6 +1226,16 @@ app.post('/api/create-order', async (req, res) => {
     if (handleBassoAuthError(response, res)) return;
     const data = await response.json();
     console.log('[create-order] Basso response:', JSON.stringify(data));
+    // Khi Basso trả lỗi (nhất là "Unknown error" chung chung): in TOÀN BỘ field
+    // của body (trừ items dài) để chẩn ngay field nào sai — customer_id, brand,
+    // sale_channel, city_id, district_id, country_id, payment_limit_id, email...
+    if (!data?.success) {
+      const b = req.body || {};
+      const { items, ...rest } = b;
+      console.error('[create-order] ❌ THẤT BẠI | errors=', JSON.stringify(data?.errors),
+        '| message=', JSON.stringify(data?.message),
+        '| body(trừ items)=', JSON.stringify(rest));
+    }
     // Log vào order_log nếu thành công
     if (data?.success && data?.data?.orderCode) {
       try {
